@@ -57,7 +57,9 @@ def compute_MK(Kmag, eKmag, parallax, eparallax):
     
 
 def compute_Ms_from_MK(MK, eMK):
-    '''from Eq 11 and Table 13 in Benedict+2016'''
+    '''from Eq 11 and Table 13 in Benedict+2016 and 
+    Eq on page 220 of Delfosse+2000'''
+    # compute all masses using B16
     C0 = unp.uarray(.2311, .0004)
     C1 = unp.uarray(-.1352, .0007)
     C2 = unp.uarray(.04, .0005)
@@ -65,7 +67,22 @@ def compute_Ms_from_MK(MK, eMK):
     C4 = unp.uarray(-.0032, .0001)
     x0 = 7.5
     MK = unp.uarray(MK, eMK)
-    Ms = C0 + C1*(MK-x0) + C2*(MK-x0)**2 + C3*(MK-x0)**3 + C4*(MK-x0)**4
+    Ms_B16 = C0 + C1*(MK-x0) + C2*(MK-x0)**2 + C3*(MK-x0)**3 + C4*(MK-x0)**4
+
+    # compute all masses using D00
+    coeffs = 1e-3 * np.array([0.37529, -6.2315, 13.205, 6.12, 1.8])
+    p = np.poly1d(coeffs)
+    Ms_D00 = 10**(p(MK))
+
+    # select masses over valid ranges
+    b = unp.nominal_values(MK) >= 5
+    d = (unp.nominal_values(MK) >= 4.5) & (unp.nominal_values(MK) < 5)
+    g = (unp.nominal_values(MK) < 4.5)
+    assert b.sum() + d.sum() + g.sum() == MK.size
+    Ms = unp.uarray(np.ones(MK.size) + np.nan, np.ones(MK.size) + np.nan)
+    Ms[b] = Ms_B16[b]
+    Ms[d] = Ms_D00[d]
+
     return unp.nominal_values(Ms), unp.std_devs(Ms)
     
 
@@ -77,7 +94,24 @@ def compute_Rs_from_Ms(Ms, eMs):
     Ms = unp.uarray(Ms, eMs)
     Rs = a*Ms*Ms + b*Ms + c
     return unp.nominal_values(Rs), unp.std_devs(Rs)
-    
+
+
+def compute_sma_from_Ms(Ps, ePs, Ms, eMs):
+    Ps = unp.uarray(Ps, ePs)
+    Ms = unp.uarray(Ms, eMs)
+    sma = rvs.semimajoraxis(Ps, Ms, 0)
+    return unp.nominal_values(sma), unp.std_devs(sma)
+
+
+def compute_F_Rs_Ms(Ps, ePs, Ms, eMs, Rs, eRs, Teff, eTeff):
+    sma, esma = compute_sma_from_Ms(Ps, ePs, Ms, eMs)
+    sigma = 5.670367e-8
+    sma = unp.uarray(sma, esma)
+    Rs = unp.uarray(Rs, eRs)
+    Teff = unp.uarray(Teff, eTeff)
+    F = sigma * (rvs.Rsun2m(Rs)/rvs.AU2m(sma))**2 * Teff**4 / 1367.
+    return unp.nominal_values(F), unp.std_devs(F)
+
 
 def compute_mp_from_K(P, eP, Ms, eMs, K, eK):
     '''for use with the new GAIA-derived Ms.'''
