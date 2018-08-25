@@ -1,4 +1,7 @@
 from imports import *
+from scipy.interpolate import LinearNDInterpolator as lint
+import mwdust
+
 
 class GAIAMdwarfs():
 
@@ -28,7 +31,8 @@ def plot_error_scatter(x, ux, lx, y, uy, ly, g=[], xlim=(), ylim=(),
     else:
         g = (np.isfinite(ux)) & (np.isfinite(lx)) & \
             (np.isfinite(uy)) & (np.isfinite(ly))
-    plt.errorbar(x[g], y[g], xerr=[lx[g], ux[g]], yerr=[ly[g], uy[g]], fmt='k.')
+    plt.errorbar(x[g], y[g], xerr=[lx[g], ux[g]], yerr=[ly[g], uy[g]],
+                 fmt='k.', elinewidth=.5)
     plt.plot([x[g].min(),x[g].max()], [x[g].min(),x[g].max()], 'b--')
     if len(xlim) == 2:
         plt.xlim(xlim)
@@ -48,14 +52,92 @@ def compute_distance(parallax_mas, eparallax_mas):
     return unp.nominal_values(dist_pc), unp.std_devs(dist_pc)
     
 
-def compute_MK(Kmag, eKmag, parallax, eparallax):
-    dist_pc, edist_pc = compute_distance(parallax, eparallax)
-    dist = unp.uarray(dist_pc, edist_pc)
+def compute_AK_myself(EBV, eEBV):
+    '''compute extinction coefficient using extinction vector following 
+    what is done in Fulton+Petigura 2018 sect 3.3'''
+    raise ValueError('this is old shit')
+    b = .063
+    RK = unp.uarray(.224,.224*.3)
+    AK = unp.uarray(EBV, eEBV) * (RK+b)
+    return unp.nominal_values(AK), unp.std_devs(AK)
+
+
+def compute_AK_mwdust(ls, bs, dist, edist):
+    '''Using the EB-V map from 2014MNRAS.443.2907S and the extinction vector
+    RK = 0.31 from Schlafly and Finkbeiner 2011 (ApJ 737, 103)'''
+    dustmap = mwdust.Combined15(filter='2MASS Ks')
+    dist_kpc, edist_kpc = dist*1e-3, edist*1e-3
+    AK, eAK = np.zeros(ls.size), np.zeros(ls.size)
+    for i in range(ls.size):
+        print float(i)/ls.size
+        v = dustmap(ls[i], bs[i],
+                    np.array([dist_kpc[i], dist_kpc[i]+edist_kpc[i]]))
+        AK[i], eAK[i] = v[0], abs(np.diff(v))
+    return AK, eAK
+
+
+def compute_MK(Kmag, eKmag, dist_pc, edist_pc, AK, eAK):
     Kmag = unp.uarray(Kmag, eKmag)
-    MK = Kmag - 5.*unp.log10(dist) + 5.
+    dist = unp.uarray(dist_pc, edist_pc)
+    mu = 5.*unp.log10(dist) - 5.
+    AK = unp.uarray(AK, eAK)
+    MK = Kmag - mu - AK
     return unp.nominal_values(MK), unp.std_devs(MK)
+
+
+def interpolate_BCK(Teff, eTeff, Ms, eMs, Rs, eRs, EBV, eEBV):
+    '''interpolate the bolometric correction in the K-band from the MIST
+    models: http://adsabs.harvard.edu/abs/2016ApJ...823..102C'''
+    raise ValueError('this is old shit')
+    # create arrays
+    Teff = unp.uarray(Teff, eTeff)
+    Ms = unp.uarray(Ms, eMs)
+    Rs = unp.uarray(Rs, eRs)
+    logg = unp.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
+    EBV = unp.uarray(EBV, eEBV)
+    AV = EBV*3.1
+    
+    # get MIST models
+    TeffMISTfull, loggMISTfull, AVMISTfull, BC_KMISTfull = \
+    np.loadtxt('input_data/UBVRIplus/fehp000.UBVRIplus',usecols=(0,1,3,12)).T
+    lintBC = lint(np.array([TeffMISTfull, loggMISTfull, AVMISTfull]).T,
+                  BC_KMISTfull)
+
+    # interpolate over 1 sigma values for each star
+    BCK, eBCK = np.zeros(Teff.size), np.zeros(Teff.size)
+    for i in range(Teff.size):
+        BCKtmp = np.zeros((3,3,3))
+        for j in range(-1,2):
+            for k in range(-1,2):
+                for l in range(-1,2):
+                    Teff_val = unp.nominal_values(Teff[i]) + \
+                               j*unp.std_devs(Teff[i])
+                    logg_val = unp.nominal_values(logg[i]) + \
+                               k*unp.std_devs(logg[i])
+                    AV_val = unp.nominal_values(AV[i]) + \
+                             l*unp.std_devs(AV[i])
+                    BCKtmp[j+1,k+1,l+1] = float(lintBC(Teff_val, logg_val,
+                                                       AV_val))
+
+        # get BCK
+        BCK[i], eBCK[i] = np.median(BCKtmp), MAD(BCKtmp)
+
+    return BCK, eBCK
+
+
+def compute_BCK_from_V_J_MDWARFS(Vmag, eVmag, Jmag, eJmag):
+    '''use cubic polynomial and coefficients from table 3 in 
+    http://iopscience.iop.org/article/10.1088/0004-637X/804/1/64/pdf'''
+    color2BCK = np.poly1d([6.263e-3, -0.09655, 0.6084, 1.421])
+    V_J = unp.uarray(Vmag, eVmag) - unp.uarray(Jmag, eJmag)
+    BCK = color2BCK(V_J)
+    return unp.nominal_values(BCK), unp.std_devs(BCK)
     
 
+def MAD(arr):
+    return np.median(abs(arr-np.median(arr)))
+
+    
 def compute_Ms_from_MK(MK, eMK):
     '''from Eq 11 and Table 13 in Benedict+2016 and 
     Eq on page 220 of Delfosse+2000'''
@@ -75,14 +157,13 @@ def compute_Ms_from_MK(MK, eMK):
     Ms_D00 = 10**(p(MK))
 
     # select masses over valid ranges
-    b = unp.nominal_values(MK) >= 5
+    b = (unp.nominal_values(MK) >= 5) & (unp.nominal_values(MK) < 10)
     d = (unp.nominal_values(MK) >= 4.5) & (unp.nominal_values(MK) < 5)
     g = (unp.nominal_values(MK) < 4.5)
-    assert b.sum() + d.sum() + g.sum() == MK.size
+    #assert b.sum() + d.sum() + g.sum() == MK.size
     Ms = unp.uarray(np.ones(MK.size) + np.nan, np.ones(MK.size) + np.nan)
     Ms[b] = Ms_B16[b]
     Ms[d] = Ms_D00[d]
-
     return unp.nominal_values(Ms), unp.std_devs(Ms)
     
 
@@ -93,6 +174,22 @@ def compute_Rs_from_Ms(Ms, eMs):
     c = unp.uarray(.0906, .0027)
     Ms = unp.uarray(Ms, eMs)
     Rs = a*Ms*Ms + b*Ms + c
+    return unp.nominal_values(Rs), unp.std_devs(Rs)
+
+
+def compute_Mbol(BCK, eBCK, MK, eMK):
+    BCK = unp.uarray(BCK, eBCK)
+    MK = unp.uarray(MK, eMK)
+    Mbol = BCK + MK
+    return unp.nominal_values(Mbol), unp.std_devs(Mbol)
+
+
+def compute_Rs_from_Mbol(Mbol, eMbol, Teff, eTeff):
+    L0, sigma = 3.0128e28, 5.670367e-8
+    Mbol = unp.uarray(Mbol, eMbol)
+    Lbol = L0*10**(-.4*Mbol)
+    Teff = unp.uarray(Teff, eTeff)
+    Rs = rvs.m2Rsun(unp.sqrt(Lbol / (4*np.pi*sigma*Teff**4)))
     return unp.nominal_values(Rs), unp.std_devs(Rs)
 
 
