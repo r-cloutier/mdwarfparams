@@ -1,4 +1,3 @@
-#from compute_sensitivity import *
 from KepK2LCclass import *
 #from TESS_search import *
 #import linear_lnlike as llnl
