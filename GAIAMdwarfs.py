@@ -9,6 +9,11 @@ class GAIAMdwarfs():
 	self.fname = fname
 
 
+    def make_cuts(self):
+ 	self.good = (self.RsN<1) & (self.loggN>3) & (self.MsN<1) & \
+                    (self.parallax_reliable==1)
+        
+
     def _pickleoject(self, fname=''):
 	fname = self.fname if fname == '' else fname
         fObj = open('%s'%fname, 'wb')
@@ -17,7 +22,7 @@ class GAIAMdwarfs():
 
 
 # general functions
-def plot_error_scatter(x, ux, lx, y, uy, ly, g=[], xlim=(), ylim=(),
+def plot_error_scatter(x, ux, lx, y, uy, ly, g=[], c=[], xlim=(), ylim=(),
                        xlog=False, ylog=False):
     assert x.size == ux.size
     assert x.size == lx.size
@@ -31,8 +36,14 @@ def plot_error_scatter(x, ux, lx, y, uy, ly, g=[], xlim=(), ylim=(),
     else:
         g = (np.isfinite(ux)) & (np.isfinite(lx)) & \
             (np.isfinite(uy)) & (np.isfinite(ly))
-    plt.errorbar(x[g], y[g], xerr=[lx[g], ux[g]], yerr=[ly[g], uy[g]],
-                 fmt='k.', elinewidth=.5)
+    if len(c) > 0:
+        plt.errorbar(x[g], y[g], xerr=[lx[g], ux[g]], yerr=[ly[g], uy[g]],
+                     fmt='k.', elinewidth=.5, ms=0)
+        plt.scatter(x[g], y[g], s=20, c=c[g], cmap=plt.get_cmap('rainbow'))
+        plt.colorbar()
+    else:
+        plt.errorbar(x[g], y[g], xerr=[lx[g], ux[g]], yerr=[ly[g], uy[g]],
+                     fmt='k.', elinewidth=.5)
     plt.plot([x[g].min(),x[g].max()], [x[g].min(),x[g].max()], 'b--')
     if len(xlim) == 2:
         plt.xlim(xlim)
@@ -44,6 +55,26 @@ def plot_error_scatter(x, ux, lx, y, uy, ly, g=[], xlim=(), ylim=(),
         plt.yscale('log')
     plt.show()
     
+
+def compute_GAIAmag(Hmag, eHmag, Kmag, eKmag):
+    '''using https://www.aanda.org/articles/aa/pdf/2018/08/aa32756-18.pdf
+    Table A2'''
+    Hmag = unp.uarray(Hmag, eHmag)
+    Kmag = unp.uarray(Kmag, eKmag)
+    H_K = Hmag - Kmag
+    p = np.poly1d([-1.359, 12.073, 0.6613])
+    GAIAmag = p(H_K) + Kmag
+    GAIAmag = unp.uarray(unp.nominal_values(GAIAmag), \
+                         np.sqrt(unp.std_devs(GAIAmag)**2 + .3692**2))
+    return unp.nominal_values(GAIAmag), unp.std_devs(GAIAmag)
+
+
+def offset_parallax(parallax_mas):
+    '''Apply a systematic offset to the GAIA parallaxes in milli-arcseconds 
+    from https://arxiv.org/pdf/1804.09366.pdf'''
+    offset = .03
+    return parallax_mas + offset
+
 
 def compute_distance(parallax_mas, eparallax_mas):
     '''return distance in pc'''
@@ -69,7 +100,6 @@ def compute_AK_mwdust(ls, bs, dist, edist):
     dist_kpc, edist_kpc = dist*1e-3, edist*1e-3
     AK, eAK = np.zeros(ls.size), np.zeros(ls.size)
     for i in range(ls.size):
-        print float(i)/ls.size
         v = dustmap(ls[i], bs[i],
                     np.array([dist_kpc[i], dist_kpc[i]+edist_kpc[i]]))
         AK[i], eAK[i] = v[0], abs(np.diff(v))
@@ -159,13 +189,21 @@ def compute_Ms_from_MK(MK, eMK):
     # select masses over valid ranges
     b = (unp.nominal_values(MK) >= 5) & (unp.nominal_values(MK) < 10)
     d = (unp.nominal_values(MK) >= 4.5) & (unp.nominal_values(MK) < 5)
-    g = (unp.nominal_values(MK) < 4.5)
-    #assert b.sum() + d.sum() + g.sum() == MK.size
     Ms = unp.uarray(np.ones(MK.size) + np.nan, np.ones(MK.size) + np.nan)
     Ms[b] = Ms_B16[b]
     Ms[d] = Ms_D00[d]
+    #Ms = Ms_D00
     return unp.nominal_values(Ms), unp.std_devs(Ms)
-    
+
+
+def compute_Ms_from_MK_M15(MK, eMK):
+    g = (MK >= 4.5) & (MK < 9.5)
+    MK = unp.uarray(MK, eMK)
+    p = np.poly1d([-2.7262e-4, .0106, -.1217, .3872, .5858])  
+    Ms = unp.uarray(np.ones(MK.size) + np.nan, np.ones(MK.size) + np.nan)
+    Ms[g] = p(MK[g])
+    return unp.nominal_values(Ms), unp.std_devs(Ms)
+
 
 def compute_Rs_from_Ms(Ms, eMs):
     '''from Eq 10 in Boyajian+2012'''
