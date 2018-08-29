@@ -17,14 +17,16 @@ class KepK2LC:
 	except OSError:
 	    pass
 	self.object_name = name
-        try:
-            os.mkdir('PipelineResults/%s'%self.object_name.replace(' ','_'))
+	self.folder_full = 'PipelineResults/%s'%self.object_name.replace(' ','_')
+        self.fname_full = '%s/KepK2LC'%self.folder_full
+	try:
+            os.mkdir(self.folder_full)
         except OSError:
             pass
         self._pickleobject()
 
 
     def _pickleobject(self):
-        fObj = open('%s/TESSResults'%self.fname_full, 'wb')
+        fObj = open(self.fname_full, 'wb')
         pickle.dump(self, fObj)
         fObj.close() 

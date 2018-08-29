@@ -1,11 +1,11 @@
 from KepK2LCclass import *
-#from TESS_search import *
-#import linear_lnlike as llnl
-#import batman, ellc
-#from massradius import radF2mass
-#from truncate_cmap import *
+from TESS_search import *
+import linear_lnlike as llnl
+import batman
+import sys
+from massradius import radF2mass
+from truncate_cmap import *
 #from joint_LCmodel import *
-from imports import *
 
 
 def read_K2_data(fits_path):
@@ -14,9 +14,29 @@ def read_K2_data(fits_path):
     for i in range(1,len(hdu)):
 	if hdu[i].header['EXTNAME'] == 'BESTAPER':
     	    bjd, f = hdu[i].data['T']+hdu[i].header['BJDREFI'], hdu[i].data['FCOR']
-	    name = hdu[i].header['OBJECT']
-	    break
-    ef = np.zeros(bjd.size)
+	    name = hdu[i].header['OBJECT'].replace(' ','_')
+	    # read or get flux error
+	    effile = 'MAST/K2_eflux'
+	    names, efs = np.genfromtxt(effile, delimiter=',',dtype='|S50').T
+	    if name in names:	
+		ef = np.repeat(efs[names==name].astype(float), bjd.size)
+	    else:
+		bad = True
+		while bad:
+		    plt.plot(np.arange(bjd.size), (f/np.nanmedian(f)-1)*1e6, '.'), plt.show()
+		    start = int(raw_input('First index to estimate ef = '))
+		    end = int(raw_input('Last index to estimate ef = '))
+		    ef = float((f/np.nanmedian(f))[start:end].std())
+		    bad = not bool(int(raw_input('Is %.4e ppm a reasonable ef value (1=yes, 0=no)? '%(ef*1e6))))
+		h = open(effile, 'r')
+		g = f.read()
+		h.close()
+		g += '%s,%6e\n'%(name, ef)
+		h = open(effile, 'w')
+		h.write(g)
+		h.close()
+		ef = np.repeat(ef, bjd.size)
+    	    break
     s = np.argsort(bjd)
     return name, bjd[s], f[s], ef[s]
 
@@ -50,7 +70,7 @@ def planet_search(fits_path):
     compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    name, bjd, f, ef = read_K2_data(fits_path) if 'fits' in fits_path else read_Kepler_data(fits_path)
+    name, bjd, f, ef = read_K2_data(fits_path) if fits_path[-5:]=='.fits' else read_Kepler_data(fits_path)
     self = KepK2LC(name)
     self.bjd, self.f, self.ef = bjd, f, ef
     self.DONE = False
