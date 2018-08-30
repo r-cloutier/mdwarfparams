@@ -243,7 +243,7 @@ def _get_GP(thetaGP, x, res, ey):
     return gp, results, mu, sig
 
 
-def find_transits(self, bjd, f, ef, thetaGP, hdr, fname,
+def find_transits(self, bjd, f, ef, thetaGP,
                   Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3):
     '''Search for periodic transit-like events.'''
     # "detrend" the lc
@@ -290,14 +290,13 @@ def find_transits(self, bjd, f, ef, thetaGP, hdr, fname,
     self.POIs, self.T0OIs, self.DOIs, self.ZOIs, self.lnLOIs = Ps, T0s, \
                                                                Ds, Zs, \
                                                                lnLs_transit
-    self.pickleobject()
+    self._pickleobject()
 
     print 'Finding transit-like events and making transit parameter guesses...\n'
-    Rs = hdr['RADIUS']
     POIs, T0OIs, DOIs, ZOIs, lnLOIs, params, EBparams, maybeEBparams = \
                         llnl.identify_transit_candidates(self, Ps, T0s, Ds, Zs,
                                                          lnLs_transit,
-                                                         durations.size, Rs,
+                                                         durations.size, self.Rs,
                                                          bjd, fcorr, ef)
     self.POIs, self.T0OIs, self.DOIs, self.ZOIs, self.lnLOIs = POIs, T0OIs, \
                                                                DOIs, ZOIs, \

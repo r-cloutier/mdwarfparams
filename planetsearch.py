@@ -15,6 +15,11 @@ def read_K2_data(fits_path):
 	if hdu[i].header['EXTNAME'] == 'BESTAPER':
     	    bjd, f = hdu[i].data['T']+hdu[i].header['BJDREFI'], hdu[i].data['FCOR']
 	    name = hdu[i].header['OBJECT'].replace(' ','_')
+            print name
+            names,_,Rss,Mss,Teffs = np.genfromtxt('MAST/K2_epic', delimiter=',', dtype='|S50').T
+            Rs = float(Rss[names==name].astype(float))
+            Ms = float(Mss[names==name].astype(float))
+            Teff = float(Teffs[names==name].astype(float))
 	    # read or get flux error
 	    effile = 'MAST/K2_eflux'
 	    names, efs = np.genfromtxt(effile, delimiter=',',dtype='|S50').T
@@ -38,7 +43,7 @@ def read_K2_data(fits_path):
 		ef = np.repeat(ef, bjd.size)
     	    break
     s = np.argsort(bjd)
-    return name, bjd[s], f[s], ef[s]
+    return name, Rs, Ms, Teff, bjd[s], f[s], ef[s]
 
 
 def read_Kepler_data(fits_dir, maxdays=2e2):
@@ -62,7 +67,7 @@ def read_Kepler_data(fits_dir, maxdays=2e2):
     bjd, f, ef = bjd[s], f[s], ef[s]
     # resistrict to a certain time period
     g = bjd-bjd.min() <= maxdays
-    return name, bjd[g], f[g], ef[g]
+    return name, Rs, bjd[g], f[g], ef[g]
 
 
 def planet_search(fits_path):
@@ -70,9 +75,10 @@ def planet_search(fits_path):
     compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    name, bjd, f, ef = read_K2_data(fits_path) if fits_path[-5:]=='.fits' else read_Kepler_data(fits_path)
+    name,Rs,Ms,Teff,bjd,f,ef = read_K2_data(fits_path) if fits_path[-5:]=='.fits' else read_Kepler_data(fits_path)
     self = KepK2LC(name)
     self.bjd, self.f, self.ef = bjd, f, ef
+    self.Rs, self.Ms, self.Teff = Rs, Ms, Teff
     self.DONE = False
     self._pickleobject()
 
@@ -86,8 +92,7 @@ def planet_search(fits_path):
     # guesses
     print 'Searching for transit-like events...\n'
     params, EBparams, maybeEBparams = find_transits(self, bjd, f, ef,
-                                                    thetaGPout, hdr,
-                                                    fname_short)
+                                                    thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])
@@ -116,7 +121,7 @@ def planet_search(fits_path):
         tesslc.mufin, tesslc.sigfin = mufin, sigfin
     '''
     self.DONE = True
-    self.pickleobject()
+    self._pickleobject()
     
 
 if __name__ == '__main__':
