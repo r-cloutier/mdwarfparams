@@ -1,4 +1,4 @@
-from KepK2LCclass import *
+from K2LCclass import *
 from TESS_search import *
 import linear_lnlike as llnl
 import batman
@@ -8,7 +8,7 @@ from truncate_cmap import *
 #from joint_LCmodel import *
 
 
-def read_K2_data(fits_path):
+def read_K2_data_OLD(fits_path):
     '''Get one light curve and from the "best" aperture.'''
     hdu = fits.open(fits_path)
     for i in range(1,len(hdu)):
@@ -34,7 +34,7 @@ def read_K2_data(fits_path):
 		    ef = float((f/np.nanmedian(f))[start:end].std())
 		    bad = not bool(int(raw_input('Is %.4e ppm a reasonable ef value (1=yes, 0=no)? '%(ef*1e6))))
 		h = open(effile, 'r')
-		g = f.read()
+		g = h.read()
 		h.close()
 		g += '%s,%6e\n'%(name, ef)
 		h = open(effile, 'w')
@@ -70,15 +70,76 @@ def read_Kepler_data(fits_dir, maxdays=2e2):
     return name, Rs, bjd[g], f[g], ef[g]
 
 
-def planet_search(fits_path):
+def read_K2_data(epicnum, Ncampaigns=8):
+    # make directories
+    try:
+	os.mkdir('MAST')
+    except OSError:
+	pass
+    try:
+	os.mkdir('MAST/K2')
+    except OSError:
+	pass
+
+    # download tar file
+    for j in range(Ncampaigns):
+        folder = 'c%.2d/%.4d00000/%.5d'%(j, int(str(epicnum)[:4]), int(str(epicnum)[4:9]))
+        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(str(epicnum)), j)
+        url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
+        os.system('wget %s'%url)
+        if os.path.exists(fname):
+            folder2 = 'MAST/K2/EPIC%i'%epicnum
+            try:
+                os.mkdir(folder2)
+            except OSError:
+                pass
+            os.system('mv %s %s'%(fname, folder2))
+            break
+
+    # read fits file
+    hdu = fits.open('%s/%s'%(folder2, fname))
+    assert len(hdu) > 1
+     
+    for i in range(1,len(hdu)):
+        if hdu[i].header['EXTNAME'] == 'BESTAPER':
+            bjd, f = hdu[i].data['T']+hdu[i].header['BJDREFI'], hdu[i].data['FCOR']
+            name = hdu[i].header['OBJECT'].replace(' ','_')
+            Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
+            # estimate flux error on 96 hour timescales
+            ef_6hrs = hdu[i].header['QCDPP6']
+            ef_96hrs = ef_6hrs * np.sqrt(96./6)
+            break
+
+    ef = np.repeat(ef_96hrs, bjd.size)
+    s = np.argsort(bjd)
+    return name, Kepmag, logg, Ms, Rs, Teff, bjd[s], f[s], ef[s]
+
+
+def get_star(epicnum):
+    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt('input_data/K2targets/K2Mdwarfs.csv',
+                                                         delimiter=',').T
+    g = epics == epicnum
+    assert g.sum() == 1
+    return float(Kepmags[g]), float(loggs[g]), float(Mss[g]), float(Rss[g]), float(Teffs[g])
+
+
+def is_star_of_interest(epicnum):
+    '''Return True is star obeys the desired conditions'''
+    Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
+    return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+
+
+def planet_search(epicnum):
     '''Run a planet search on an input Kepler or K2 light curve using the pipeline defined in 
     compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    name,Rs,Ms,Teff,bjd,f,ef = read_K2_data(fits_path) if fits_path[-5:]=='.fits' else read_Kepler_data(fits_path)
-    self = KepK2LC(name)
+    name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
+    if not is_star_of_interest(epicnum):
+        raise ValueError('Input star does not obey the input conditions')
+    self = K2LC(name)
     self.bjd, self.f, self.ef = bjd, f, ef
-    self.Rs, self.Ms, self.Teff = Rs, Ms, Teff
+    self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = Kepmag, logg, Ms, Rs, Teff
     self.DONE = False
     self._pickleobject()
 
@@ -125,5 +186,5 @@ def planet_search(fits_path):
     
 
 if __name__ == '__main__':
-    fits_path = sys.argv[1]
-    planet_search(fits_path)
+    epicnum = int(sys.argv[1])
+    planet_search(epicnum)

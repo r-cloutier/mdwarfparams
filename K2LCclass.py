@@ -9,7 +9,7 @@ def loadpickle(fname):
     return self
 
 
-class KepK2LC:
+class K2LC:
 
     def __init__(self, name):
 	try:
@@ -18,7 +18,7 @@ class KepK2LC:
 	    pass
 	self.object_name = name
 	self.folder_full = 'PipelineResults/%s'%self.object_name.replace(' ','_')
-        self.fname_full = '%s/KepK2LC'%self.folder_full
+        self.fname_full = '%s/K2LC'%self.folder_full
 	try:
             os.mkdir(self.folder_full)
         except OSError:

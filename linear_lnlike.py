@@ -502,6 +502,9 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
 
             # check scatter in and out of the proposed transit to see if the
             # transit is real
+            print 'compare to dispersion_sig:', (np.median(fcorr[outtransit])- \
+                                                 np.median(fcorr[intransit]))/ \
+                                                 MAD1d(fcorr[outtransit])
             cond1 = (np.median(fcorr[outtransit]) - \
                      np.median(fcorr[intransit])) / \
                      MAD1d(fcorr[outtransit]) > dispersion_sig
@@ -510,6 +513,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             # the noise
             depth = 1-np.median(fcorr[intransit])
             sigdepth = np.median(ef[intransit])
+            print 'compare to depth_sig:', depth/sigdepth
             cond2 = depth/sigdepth > depth_sig
             transit_condition_depth_gtr_rms[i] = cond2
 	    # ensure that the flux measurements intransit are not bimodal
@@ -517,9 +521,17 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
 	    # bad period and hence a FP
             y, x = np.histogram(fcorr[intransitfull], bins=30)
             x = x[1:] - np.diff(x)[0]/2.
-            cond3 = float(y[x<x.mean()].sum())/y.sum() > bimodalfrac \
-                    if y.sum() > 0 else False
-            transit_condition_no_bimodal_flux_intransit[i] = cond3
+            y2, x2 = np.histogram(fcorr[intransit], bins=30)
+            x2 = x2[1:] - np.diff(x2)[0]/2.
+	    try:
+            	print 'compare to bimodalfrac:',float(y[x<x.mean()].sum())/y.sum(),\
+                    float(y2[x2<x2.mean()].sum())/y2.sum()
+            	cond3 = (float(y[x<x.mean()].sum())/y.sum() > bimodalfrac) | \
+                    	(float(y2[x2<x2.mean()].sum())/y2.sum() > bimodalfrac) \
+                    	if y.sum() > 0 else False
+            except ZeroDivisionError:
+		cond3 = False
+	    transit_condition_no_bimodal_flux_intransit[i] = cond3
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
             # single transit-like event
