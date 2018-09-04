@@ -84,7 +84,7 @@ def read_K2_data(epicnum, Ncampaigns=8):
     # download tar file
     for j in range(Ncampaigns):
         folder = 'c%.2d/%.4d00000/%.5d'%(j, int(str(epicnum)[:4]), int(str(epicnum)[4:9]))
-        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(str(epicnum)), j)
+        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), j)
         url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
         os.system('wget %s'%url)
         if os.path.exists(fname):
@@ -106,7 +106,7 @@ def read_K2_data(epicnum, Ncampaigns=8):
             name = hdu[i].header['OBJECT'].replace(' ','_')
             Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
             # estimate flux error on 96 hour timescales
-            ef_6hrs = hdu[i].header['QCDPP6']
+	    ef_6hrs = hdu[i].header['QCDPP6']  * 1e-6    # ppm to normalized flux
             ef_96hrs = ef_6hrs * np.sqrt(96./6)
             break
 
@@ -126,7 +126,7 @@ def get_star(epicnum):
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
-    return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+    return (Kepmag<=15.5) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
 
 
 def planet_search(epicnum):
@@ -134,9 +134,9 @@ def planet_search(epicnum):
     compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
     if not is_star_of_interest(epicnum):
-        raise ValueError('Input star does not obey the input conditions')
+        return None
+    name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
     self = K2LC(name)
     self.bjd, self.f, self.ef = bjd, f, ef
     self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = Kepmag, logg, Ms, Rs, Teff
@@ -185,6 +185,19 @@ def planet_search(epicnum):
     self._pickleobject()
     
 
+
+def do_i_run_this_star(epicnum):
+    fname = 'PipelineResults/EPIC_%i/K2LC'%epicnum
+    if os.path.exists(fname):
+        return not loadpickle(fname).DONE
+    else:
+        return True
+
+
 if __name__ == '__main__':
-    epicnum = int(sys.argv[1])
-    planet_search(epicnum)
+    startind = int(sys.argv[1])
+    endind = int(sys.argv[2])
+    epics= np.loadtxt('input_data/K2targets/K2Mdwarfs.csv', delimiter=',')[:,0]
+    for i in range(startind, endind):
+	if do_i_run_this_star(epics[i]):
+            planet_search(epics[i])    
