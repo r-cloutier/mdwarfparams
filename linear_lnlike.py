@@ -245,6 +245,7 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.05, rZ=.2):
 		to_remove = np.append(to_remove, Ps[isclose][iscloselnL])    
                 
     to_remove = np.unique(to_remove)
+    print to_remove
     assert to_remove.size <= Ps.size
     to_remove_inds = np.where(np.in1d(Ps, to_remove))[0]
     Ps_final = np.delete(Ps, to_remove_inds)
@@ -280,7 +281,7 @@ def remove_multiples_OBSOLETE(bjd, Ps, T0s, Ds, Zs, lnLs, dP=.1):
 
 
 
-def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
+def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.1):
     assert Ps.size == T0s.size
     assert Ps.size == Ds.size
     assert Ps.size == Zs.size
@@ -599,7 +600,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             # single transit-like event
             cond4 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
                     (T0 >= bjd.min()) & (T0 <= bjd.max()) & \
-                    (2*P < bjd.max()-bjd.min())
+                    (P < bjd.max()-bjd.min())
             transit_condition_ephemeris_fits_in_WF[i] = cond4
             print i, cond1, cond2, cond3, cond4
             paramsout[i] = P, T0, depth, duration
