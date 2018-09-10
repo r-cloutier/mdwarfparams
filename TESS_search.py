@@ -269,6 +269,7 @@ def find_transits(self, bjd, f, ef, thetaGP,
     fintmu, fintsig = interp1d(tbin, mubin), interp1d(tbin, sigbin)
     mu, sig = fintmu(bjd), fintsig(bjd)
     fcorr = f - mu + 1 if mu.sum() > 0 else f - mu
+    ef = np.repeat(MAD1d(fcorr), fcorr.size)
     self.bjd, self.f, self.ef = bjd, f, ef
     self.mu, self.sig, self.fcorr = mu, sig, fcorr
     self.resultsGP_detrend = thetaGP

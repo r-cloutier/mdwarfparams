@@ -221,21 +221,19 @@ def compute_transit_lnL(bjd, fcorr, ef, transit_times, durations, lnLs, depths, 
     return Ps, T0s, Ds, Zs, lnLs_transit
 
 
-def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.02, SNRZ=1):
+def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.1, SNRZ=1):
     '''remove multiple orbital periods but dont assume the shortest one is
     correct, instead select the one with the highest lnL.'''
     assert Ps.size == T0s.size
     assert Ps.size == Ds.size
     assert Ps.size == Zs.size
     assert Ps.size == lnLs.size
-    ##dP = .1
     to_remove = np.zeros(0)
     for i in range(Ps.size):
 	Ntransits = int((bjd.max()-bjd.min()) / Ps[i])
 	lim = Ntransits+1 if Ntransits+1 > 2 else 3
 	for j in range(2,lim):
 	    # check positive multiples
-	    #isclose = np.isclose(Ps, Ps[i]*j, atol=dP*2)
 	    isclose = np.isclose(Ps, Ps[i]*j, rtol=rP)
 	    if np.any(isclose):
 		# remove if nearby period has a lower lnL and has the same depth within rZ (i.e. rZ=10%)
@@ -308,7 +306,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 	lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
 
     # remove common periods based on maximum likelihood 
-    dP = .1
+    rP = .2
     sort = np.argsort(Ps2)
     POIs, T0OIs, DOIs, ZOIs, lnLOIs = Ps2[sort], T0s2[sort], Ds2[sort], Zs2[sort], \
                                       lnLs2[sort]
@@ -318,7 +316,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                           np.zeros(0), \
 							  np.zeros(0)
     for i in range(POIs.size):
-        isclose = np.isclose(POIs, POIs[i], atol=dP*2)
+        isclose = np.isclose(POIs, POIs[i], rtol=rP)
         if np.any(isclose):
             g = lnLOIs == lnLOIs[isclose].max()
             POIs_red = np.append(POIs_red, POIs[g])
@@ -374,7 +372,6 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     params = np.array([p,t0,z,d]).T
 
     # try to identify EBs
-    #params, EBparams = identify_EBs(params, bjd, fcorr, ef, Rs)
     params, EBparams, maybeEBparams, EBconditions, EBcondition_labels = \
                                     vett.identify_EBs(params, bjd, fcorr, ef,
                                                       self.Ms, self.Rs, 
