@@ -13,7 +13,7 @@ class K2results:
 
     def get_results(self):
 	fs = np.array(glob.glob('%s/%s*/*'%(self.folder, self.prefix)))
-	self.fs = []
+	self.fs, self.epicnames = [], np.zeros(0)
 	self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
         self.Kepmags, self.Mss, self.Rss, self.Teffs = np.zeros(0), np.zeros(0), \
                                                        np.zeros(0), np.zeros(0)
@@ -25,6 +25,7 @@ class K2results:
 		Ndet = int(d.params_guess.shape[0])
 		for j in range(Ndet):
 		    self.fs.append(fs[i])
+		    self.epicnames = np.append(self.epicnames, int(self.fs[i].split('_')[-1].split('/')[0]))
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.Mss = np.append(self.Mss, d.Ms)
                     self.Rss = np.append(self.Rss, d.Rs)
@@ -33,7 +34,7 @@ class K2results:
 		    self.Ndetected = np.append(self.Ndetected, Ndet)
 		    self.params_guess = np.append(self.params_guess, d.params_guess, axis=0)
   	
-  	_, self.unique_inds = np.unique(self.fs, return_index=True)
+  	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
 	self.Nstar = self.unique_inds.size
 	self.Nplanets = self.Ndetected[self.unique_inds].sum()
 	assert self.Nplanets == self.params_guess.shape[0]
