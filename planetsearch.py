@@ -70,7 +70,7 @@ def read_Kepler_data(fits_dir, maxdays=2e2):
     return name, Rs, bjd[g], f[g], ef[g]
 
 
-def read_K2_data(epicnum, Ncampaigns=16):
+def read_K2_data(epicnum):
     # make directories
     try:
 	os.mkdir('MAST')
@@ -82,9 +82,10 @@ def read_K2_data(epicnum, Ncampaigns=16):
 	pass
 
     # download tar file
-    for j in range(Ncampaigns):
-        folder = 'c%.2d/%.4d00000/%.5d'%(j, int(str(epicnum)[:4]), int(str(epicnum)[4:9]))
-        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), j)
+    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92]  # from https://archive.stsci.edu/hlsps/k2sff/
+    for j in range(len(campaigns)):
+        folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j], int(str(epicnum)[:4]), int(str(epicnum)[4:9]))
+        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
         url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
         os.system('wget %s'%url)
         if os.path.exists(fname):
@@ -126,7 +127,8 @@ def get_star(epicnum):
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
-    return (Kepmag<=15.5) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+    #return (Kepmag<=15.5) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+    return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
 
 
 def planet_search(epicnum):
