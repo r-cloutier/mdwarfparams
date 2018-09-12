@@ -70,7 +70,7 @@ def read_Kepler_data(fits_dir, maxdays=2e2):
     return name, Rs, bjd[g], f[g], ef[g]
 
 
-def read_K2_data(epicnum, Ncampaigns=8):
+def read_K2_data(epicnum, Ncampaigns=16):
     # make directories
     try:
 	os.mkdir('MAST')
