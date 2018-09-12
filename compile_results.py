@@ -17,6 +17,7 @@ class K2results:
 	self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
         self.Kepmags, self.Mss, self.Rss, self.Teffs = np.zeros(0), np.zeros(0), \
                                                        np.zeros(0), np.zeros(0)
+	self.efs = np.zeros(0)
 	for i in range(fs.size):
 	    print float(i)/fs.size
 	    d = loadpickle(fs[i])
@@ -28,6 +29,7 @@ class K2results:
                     self.Mss = np.append(self.Mss, d.Ms)
                     self.Rss = np.append(self.Rss, d.Rs)
                     self.Teffs = np.append(self.Teffs, d.Teff)
+		    self.efs = np.append(self.efs, d.ef.mean())
 		    self.Ndetected = np.append(self.Ndetected, Ndet)
 		    self.params_guess = np.append(self.params_guess, d.params_guess, axis=0)
   	

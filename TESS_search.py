@@ -288,9 +288,8 @@ def find_transits(self, bjd, f, ef, thetaGP,
                                                              durations, lnLs,
                                                              depths, SNRthresh)
     # save here for debugging
-    self.POIs, self.T0OIs, self.DOIs, self.ZOIs, self.lnLOIs = Ps, T0s, \
-                                                               Ds, Zs, \
-                                                               lnLs_transit
+    self.POIsorig, self.T0OIsorig, self.DOIsorig = Ps, T0s, Ds
+    self.ZOIsorig, self.lnLOIsorig = Zs, lnLs_transit
     self._pickleobject()
 
     print 'Finding transit-like events and making transit parameter guesses...\n'

@@ -116,7 +116,7 @@ def read_K2_data(epicnum, Ncampaigns=8):
 
 
 def get_star(epicnum):
-    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt('input_data/K2targets/K2Mdwarfs.csv',
+    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv',
                                                          delimiter=',').T
     g = epics == epicnum
     assert g.sum() == 1
@@ -197,7 +197,8 @@ def do_i_run_this_star(epicnum):
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
-    epics= np.loadtxt('input_data/K2targets/K2Mdwarfs.csv', delimiter=',')[:,0]
+    #epics= np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv', delimiter=',')[:,0]
+    epics = p.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
     for i in range(startind, endind):
 	if do_i_run_this_star(epics[i]):
             planet_search(epics[i])    

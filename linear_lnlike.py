@@ -10,6 +10,7 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
 dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5  # for real K2 LCs
 
+
 def lnlike(bjd, f, ef, fmodel):
     return -.5*(np.sum((f-fmodel)**2 / ef**2 - np.log(1./ef**2)))
 
@@ -234,7 +235,7 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.05, rZ=.2):
 
         # check inverse multiples (eg P/2, P/3, ...)
         div = 2.
-        while Ps[i]/div >= .5:
+        while Ps[i]/div >= .1:
             isclose = np.isclose(Ps, Ps[i]/div, rtol=rP)
             div += 1.
             if np.any(isclose):
@@ -333,7 +334,7 @@ def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff):
         Zs2 = np.append(Zs2, Zs[i])
         lnLs2 = np.append(lnLs2, lnLs[i])
         div = 2.
-        while Ps[i]/div >= .5:
+        while Ps[i]/div >= .1:
             params = np.array([Ps[i]/div, T0s[i], Zs[i], Ds[i]])
             P, T0, Z, D, fmodel = _fit_params(params, bjd, fcorr, ef, 
                                               Ms, Rs, Teff)
@@ -374,56 +375,60 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 	lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
 
     # remove common periods based on maximum likelihood
-    POIs_red, T0OIs_red, DOIs_red, ZOIs_red, lnLOIs_red = \
+    POIs1, T0OIs1, DOIs1, ZOIs1, lnLOIs1 = \
                                     remove_common_P(Ps2, T0s2, Ds2, Zs2, lnLs2)
 
     # update Z manually
-    ZOIs_red2 = np.zeros(POIs_red.size)
-    for i in range(ZOIs_red2.size):
-	phase = foldAt(bjd, POIs_red[i], T0OIs_red[i])
+    ZOIs2 = np.zeros(POIs1.size)
+    for i in range(ZOIs2.size):
+	phase = foldAt(bjd, POIs1[i], T0OIs1[i])
 	phase[phase > .5] -= 1
-	dur = .25*DOIs_red[i]/POIs_red[i]
+	dur = .25*DOIs1[i]/POIs1[i]
 	intransit = (phase >= -dur) & (phase <= dur)
-	ZOIs_red2[i] = 1-np.median(fcorr[intransit])
+	ZOIs2[i] = 1-np.median(fcorr[intransit])
 
     # remove multiple transits (i.e. 2P, 3P, 4P...)
-    g = (ZOIs_red2>0) & (ZOIs_red2<.9)
-    POIs_final, T0OIs_final, DOIs_final, ZOIs_final, lnLOIs_final = \
-  	remove_multiple_on_lnLs(bjd, ef, POIs_red[g], T0OIs_red[g], DOIs_red[g],
-                                ZOIs_red2[g], lnLOIs_red[g])
+    g = (ZOIs2>0) & (ZOIs2<.9)
+    POIs2, T0OIs2, DOIs2, ZOIs2, lnLOIs2 = remove_multiple_on_lnLs(bjd, ef,
+                                                                   POIs1[g],
+                                                                   T0OIs1[g],
+                                                                   DOIs1[g],
+                                                                   ZOIs2[g],
+                                                                   lnLOIs1[g])
 
     # consider integer fractions of Ps which may have been missed by
     # the linear search but should be 'detectable' when phase folded
-    POIs_final, T0OIs_final, DOIs_final, ZOIs_final, lnLOIs_final = \
-                            consider_fractional_P(bjd, fcorr, ef, POIs_final,
-                                                  T0OIs_final, DOIs_final,
-                                                  ZOIs_final, lnLOIs_final,
-                                                  self.Ms, self.Rs, self.Teff)
+    POIs3, T0OIs3, DOIs4, ZOIs4, lnLOIs4 = consider_fractional_P(bjd, fcorr, ef,
+                                                                 POIs2, T0OIs2,
+                                                                 DOIs2, ZOIs2,
+                                                                 lnLOIs2,
+                                                                 self.Ms,
+                                                                 self.Rs,
+                                                                 self.Teff)
     
     # remove duplicates and multiples
-    POIs_red2, T0OIs_red2, DOIs_red2, ZOIs_red2, lnLOIs_red2 = \
-                                    remove_common_P(POIs_final, T0OIs_final,
-                                                    DOIs_final, ZOIs_final,
-                                                    lnLOIs_final)
-    POIs_final, T0OIs_final, DOIs_final, ZOIs_final, lnLOIs_final = \
-  	                        remove_multiple_on_lnLs(bjd, ef, POIs_red2,
-                                                        T0OIs_red2, DOIs_red2,
-                                                        ZOIs_red2, lnLOIs_red2)
-    
+    POIs4, T0OIs4, DOIs4, ZOIs4, lnLOIs4 = remove_common_P(POIs3, T0OIs3, DOIs3,
+                                                           ZOIs3, lnLOIs3)
+    POIs5, T0OIs5, DOIs5, ZOIs5, lnLOIs5 = remove_multiple_on_lnLs(bjd, ef,
+                                                                   POIs4,
+                                                                   T0OIs4,
+                                                                   DOIs4, ZOIs4,
+                                                                   lnLOIs4)
+
     # do not consider too many planets to limit FPs
-    g = ZOIs_final > 0
-    params = np.array([POIs_final, T0OIs_final, ZOIs_final, DOIs_final]).T[g]
-    params, lnLOIs = trim_planets(params, lnLOIs_final[g])
+    g = ZOIs5 > 0
+    params5 = np.array([POIs5, T0OIs5, ZOIs5, DOIs5]).T[g]
+    params6, lnLOIs6 = trim_planets(params5, lnLOIs5[g])
 
     # identify bona-fide transit-like events
-    self.params_guess_priorto_confirm, self.lnLOIs_priorto_confirm = params, \
-                                                                     lnLOIs
+    self.params_guess_priorto_confirm, self.lnLOIs_priorto_confirm = params6, \
+                                                                     lnLOIs6
     self.dispersion_sig, self.depth_sig, self.bimodalfrac = dispersion_sig, \
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
     params, lnLOIs, cond1, cond2, cond3, cond4 = \
-                            confirm_transits(params, lnLOIs, bjd, fcorr, ef,
+                            confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
                                              self.Ms, self.Rs, self.Teff)
     self.transit_condition_scatterin_gtr_scatterout = cond1
     self.transit_condition_depth_gtr_rms = cond2
@@ -431,8 +436,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.transit_condition_ephemeris_fits_in_WF = cond4
 
     # re-remove multiple transits based on refined parameters
-    p,t0,d,z,_ = remove_multiple_on_lnLs(bjd, ef, params[:,0], params[:,1], 
-					 params[:,3], params[:,2], lnLOIs)
+    p,t0,d,z,_ = remove_multiple_on_lnLs(bjd, ef, params6[:,0], params6[:,1], 
+					 params6[:,3], params6[:,2], lnLOIs6)
     params = np.array([p,t0,z,d]).T
 
     # try to identify EBs
@@ -443,8 +448,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.EBconditions, self.EBcondition_labels = EBconditions, \
                                                  EBcondition_labels
     
-    return POIs_final, T0OIs_final, DOIs_final, ZOIs_final, lnLOIs_final, \
-        params, EBparams, maybeEBparams
+    return POIs5, T0OIs5, DOIs5, ZOIs5, lnLOIs6, params, EBparams, maybeEBparams
 
 
 #def _optimize_box_transit(theta, bjd, fcorr, ef):
