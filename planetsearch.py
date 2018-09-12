@@ -187,6 +187,12 @@ def planet_search(epicnum):
 
 
 def do_i_run_this_star(epicnum):
+    # first check that the star is available
+    epics= np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv', delimiter=',')[:,0]
+    g = epics == epicnum
+    if g.sum() != 1:
+	return False
+    # check if star is already done
     fname = 'PipelineResults/EPIC_%i/K2LC'%epicnum
     if os.path.exists(fname):
         return not loadpickle(fname).DONE
@@ -198,7 +204,8 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     #epics= np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv', delimiter=',')[:,0]
-    epics = p.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
+    epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
     for i in range(startind, endind):
+	print epics[i]
 	if do_i_run_this_star(epics[i]):
             planet_search(epics[i])    
