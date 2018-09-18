@@ -23,21 +23,22 @@ class K2results:
 	    d = loadpickle(fs[i])
 	    if d.DONE:
 		Ndet = int(d.params_guess.shape[0])
-		for j in range(Ndet):
+		for j in range(Ndet+1):
 		    self.fs.append(fs[i])
-		    self.epicnames = np.append(self.epicnames, int(self.fs[i].split('_')[-1].split('/')[0]))
+		    self.epicnames = np.append(self.epicnames, int(fs[i].split('_')[1].split('/')[0]))
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.Mss = np.append(self.Mss, d.Ms)
                     self.Rss = np.append(self.Rss, d.Rs)
                     self.Teffs = np.append(self.Teffs, d.Teff)
 		    self.efs = np.append(self.efs, d.ef.mean())
 		    self.Ndetected = np.append(self.Ndetected, Ndet)
-		    self.params_guess = np.append(self.params_guess, d.params_guess, axis=0)
+		    params = d.params_guess[j-1] if j > 0 else np.repeat(np.nan,4)
+		    self.params_guess = np.append(self.params_guess, params.reshape(1,4), axis=0)
   	
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
 	self.Nstar = self.unique_inds.size
 	self.Nplanets = self.Ndetected[self.unique_inds].sum()
-	assert self.Nplanets == self.params_guess.shape[0]
+	#assert self.Nplanets == self.params_guess.shape[0]
 
 
     def _pickleobject(self):

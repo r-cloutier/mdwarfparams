@@ -282,7 +282,7 @@ def remove_multiples_OBSOLETE(bjd, Ps, T0s, Ds, Zs, lnLs, dP=.1):
 
 
 
-def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.1):
+def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
     assert Ps.size == T0s.size
     assert Ps.size == Ds.size
     assert Ps.size == Zs.size
@@ -395,10 +395,15 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                    DOIs1[g],
                                                                    ZOIs2[g],
                                                                    lnLOIs1[g])
-
+    # do not consider too many planets to limit FPs
+    g = ZOIs2 > 0
+    params2 = np.array([POIs2, T0OIs2, ZOIs2, DOIs2]).T[g]
+    params2, lnLOIs2 = trim_planets(params2, lnLOIs2[g])
+    POIs2, T0OIs2, ZOIs2, DOIs2 = params2.T
+    
     # consider integer fractions of Ps which may have been missed by
     # the linear search but should be 'detectable' when phase folded
-    POIs3, T0OIs3, DOIs4, ZOIs4, lnLOIs4 = consider_fractional_P(bjd, fcorr, ef,
+    POIs3, T0OIs3, DOIs3, ZOIs3, lnLOIs3 = consider_fractional_P(bjd, fcorr, ef,
                                                                  POIs2, T0OIs2,
                                                                  DOIs2, ZOIs2,
                                                                  lnLOIs2,
@@ -564,8 +569,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
             outtransit = (phase*P <= -(1.+Dfrac)*duration) | \
                          (phase*P >= (1.+Dfrac)*duration)
-            #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
-            #         'bo'), plt.show()
+            plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
+                     'bo'), plt.show()
 
             # check scatter in and out of the proposed transit to see if the
             # transit is real
@@ -591,7 +596,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-            	print 'compare to bimodalfrac:',float(y[x<x.mean()].sum())/y.sum(),\
+            	print 'compare to bimodalfrac:',\
+                    float(y[x<x.mean()].sum())/y.sum(),\
                     float(y2[x2<x2.mean()].sum())/y2.sum()
             	cond3 = (float(y[x<x.mean()].sum())/y.sum() > bimodalfrac) | \
                     	(float(y2[x2<x2.mean()].sum())/y2.sum() > bimodalfrac) \
