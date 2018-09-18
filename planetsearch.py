@@ -7,6 +7,8 @@ from massradius import radF2mass
 from truncate_cmap import *
 #from joint_LCmodel import *
 
+global K2Mdwarffile
+K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv2.csv'
 
 def read_K2_data_OLD(fits_path):
     '''Get one light curve and from the "best" aperture.'''
@@ -117,8 +119,7 @@ def read_K2_data(epicnum):
 
 
 def get_star(epicnum):
-    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv',
-                                                         delimiter=',').T
+    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt(K2Mdwarffile, delimiter=',').T
     g = epics == epicnum
     assert g.sum() == 1
     return float(Kepmags[g]), float(loggs[g]), float(Mss[g]), float(Rss[g]), float(Teffs[g])
@@ -190,7 +191,7 @@ def planet_search(epicnum):
 
 def do_i_run_this_star(epicnum):
     # first check that the star is available
-    epics= np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv', delimiter=',')[:,0]
+    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
     g = epics == epicnum
     if g.sum() != 1:
 	return False
@@ -205,9 +206,9 @@ def do_i_run_this_star(epicnum):
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
-    #epics= np.loadtxt('input_data/K2targets/K2Mdwarfsv2.csv', delimiter=',')[:,0]
+    #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
     epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
     for i in range(startind, endind):
 	print epics[i]
 	if do_i_run_this_star(epics[i]):
-            planet_search(epics[i])    
+            planet_search(epics[i])
