@@ -38,6 +38,7 @@ class K2results:
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
 	self.Nstar = self.unique_inds.size
 	self.Nplanets = self.Ndetected[self.unique_inds].sum()
+	self.fs = np.array(self.fs)
 	#assert self.Nplanets == self.params_guess.shape[0]
 
 

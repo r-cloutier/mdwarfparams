@@ -432,11 +432,14 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params, lnLOIs, cond1, cond2, cond3, cond4 = \
+    params,lnLOIs,cond1,cond1_val,cond2,cond2_val,cond3,cond3_val,cond4 = \
                             confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
                                              self.Ms, self.Rs, self.Teff)
+    self.transit_condition_scatterin_val = cond1_val
     self.transit_condition_scatterin_gtr_scatterout = cond1
+    self.transit_condition_depth_val = cond2_val
     self.transit_condition_depth_gtr_rms = cond2
+    self.transit_condition_no_bimodal_val = cond3_val
     self.transit_condition_no_bimodal_flux_intransit = cond3
     self.transit_condition_ephemeris_fits_in_WF = cond4
 
@@ -539,8 +542,11 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
     Ntransits = params.shape[0]
     assert lnLs.size == Ntransits
     paramsout, to_remove_inds = np.zeros((Ntransits,4)), np.zeros(0)
+    transit_condition_scatterin_val = np.zeros(Ntransits)
     transit_condition_scatterin_gtr_scatterout = np.zeros(Ntransits, dtype=bool)
+    transit_condition_depth_val = np.zeros(Ntransits)
     transit_condition_depth_gtr_rms = np.zeros(Ntransits, dtype=bool)
+    transit_condition_no_bimodal_val = np.zeros(Ntransits)
     transit_condition_no_bimodal_flux_intransit = np.zeros(Ntransits,dtype=bool)
     transit_condition_ephemeris_fits_in_WF = np.zeros(Ntransits, dtype=bool)
     print 'Confirming proposed transits...'
@@ -569,25 +575,29 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
             outtransit = (phase*P <= -(1.+Dfrac)*duration) | \
                          (phase*P >= (1.+Dfrac)*duration)
-            plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
-                     'bo'), plt.show()
+            #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
+            #         'bo'), plt.show()
 
             # check scatter in and out of the proposed transit to see if the
             # transit is real
             print 'compare to dispersion_sig:', (np.median(fcorr[outtransit])- \
                                                  np.median(fcorr[intransit]))/ \
                                                  MAD1d(fcorr[outtransit])
-            cond1 = (np.median(fcorr[outtransit]) - \
-                     np.median(fcorr[intransit])) / \
-                     MAD1d(fcorr[outtransit]) > dispersion_sig
+            cond1_val = (np.median(fcorr[outtransit]) - \
+                         np.median(fcorr[intransit])) / \
+                         MAD1d(fcorr[outtransit])
+            cond1 = cond1_val > dispersion_sig
+            transit_condition_scatterin_val[i] = cond1_val
             transit_condition_scatterin_gtr_scatterout[i] = cond1
 	    # also check that the transit depth is significant relative to
             # the noise
             depth = 1-np.median(fcorr[intransit])
             sigdepth = np.median(ef[intransit])
             print 'compare to depth_sig:', depth/sigdepth
-            cond2 = depth/sigdepth > depth_sig
-            transit_condition_depth_gtr_rms[i] = cond2
+            cond2_val = depth/sigdepth
+            cond2 = cond2_val > depth_sig
+            transit_condition_depth_val[i] = cond2_val
+	    transit_condition_depth_gtr_rms[i] = cond2
 	    # ensure that the flux measurements intransit are not bimodal
             # (ie. at depth and at f=1 which would indicate a 
 	    # bad period and hence a FP
@@ -596,14 +606,14 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-            	print 'compare to bimodalfrac:',\
-                    float(y[x<x.mean()].sum())/y.sum(),\
-                    float(y2[x2<x2.mean()].sum())/y2.sum()
-            	cond3 = (float(y[x<x.mean()].sum())/y.sum() > bimodalfrac) | \
-                    	(float(y2[x2<x2.mean()].sum())/y2.sum() > bimodalfrac) \
-                    	if y.sum() > 0 else False
+                cond3_val = (float(y[x<x.mean()].sum())/y.sum() > bimodalfrac)|\
+                            (float(y2[x2<x2.mean()].sum())/y2.sum() > \
+                             bimodalfrac)
+            	cond3 = cond3_val if y.sum() > 0 else False
             except ZeroDivisionError:
-		cond3 = False
+                cond3_val = np.nan
+                cond3 = False
+	    transit_condition_no_bimodal_val[i] = cond3_val
 	    transit_condition_no_bimodal_flux_intransit[i] = cond3
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
@@ -630,7 +640,11 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
     paramsout = np.delete(paramsout, to_remove_inds, 0)
     lnLsout = np.delete(lnLs, to_remove_inds)
 
-    return paramsout, lnLsout, transit_condition_scatterin_gtr_scatterout, transit_condition_depth_gtr_rms, transit_condition_no_bimodal_flux_intransit, transit_condition_ephemeris_fits_in_WF
+    return paramsout, lnLsout, transit_condition_scatterin_val,\
+        transit_condition_scatterin_gtr_scatterout, transit_condition_depth_val, \
+        transit_condition_depth_gtr_rms, transit_condition_no_bimodal_val, \
+        transit_condition_no_bimodal_flux_intransit, \
+        transit_condition_ephemeris_fits_in_WF
 
 
 def identify_EBs(params, bjd, fcorr, ef, Rs, SNRthresh=3., rpmax=30):
