@@ -438,7 +438,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params,lnLOIs,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
+    params6,lnLOIs,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
                             confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
                                              self.Ms, self.Rs, self.Teff)
     self.transit_condition_scatterin_val = cond1_val
@@ -597,7 +597,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             # the noise
             depth2 = 1-np.median(fcorr[intransit])
             sigdepth = np.median(ef[intransit])
-            cond2_val = depth2 / sigdepth
+            depth = depth2 #depth1
+            cond2_val = depth / sigdepth
             cond2 = cond2_val > depth_sig
             transit_condition_depth_val[i] = cond2_val
 	    transit_condition_depth_gtr_rms[i] = cond2
