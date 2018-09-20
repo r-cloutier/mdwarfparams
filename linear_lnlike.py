@@ -246,7 +246,6 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.05, rZ=.2):
 		to_remove = np.append(to_remove, Ps[isclose][iscloselnL])    
                 
     to_remove = np.unique(to_remove)
-    print to_remove
     assert to_remove.size <= Ps.size
     to_remove_inds = np.where(np.in1d(Ps, to_remove))[0]
     Ps_final = np.delete(Ps, to_remove_inds)
@@ -357,10 +356,17 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     assert Ps.size == Zs.size
     assert Ps.size == lnLs.size
 
-    # remove negative entries (mostly negative depths)
+    # remove negative entries (mostly negative depths) and only allow a
+    # maximum number of periodicities for efficiency
+    Nmax = 100
     g = (Ps>0) & (T0s>0) & (Ds>0) & (Zs>0) & (Zs<.9)
-    Ps, T0s, Ds, Zs, lnLs = Ps[g], T0s[g], Ds[g], Zs[g], lnLs[g]
-
+    if g.sum() > Nmax:
+        Ps, T0s, Ds, Zs, lnLs = Ps[g], T0s[g], Ds[g], Zs[g], lnLs[g]
+        s = np.argsort(lnLs)[::-1][:Nmax]
+        Ps, T0s, Ds, Zs, lnLs = Ps[s], T0s[s], Ds[s], Zs[s], lnLs[s]
+    else:
+        Ps, T0s, Ds, Zs, lnLs = Ps[g], T0s[g], Ds[g], Zs[g], lnLs[g]
+    
     # get optimized parameters to get more precise Ps and T0s which will help 
     # when removing multiples
     Ps2, T0s2, Ds2, Zs2 = np.zeros_like(Ps), np.zeros_like(Ps), \
@@ -432,7 +438,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params,lnLOIs,cond1,cond1_val,cond2,cond2_val,cond3,cond3_val,cond4 = \
+    params,lnLOIs,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
                             confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
                                              self.Ms, self.Rs, self.Teff)
     self.transit_condition_scatterin_val = cond1_val
@@ -606,13 +612,18 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-                cond3_val = (float(y[x<x.mean()].sum())/y.sum() > bimodalfrac)|\
-                            (float(y2[x2<x2.mean()].sum())/y2.sum() > \
-                             bimodalfrac)
-            	cond3 = cond3_val if y.sum() > 0 else False
+		if y.sum() > 0:
+		    cond3_val1 = float(y[x<x.mean()].sum())/y.sum()
+		    cond3_val2 = float(y2[x2<x2.mean()].sum())/y2.sum()
+                    cond31 = cond3_val1 > bimodalfrac
+		    cond32 = cond3_val2 > bimodalfrac
+		    cond3 = cond31 or cond32
+		    if cond3:
+			cond3_val = cond3_val1 if cond31 else cond3_val2
+		else:
+            	    cond3_val, cond3 = np.nan, False
             except ZeroDivisionError:
-                cond3_val = np.nan
-                cond3 = False
+                cond3_val, cond3 = np.nan, False
 	    transit_condition_no_bimodal_val[i] = cond3_val
 	    transit_condition_no_bimodal_flux_intransit[i] = cond3
             # ensure that at least two transits will fit within the observing

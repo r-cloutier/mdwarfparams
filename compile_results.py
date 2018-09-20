@@ -14,7 +14,8 @@ class K2results:
     def get_results(self):
 	fs = np.array(glob.glob('%s/%s*/*'%(self.folder, self.prefix)))
 	self.fs, self.epicnames = [], np.zeros(0)
-	self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
+	self.Ndetected, self.params_guess, self.cond_vals = np.zeros(0), np.zeros((0,4)), \
+                                                            np.zeros((0,3))
         self.Kepmags, self.Mss, self.Rss, self.Teffs = np.zeros(0), np.zeros(0), \
                                                        np.zeros(0), np.zeros(0)
 	self.efs = np.zeros(0)
@@ -34,7 +35,12 @@ class K2results:
 		    self.Ndetected = np.append(self.Ndetected, Ndet)
 		    params = d.params_guess[j-1] if j > 0 else np.repeat(np.nan,4)
 		    self.params_guess = np.append(self.params_guess, params.reshape(1,4), axis=0)
-  	
+                    cond_vals = [d.transit_condition_scatterin_val, \
+                                 d.transit_condition_depth_val, \
+                                 d.transit_condition_no_bimodal_val] if j > 0 else [np.nan]*3
+                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,3),
+                                               axis=0)
+                    
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
 	self.Nstar = self.unique_inds.size
 	self.Nplanets = self.Ndetected[self.unique_inds].sum()
