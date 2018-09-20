@@ -51,5 +51,7 @@ def compare_det_and_FPs(K2resultsclass):
 
         NFPs[i] = Ndet - Ndet_correct
 
-    return det, NFPs
+    s = np.argsort(epicnames_known)
+
+    return epicnames_known[s], det[s], NFPs[s]
 

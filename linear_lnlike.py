@@ -8,7 +8,7 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
-dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5  # for real K2 LCs
+dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .55  # for real K2 LCs
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -542,7 +542,8 @@ def trim_planets(params, lnLOIs, Nplanetsmax=5):
 	return params, lnLOIs
 
 
-def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
+def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
+                     minNpnts_intransit=4):
     '''Look at proposed transits and confirm whether or not a significant 
     dimming is seen.'''
     Ntransits = params.shape[0]
@@ -565,10 +566,10 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
 	while j <= 1:
 	    
 	    if j == 0:
-	    	P, T0, depth, duration = params[i]
+	    	P, T0, depth1, duration = params[i]
 	    else:
-		P, T0, depth, duration,_ = _fit_params(params[i], bjd, fcorr,
-                                                       ef, Ms, Rs, Teff)
+		P, T0, depth1, duration,_ = _fit_params(params[i], bjd, fcorr,
+                                                        ef, Ms, Rs, Teff)
 
 	    # get in and out of transit window
             phase = foldAt(bjd, P, T0)
@@ -586,9 +587,6 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
 
             # check scatter in and out of the proposed transit to see if the
             # transit is real
-            print 'compare to dispersion_sig:', (np.median(fcorr[outtransit])- \
-                                                 np.median(fcorr[intransit]))/ \
-                                                 MAD1d(fcorr[outtransit])
             cond1_val = (np.median(fcorr[outtransit]) - \
                          np.median(fcorr[intransit])) / \
                          MAD1d(fcorr[outtransit])
@@ -597,10 +595,9 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             transit_condition_scatterin_gtr_scatterout[i] = cond1
 	    # also check that the transit depth is significant relative to
             # the noise
-            depth = 1-np.median(fcorr[intransit])
+            depth2 = 1-np.median(fcorr[intransit])
             sigdepth = np.median(ef[intransit])
-            print 'compare to depth_sig:', depth/sigdepth
-            cond2_val = depth/sigdepth
+            cond2_val = depth2 / sigdepth
             cond2 = cond2_val > depth_sig
             transit_condition_depth_val[i] = cond2_val
 	    transit_condition_depth_gtr_rms[i] = cond2
@@ -612,12 +609,13 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-		if y.sum() > 0:
-		    cond3_val1 = float(y[x<x.mean()].sum())/y.sum()
-		    cond3_val2 = float(y2[x2<x2.mean()].sum())/y2.sum()
-                    cond31 = cond3_val1 > bimodalfrac
-		    cond32 = cond3_val2 > bimodalfrac
-		    cond3 = cond31 or cond32
+		if (y.sum() > minNpnts_intransit) | \
+                   (y2.sum() > minNpnts_intransit):
+                    cond3_val1 = float(y[x<1-depth].sum()) / y.sum()
+                    cond3_val2 = float(y2[x2<1-depth].sum()) / y2.sum()
+                    cond31 = cond3_val1 >= bimodalfrac
+                    cond32 = cond3_val2 >= bimodalfrac
+                    cond3 = cond31 or cond32
 		    if cond3:
 			cond3_val = cond3_val1 if cond31 else cond3_val2
 		    else:
@@ -635,7 +633,6 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
                     (T0 >= bjd.min()) & (T0 <= bjd.max()) & \
                     (P < bjd.max()-bjd.min())
             transit_condition_ephemeris_fits_in_WF[i] = cond4
-            print i, cond1, cond2, cond3, cond4
             paramsout[i] = P, T0, depth, duration
             if cond1 and cond2 and cond3 and cond4:
 	        j += 2
