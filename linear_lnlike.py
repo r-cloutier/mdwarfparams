@@ -620,6 +620,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff):
 		    cond3 = cond31 or cond32
 		    if cond3:
 			cond3_val = cond3_val1 if cond31 else cond3_val2
+		    else:
+			cond3_val = cond3_val1
 		else:
             	    cond3_val, cond3 = np.nan, False
             except ZeroDivisionError:
