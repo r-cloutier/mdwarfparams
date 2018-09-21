@@ -226,12 +226,13 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.01, rZ=.2):
 	lim = Ntransits+1 if Ntransits+1 > 2 else 3
 	for j in range(2,lim):
 	    # check positive multiples
-	    isclose = np.isclose(Ps, Ps[i]*j, rtol=rP)
+	    isclose = np.isclose(Ps[i]*j, Ps, rtol=rP)
 	    if np.any(isclose):
 		# remove if nearby period has a lower lnL and has the same
                 # depth within rZ (i.e. rZ=10%)
 		iscloselnL = (lnLs[isclose] <= lnLs[i])#& \
                              #(abs(1-Zs[isclose]/Zs[i]) < SNRZ)
+                print i, j, Ps[isclose][iscloselnL]
 		to_remove = np.append(to_remove, Ps[isclose][iscloselnL])
 
         # check inverse multiples (eg P/2, P/3, ...)
@@ -255,31 +256,6 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.01, rZ=.2):
     Zs_final = np.delete(Zs, to_remove_inds)
     lnLs_final = np.delete(lnLs, to_remove_inds)
     return Ps_final, T0s_final, Ds_final, Zs_final, lnLs_final
-
-
-def remove_multiples_OBSOLETE(bjd, Ps, T0s, Ds, Zs, lnLs, dP=.1):
-    assert Ps.size == T0s.size
-    assert Ps.size == Ds.size
-    assert Ps.size == Zs.size
-    assert Ps.size == lnLs.size
-    to_remove = np.zeros(0)
-    for i in range(Ps.size):
-        if Ps[i] not in to_remove:
-            Ntransits = int((bjd.max()-bjd.min()) / Ps[i])
-            for j in range(2,Ntransits+1):
-                isclose = np.isclose(Ps, Ps[i]*j, atol=dP*2)
-                if np.any(isclose):
-                    to_remove = np.append(to_remove, Ps[isclose])
-    to_remove = np.unique(to_remove)
-    assert to_remove.size <= Ps.size
-    to_remove_inds = np.where(np.in1d(Ps, to_remove))[0]
-    Ps_final = np.delete(Ps, to_remove_inds)
-    T0s_final = np.delete(T0s, to_remove_inds)
-    Ds_final = np.delete(Ds, to_remove_inds)
-    Zs_final = np.delete(Zs, to_remove_inds)
-    lnLs_final = np.delete(lnLs, to_remove_inds)
-    return Ps_final, T0s_final, Ds_final, Zs_final, lnLs_final
-
 
 
 def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
@@ -402,6 +378,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                    DOIs1[g],
                                                                    ZOIs2[g],
                                                                    lnLOIs1[g])
+
     # do not consider too many planets to limit FPs
     g = ZOIs2 > 0
     params2 = np.array([POIs2, T0OIs2, ZOIs2, DOIs2]).T[g]
