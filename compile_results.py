@@ -33,11 +33,15 @@ class K2results:
                     self.Teffs = np.append(self.Teffs, d.Teff)
 		    self.efs = np.append(self.efs, d.ef.mean())
 		    self.Ndetected = np.append(self.Ndetected, Ndet)
-		    params = d.params_guess[j-1] if j > 0 else np.repeat(np.nan,4)
+                    
+                    params = d.params_guess[j-1] if j > 0 else np.repeat(np.nan,4)
 		    self.params_guess = np.append(self.params_guess, params.reshape(1,4), axis=0)
-                    cond_vals = [d.transit_condition_scatterin_val, \
-                                 d.transit_condition_depth_val, \
-                                 d.transit_condition_no_bimodal_val] if j > 0 else [np.nan]*3
+                    P = params[0]
+
+                    g = d.params_guess_priorto_confirm[:,0] == P
+                    cond_vals = [d.transit_condition_scatterin_val[g], \
+                                 d.transit_condition_depth_val[g], \
+                                 d.transit_condition_no_bimodal_val[g]] if j > 0 else [np.nan]*3
                     self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,3),
                                                axis=0)
                     

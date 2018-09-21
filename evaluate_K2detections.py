@@ -18,40 +18,39 @@ def compare_det_and_FPs(K2resultsclass):
 
     self = K2resultsclass
     
-    # check which planets are detected
-    det = np.zeros(Ps_known.size, dtype=bool)
-    for i in range(Ps_known.size):
+    # check which planets are detected and which are FPs
+    det, FP = np.zeros(0, dtype=bool), np.zeros(0, dtype=bool) 
+    epicnamesout, cond_vals = np.zeros(0, dtype=int), np.zeros((0, 3))
+    for i in self.unique_inds:
 
-        g = self.epicnames == epicnames_known[i]
-        print epicnames_known[i]
-        if g.sum() == 0:
-            det[i] = np.nan
-
-        Ps_det = self.params_guess[g][1:,0]  # skip first entry which is nan
-
-        if np.any(np.isclose(Ps_det, Ps_known[i], rtol=.05)):
-            det[i] = True
-
-        else:
-            det[i] = False
-            
-
-    # now check for any false positives
-    NFPs = np.zeros(Ps_known.size)
-    for i in range(Ps_known.size):
-
-        g = self.epicnames == epicnames_known[i]
-        if g.sum() == 0:
-            Ndet = np.nan
-        else:
-            Ndet = self.params_guess[g][1:,0].size
+        print self.epicnames[i]
+        g = self.epicnames == self.epicnames[i]
+        Ndet = g.sum() - 1  # remove nan entry
+        if Ndet == 0:
+            det = np.append(det, False)
+            FP = np.append(FP, False)
+            epicnamesout = np.append(epicnamesout, self.epicnames[i])
+            cond_vals = np.append(cond_vals, np.repeat(np.nan,3).reshape(1,3),
+                                  0)
         
-        g = epicnames_known == epicnames_known[i]
-        Ndet_correct = det[g].sum()
+        Ps_det = self.params_guess[g][1:,0]  # skip the first nan entry
 
-        NFPs[i] = Ndet - Ndet_correct
+        g2 = epicnames_known == self.epicnames[i]
+        assert g2.sum() > 0
+        
+        for j in range(Ndet):
+                    
+            isdet = np.isclose(Ps_det[j], Ps_known[g2], rtol=.05)
 
-    s = np.argsort(epicnames_known)
+            if np.any(isdet):
+                det = np.append(det, True)
+                FP = np.append(FP, False)
+            else:
+                det = np.append(det, False)
+                FP = np.append(FP, True)
 
-    return epicnames_known[s], det[s], NFPs[s]
+            epicnamesout = np.append(epicnamesout, self.epicnames[i])
+            cond_vals = np.append(cond_vals,
+                                  self.cond_vals[g][j+1].reshape(1,3), 0)
 
+    return epicnamesout, det, FP, cond_vals
