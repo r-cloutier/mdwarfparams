@@ -8,7 +8,7 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
-dispersion_sig, depth_sig, bimodalfrac = 2., 1., .55  # for real K2 LCs
+dispersion_sig, depth_sig, bimodalfrac = 2., 1., .68  # for real K2 LCs
 
 
 def lnlike(bjd, f, ef, fmodel):
