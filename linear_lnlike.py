@@ -9,7 +9,7 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
 # for real K2 LCs
-dispersion_sig, depth_sig, bimodalfrac, T0tolerance = 2., 1., .68, .2
+dispersion_sig, depth_sig, bimodalfrac, T0tolerance = 2., 1., .6, .2
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -440,8 +440,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             bimodalfrac
     self._pickleobject()
     params6,lnLOIs6,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3, \
-        cond4_val,con4,cond5 = confirm_transits(params6, lnLOIs6, bjd, fcorr,
-                                                ef, self.Ms, self.Rs, self.Teff)
+        cond4_val,cond4,cond5 = confirm_transits(params6, lnLOIs6, bjd, fcorr,
+                                                 ef, self.Ms, self.Rs,
+                                                 self.Teff)
     self.transit_condition_scatterin_val = cond1_val
     self.transit_condition_scatterin_gtr_scatterout = cond1
     self.transit_condition_depth_val = cond2_val
@@ -632,44 +633,26 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    # ensure that the flux measurements intransit are not bimodal
             # (ie. f at depth and at f=1 which would indicate a 
 	    # bad period and hence a FP
-            # TEMP
-            ##y, x = np.histogram(fcorr[intransitfull], bins=30)
-            ##x = x[1:] - np.diff(x)[0]/2.
-            y2, x2 = np.histogram(fcorr[intransit], bins=30)
-            x2 = x2[1:] - np.diff(x2)[0]/2.
-	    try:
-		if (y2.sum() >= minNpnts_intransit):
-                    ##| (y.sum() > minNpnts_intransit):
-                    ##cond3_val1 = float(y[x<1-depth+sigdepth].sum()) / y.sum()
-                    cond3_val2 = float(y2[x2<1-depth+sigdepth].sum()) / y2.sum()
-                    ##cond31 = cond3_val1 >= bimodalfrac
-                    cond32 = cond3_val2 >= bimodalfrac
-                    cond3 = cond32#cond31 or cond32
-                    cond3_val = cond3_val2
-		    ##if cond3:
-			##cond3_val = cond3_val1 if cond31 else cond3_val2
-		    ##else:
-			##cond3_val = cond3_val1
-		else:
-            	    cond3_val, cond3 = np.nan, False
-            except ZeroDivisionError:
-                cond3_val, cond3 = np.nan, False
+            Npnts_intransit = fcorr[intransit].size
+            Npnts_lt_1sigdepth = (fcorr[intransit] <= 1-depth+sigdepth).sum()
+	    if (Npnts_intransit >= minNpnts_intransit):
+                cond3_val = float(Npnts_lt_1sigdepth) / Npnts_intransit
+                cond3 = cond3_val >= bimodalfrac
+            else:
+            	cond3_val, cond3 = np.nan, False
 	    transit_condition_no_bimodal_val[i] = cond3_val
 	    transit_condition_no_bimodal_flux_intransit[i] = cond3
 
 	    # ensure that the flux measurements over the full transit are
             # symmetrical in time
-            y, x = np.histogram(phase[intransitfull], bins=30)
-            x = x[1:] - np.diff(x)[0]/2.
-            try:
-		if (y.sum() >= minNpnts_intransit):
-                    cond4_val = float(y[x<0].sum()) / y.sum()
-                    cond4 = .5-T0tolerance <= cond4_val <= .5+T0tolerance
-		else:
-            	    cond4_val, cond4 = np.nan, False
-            except ZeroDivisionError:
-                cond4_val, cond4 = np.nan, False
-	    transit_condition_timesym_val[i] = cond4_val
+            Npnts_intransitfull = fcorr[intransitfull].size
+            Npnts_lt_T0 = (phase[intransitfull] < 0).sum()
+	    if Npnts_intransitfull >= minNpnts_intransit:
+                cond4_val = float(Npnts_lt_T0) / Npnts_intransitfull
+                cond4 = .5-T0tolerance <= cond4_val <= .5+T0tolerance
+	    else:
+            	cond4_val, cond4 = np.nan, False
+            transit_condition_timesym_val[i] = cond4_val
 	    transit_condition_timesym[i] = cond4
 
             # ensure that at least two transits will fit within the observing
