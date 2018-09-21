@@ -38,7 +38,8 @@ class K2results:
 		    self.params_guess = np.append(self.params_guess, params.reshape(1,4), axis=0)
                     P = params[0]
 
-                    g = d.params_guess_priorto_confirm[:,0] == P
+                    g = np.isclose(d.params_guess_priorto_confirm[:,0], P, rtol=.05)
+		    print self.epicnames[-1], g.sum()
                     cond_vals = [d.transit_condition_scatterin_val[g], \
                                  d.transit_condition_depth_val[g], \
                                  d.transit_condition_no_bimodal_val[g]] if j > 0 else [np.nan]*3
