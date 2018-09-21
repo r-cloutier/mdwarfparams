@@ -8,7 +8,7 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
-dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .55  # for real K2 LCs
+dispersion_sig, depth_sig, bimodalfrac = 2., 1., .55  # for real K2 LCs
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -438,7 +438,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params6,lnLOIs,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
+    params6,lnLOIs6,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
                             confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
                                              self.Ms, self.Rs, self.Teff)
     self.transit_condition_scatterin_val = cond1_val
@@ -603,24 +603,26 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             transit_condition_depth_val[i] = cond2_val
 	    transit_condition_depth_gtr_rms[i] = cond2
 	    # ensure that the flux measurements intransit are not bimodal
-            # (ie. at depth and at f=1 which would indicate a 
+            # (ie. f at depth and at f=1 which would indicate a 
 	    # bad period and hence a FP
-            y, x = np.histogram(fcorr[intransitfull], bins=30)
-            x = x[1:] - np.diff(x)[0]/2.
+            # TEMP
+            ##y, x = np.histogram(fcorr[intransitfull], bins=30)
+            ##x = x[1:] - np.diff(x)[0]/2.
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-		if (y.sum() > minNpnts_intransit) | \
-                   (y2.sum() > minNpnts_intransit):
-                    cond3_val1 = float(y[x<1-depth].sum()) / y.sum()
-                    cond3_val2 = float(y2[x2<1-depth].sum()) / y2.sum()
-                    cond31 = cond3_val1 >= bimodalfrac
+		if (y2.sum() > minNpnts_intransit):
+                    ##| (y.sum() > minNpnts_intransit):
+                    ##cond3_val1 = float(y[x<1-depth+sigdepth].sum()) / y.sum()
+                    cond3_val2 = float(y2[x2<1-depth+sigdepth].sum()) / y2.sum()
+                    ##cond31 = cond3_val1 >= bimodalfrac
                     cond32 = cond3_val2 >= bimodalfrac
-                    cond3 = cond31 or cond32
-		    if cond3:
-			cond3_val = cond3_val1 if cond31 else cond3_val2
-		    else:
-			cond3_val = cond3_val1
+                    cond3 = cond32#cond31 or cond32
+                    cond3_val = cond3_val2
+		    ##if cond3:
+			##cond3_val = cond3_val1 if cond31 else cond3_val2
+		    ##else:
+			##cond3_val = cond3_val1
 		else:
             	    cond3_val, cond3 = np.nan, False
             except ZeroDivisionError:
