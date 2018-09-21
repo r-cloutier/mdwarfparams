@@ -20,7 +20,7 @@ def compare_det_and_FPs(K2resultsclass):
     
     # check which planets are detected and which are FPs
     det, FP = np.zeros(0, dtype=bool), np.zeros(0, dtype=bool) 
-    epicnamesout, cond_vals = np.zeros(0, dtype=int), np.zeros((0, 3))
+    epicnamesout, cond_vals = np.zeros(0, dtype=int), np.zeros((0, 4))
     for i in self.unique_inds:
 
         print self.epicnames[i]
@@ -30,7 +30,7 @@ def compare_det_and_FPs(K2resultsclass):
             det = np.append(det, False)
             FP = np.append(FP, False)
             epicnamesout = np.append(epicnamesout, self.epicnames[i])
-            cond_vals = np.append(cond_vals, np.repeat(np.nan,3).reshape(1,3),
+            cond_vals = np.append(cond_vals, np.repeat(np.nan,4).reshape(1,4),
                                   0)
         
         Ps_det = self.params_guess[g][1:,0]  # skip the first nan entry
@@ -51,6 +51,6 @@ def compare_det_and_FPs(K2resultsclass):
 
             epicnamesout = np.append(epicnamesout, self.epicnames[i])
             cond_vals = np.append(cond_vals,
-                                  self.cond_vals[g][j+1].reshape(1,3), 0)
+                                  self.cond_vals[g][j+1].reshape(1,4), 0)
 
     return epicnamesout, det, FP, cond_vals

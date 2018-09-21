@@ -15,7 +15,7 @@ class K2results:
 	fs = np.array(glob.glob('%s/%s*/*'%(self.folder, self.prefix)))
 	self.fs, self.epicnames = [], np.zeros(0)
 	self.Ndetected, self.params_guess, self.cond_vals = np.zeros(0), np.zeros((0,4)), \
-                                                            np.zeros((0,3))
+                                                            np.zeros((0,4))
         self.Kepmags, self.Mss, self.Rss, self.Teffs = np.zeros(0), np.zeros(0), \
                                                        np.zeros(0), np.zeros(0)
 	self.efs = np.zeros(0)
@@ -38,12 +38,15 @@ class K2results:
 		    self.params_guess = np.append(self.params_guess, params.reshape(1,4), axis=0)
                     P = params[0]
 
-                    g = np.isclose(d.params_guess_priorto_confirm[:,0], P, rtol=.05)
+                    #g = np.isclose(d.params_guess_priorto_confirm[:,0], P, rtol=.05)
+                    Pss = d.params_guess_priorto_confirm[:,0]
+                    g = abs(Pss-P) == np.min(abs(Pss-P))
 		    print self.epicnames[-1], g.sum()
                     cond_vals = [d.transit_condition_scatterin_val[g], \
                                  d.transit_condition_depth_val[g], \
-                                 d.transit_condition_no_bimodal_val[g]] if j > 0 else [np.nan]*3
-                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,3),
+                                 d.transit_condition_no_bimodal_val[g], \
+				 d.transit_condition_timesym_val[g]] if j > 0 else [np.nan]*4
+                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,4),
                                                axis=0)
                     
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)

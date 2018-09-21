@@ -623,7 +623,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    # also check that the transit depth is significant relative to
             # the noise
             depth2 = 1-np.median(fcorr[intransit])
-            sigdepth = np.median(ef[intransit])
+            sigdepth = np.std(fcorr[intransit])
             depth = depth2 #depth1
             cond5 = depth > 0
             cond2_val = depth / sigdepth
