@@ -8,7 +8,8 @@ global dispersion_sig, depth_sig, bimodalfrac
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
-dispersion_sig, depth_sig, bimodalfrac = 2., 1., .68  # for real K2 LCs
+# for real K2 LCs
+dispersion_sig, depth_sig, bimodalfrac, T0tolerance = 2., 1., .68, .2
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -210,7 +211,7 @@ def compute_transit_lnL(bjd, fcorr, ef, transit_times, durations, lnLs,
     return Ps, T0s, Ds, Zs, lnLs_transit
 
 
-def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.05, rZ=.2):
+def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.01, rZ=.2):
     '''remove multiple orbital periods but dont assume the shortest one is
     correct, instead select the one with the highest lnL.'''
     assert Ps.size == T0s.size
@@ -373,12 +374,12 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 		      	  np.zeros_like(Ps), np.zeros_like(Ps)
     lnLs2 = np.zeros_like(Ps)
     for i in range(Ps.size):
-	params = np.array([Ps[i], T0s[i], Zs[i], Ds[i]])
+        params = np.array([Ps[i], T0s[i], Zs[i], Ds[i]])
         Ps2[i], T0s2[i], Zs2[i], Ds2[i], fmodel = _fit_params(params, bjd,
                                                               fcorr, ef,
 						              self.Ms, self.Rs,
                                                               self.Teff)
-	lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
+        lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
 
     # remove common periods based on maximum likelihood
     POIs1, T0OIs1, DOIs1, ZOIs1, lnLOIs1 = \
@@ -438,16 +439,18 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params6,lnLOIs6,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3,cond4 = \
-                            confirm_transits(params6, lnLOIs6, bjd, fcorr, ef,
-                                             self.Ms, self.Rs, self.Teff)
+    params6,lnLOIs6,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3, \
+        cond4_val,con4,cond5 = confirm_transits(params6, lnLOIs6, bjd, fcorr,
+                                                ef, self.Ms, self.Rs, self.Teff)
     self.transit_condition_scatterin_val = cond1_val
     self.transit_condition_scatterin_gtr_scatterout = cond1
     self.transit_condition_depth_val = cond2_val
     self.transit_condition_depth_gtr_rms = cond2
     self.transit_condition_no_bimodal_val = cond3_val
     self.transit_condition_no_bimodal_flux_intransit = cond3
-    self.transit_condition_ephemeris_fits_in_WF = cond4
+    self.transit_condition_timesym_val = cond4_val
+    self.transit_condition_timesym = cond4
+    self.transit_condition_ephemeris_fits_in_WF = cond5
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_multiple_on_lnLs(bjd, ef, params6[:,0],
@@ -473,7 +476,25 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 #    popt,_ = curve_fit(box_transit_model_curve_fit, bjd, fcorr, p0=theta, sigma=ef, absolute_sigma=True)
 #    return popt
 
-def _get_LDcoeffs(Ms, Rs, Teff, Z=0):
+
+def _get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
+    '''Interpolate Claret+2012 grid of limb darkening coefficients to a
+    given star.'''
+    # get LD coefficient grid (Z is always 0 for some reason)
+    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
+                                    np.loadtxt('LDcoeffs/claret12.tsv',
+                                               delimiter=';', skiprows=40,
+                                               usecols=(0,1,2,4,5)).T
+
+    # interpolate to get the stellar LD coefficients
+    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
+    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
+    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
+
+    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
+
+
+def _get_LDcoeffs_TESS(Ms, Rs, Teff, Z=0):
     '''Interpolate Claret 2017 grid of limb darkening coefficients to a
     given star.'''
     # get LD coefficient grid (Z is always 0 for some reason)
@@ -507,7 +528,8 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
     assert params.shape == (4,)
     P, T0, depth, duration = params
     assert depth < .9  # sometimes the dimming is passed instead of depth 
-    u1, u2 = _get_LDcoeffs(Ms, Rs, Teff)
+    u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
+    #u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = P, T0, aRs, rpRs, 90.
@@ -557,6 +579,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     transit_condition_depth_gtr_rms = np.zeros(Ntransits, dtype=bool)
     transit_condition_no_bimodal_val = np.zeros(Ntransits)
     transit_condition_no_bimodal_flux_intransit = np.zeros(Ntransits,dtype=bool)
+    transit_condition_timesym_val = np.zeros(Ntransits)
+    transit_condition_timesym = np.zeros(Ntransits,dtype=bool)
     transit_condition_ephemeris_fits_in_WF = np.zeros(Ntransits, dtype=bool)
     print 'Confirming proposed transits...'
     for i in range(Ntransits):
@@ -632,15 +656,31 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                 cond3_val, cond3 = np.nan, False
 	    transit_condition_no_bimodal_val[i] = cond3_val
 	    transit_condition_no_bimodal_flux_intransit[i] = cond3
+
+	    # ensure that the flux measurements over the full transit are
+            # symmetrical in time
+            y, x = np.histogram(phase[intransitfull], bins=30)
+            x = x[1:] - np.diff(x)[0]/2.
+            try:
+		if (y.sum() >= minNpnts_intransit):
+                    cond4_val = float(y[x<0].sum()) / y.sum()
+                    cond4 = .5-T0tolerance <= cond4_val <= .5+T0tolerance
+		else:
+            	    cond4_val, cond4 = np.nan, False
+            except ZeroDivisionError:
+                cond4_val, cond4 = np.nan, False
+	    transit_condition_timesym_val[i] = cond4_val
+	    transit_condition_timesym[i] = cond4
+
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
             # single transit-like event
-            cond4 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
+            cond6 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
                     (T0 >= bjd.min()) & (T0 <= bjd.max()) & \
                     (P < bjd.max()-bjd.min())
-            transit_condition_ephemeris_fits_in_WF[i] = cond4
+            transit_condition_ephemeris_fits_in_WF[i] = cond6
             paramsout[i] = P, T0, depth, duration
-            if cond1 and cond2 and cond3 and cond4 and cond5:
+            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
 	        j += 2
 	        pass
             else:
@@ -656,9 +696,11 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     lnLsout = np.delete(lnLs, to_remove_inds)
 
     return paramsout, lnLsout, transit_condition_scatterin_val,\
-        transit_condition_scatterin_gtr_scatterout, transit_condition_depth_val, \
-        transit_condition_depth_gtr_rms, transit_condition_no_bimodal_val, \
+        transit_condition_scatterin_gtr_scatterout, \
+        transit_condition_depth_val, transit_condition_depth_gtr_rms, \
+        transit_condition_no_bimodal_val, \
         transit_condition_no_bimodal_flux_intransit, \
+        transit_condition_timesym_val, transit_condition_timesym, \
         transit_condition_ephemeris_fits_in_WF
 
 
