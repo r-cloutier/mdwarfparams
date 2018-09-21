@@ -450,8 +450,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.transit_condition_ephemeris_fits_in_WF = cond4
 
     # re-remove multiple transits based on refined parameters
-    p,t0,d,z,_ = remove_multiple_on_lnLs(bjd, ef, params6[:,0], params6[:,1], 
-					 params6[:,3], params6[:,2], lnLOIs6)
+    p,t0,d,z,lnLs = remove_multiple_on_lnLs(bjd, ef, params6[:,0],
+                                            params6[:,1], params6[:,3],
+                                            params6[:,2], lnLOIs6)
     params = np.array([p,t0,z,d]).T
 
     # try to identify EBs
@@ -462,7 +463,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.EBconditions, self.EBcondition_labels = EBconditions, \
                                                  EBcondition_labels
     
-    return POIs5, T0OIs5, DOIs5, ZOIs5, lnLOIs6, params, EBparams, maybeEBparams
+    return params6[:,0], params6[:,1], params6[:,3], params6[:,2], lnLs, \
+        params, EBparams, maybeEBparams
 
 
 #def _optimize_box_transit(theta, bjd, fcorr, ef):
@@ -598,6 +600,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             depth2 = 1-np.median(fcorr[intransit])
             sigdepth = np.median(ef[intransit])
             depth = depth2 #depth1
+            cond5 = depth > 0
             cond2_val = depth / sigdepth
             cond2 = cond2_val > depth_sig
             transit_condition_depth_val[i] = cond2_val
@@ -611,7 +614,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             y2, x2 = np.histogram(fcorr[intransit], bins=30)
             x2 = x2[1:] - np.diff(x2)[0]/2.
 	    try:
-		if (y2.sum() > minNpnts_intransit):
+		if (y2.sum() >= minNpnts_intransit):
                     ##| (y.sum() > minNpnts_intransit):
                     ##cond3_val1 = float(y[x<1-depth+sigdepth].sum()) / y.sum()
                     cond3_val2 = float(y2[x2<1-depth+sigdepth].sum()) / y2.sum()
@@ -637,7 +640,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                     (P < bjd.max()-bjd.min())
             transit_condition_ephemeris_fits_in_WF[i] = cond4
             paramsout[i] = P, T0, depth, duration
-            if cond1 and cond2 and cond3 and cond4:
+            if cond1 and cond2 and cond3 and cond4 and cond5:
 	        j += 2
 	        pass
             else:
@@ -645,7 +648,6 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                 j += 1
 
     # only remove parameter sets that fail both the original and optimized tests
-    print to_remove_inds, paramsout
     to_remove_inds, counts = np.unique(to_remove_inds, return_counts=True)
     to_remove_inds = to_remove_inds[counts==2]
 
