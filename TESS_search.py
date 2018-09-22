@@ -9,7 +9,7 @@ from scipy.stats import normaltest
 from scipy.signal import medfilt
 
 global SNRthresh
-SNRthresh = 8
+SNRthresh = 5
 
 def download_one_fits(fname):
     '''Get the full fits file for a TOI.'''

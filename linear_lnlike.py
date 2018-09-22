@@ -4,12 +4,13 @@ import vetting as vett
 import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
-global dispersion_sig, depth_sig, bimodalfrac
+global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
 # for real K2 LCs
-dispersion_sig, depth_sig, bimodalfrac, T0tolerance = 2., 1., .6, .2
+dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
+                                                        2., 1., .6, .2, .5
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -416,19 +417,21 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                             depth_sig, \
                                                             bimodalfrac
     self._pickleobject()
-    params6,lnLOIs6,cond1_val,cond1,cond2_val,cond2,cond3_val,cond3, \
-        cond4_val,cond4,cond5 = confirm_transits(params6, lnLOIs6, bjd, fcorr,
-                                                 ef, self.Ms, self.Rs,
-                                                 self.Teff)
-    self.transit_condition_scatterin_val = cond1_val
-    self.transit_condition_scatterin_gtr_scatterout = cond1
-    self.transit_condition_depth_val = cond2_val
-    self.transit_condition_depth_gtr_rms = cond2
-    self.transit_condition_no_bimodal_val = cond3_val
-    self.transit_condition_no_bimodal_flux_intransit = cond3
-    self.transit_condition_timesym_val = cond4_val
-    self.transit_condition_timesym = cond4
-    self.transit_condition_ephemeris_fits_in_WF = cond5
+    params6, lnLOIs6, cond_vals, conds = confirm_transits(params6, lnLOIs6,
+                                                          bjd, fcorr, ef,
+                                                          self.Ms, self.Rs,
+                                                          self.Teff)
+    self.transit_condition_scatterin_val = cond_vals[:,0]
+    self.transit_condition_scatterin_gtr_scatterout = conds[:,0]
+    self.transit_condition_depth_val = cond_vals[:,1]
+    self.transit_condition_depth_gtr_rms = conds[:,2]
+    self.transit_condition_no_bimodal_val = cond_vals[:,2]
+    self.transit_condition_no_bimodal_flux_intransit = conds[:,2]
+    self.transit_condition_timesym_val = cond_vals[:,3]
+    self.transit_condition_timesym = conds[:,3]
+    self.transit_condition_indiv_transit_frac_val = cond_vals[:,4]
+    self.transit_condition_indiv_transit_frac_gt_min = conds[:,4]
+    self.transit_condition_ephemeris_fits_in_WF = conds[:,5]
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_multiple_on_lnLs(bjd, ef, params6[:,0],
@@ -559,6 +562,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     transit_condition_no_bimodal_flux_intransit = np.zeros(Ntransits,dtype=bool)
     transit_condition_timesym_val = np.zeros(Ntransits)
     transit_condition_timesym = np.zeros(Ntransits,dtype=bool)
+    transit_condition_indiv_transit_frac_val = np.zero(Ntransits)
+    transit_condition_indiv_transit_frac_gt_min = np.zero(Ntransits, dtype=bool)
     transit_condition_ephemeris_fits_in_WF = np.zeros(Ntransits, dtype=bool)
     print 'Confirming proposed transits...'
     for i in range(Ntransits):
@@ -632,15 +637,47 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             transit_condition_timesym_val[i] = cond4_val
 	    transit_condition_timesym[i] = cond4
 
+            # check that most individual transits look like transits
+            Dfrac = .5
+            events_BJD = np.arange(-1000,1000)*P + T0
+            g = (events_BJD >= bjd.min()) & (events_BJD <= bjd.max())
+            events_BJD = events_BJD[g]
+            depth_gtr_sig = np.zeros(events_BJD.size)
+            aretransits = np.zeros(events_BJD.size, dtype=bool)
+            for k in range(depth_gtr_sig.size):
+                t0 = events_BJD[k]
+                phase = foldAt(bjd, P, t0)
+                phase[phase>.5] -= 1
+                intransit = (bjd >= t0-Dfrac*duration) & \
+                            (bjd <= t0+Dfrac*duration)
+                outtransit1 = (bjd >= t0-10*duration) & \
+                              (bjd <= t0-8*duration)
+                outtransit2 = (bjd <= t0+10*duration) & \
+                              (bjd >= t0+8*duration)
+                ##plt.plot(bjd, fcorr, 'o', bjd[outtransit1],
+                ##         fcorr[outtransit1], 'o'), plt.show()
+                fin = np.median(fcorr[intransit])
+                sigdepth = np.std(fcorr[intransit]) if intransit.sum() > 1 \
+                           else np.median(ef[intransit])
+                fout = np.median(np.append(fcorr[outtransit1],
+                                           fcorr[outtransit2]))
+                aretransits[k] = fin+sigdepth < fout
+
+            cond6_val = aretransits.sum() / float(aretransits.size)
+            cond6 = cond6_val >= transitlikefrac
+            transit_condition_indiv_transit_frac_val[i] = cond6_val
+            transit_condition_indiv_transit_frac_gt_min[i] = cond6
+    
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
             # single transit-like event
-            cond6 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
+            cond7 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
                     (T0 >= bjd.min()) & (T0 <= bjd.max()) & \
                     (P < bjd.max()-bjd.min())
-            transit_condition_ephemeris_fits_in_WF[i] = cond6
+            transit_condition_ephemeris_fits_in_WF[i] = cond7
             paramsout[i] = P, T0, depth, duration
-            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
+            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6 and \
+               cond7:
 	        j += 2
 	        pass
             else:
@@ -655,19 +692,26 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     paramsout = np.delete(paramsout, to_remove_inds, 0)
     lnLsout = np.delete(lnLs, to_remove_inds)
 
-    return paramsout, lnLsout, transit_condition_scatterin_val,\
-        transit_condition_scatterin_gtr_scatterout, \
-        transit_condition_depth_val, transit_condition_depth_gtr_rms, \
-        transit_condition_no_bimodal_val, \
-        transit_condition_no_bimodal_flux_intransit, \
-        transit_condition_timesym_val, transit_condition_timesym, \
-        transit_condition_ephemeris_fits_in_WF
+    # combine conditions
+    cond_vals = np.array([transit_condition_scatterin_val, \
+                          transit_condition_depth_val, \
+                          transit_condition_no_bimodal_val, \
+                          transit_condition_timesym_val,
+                          transit_condition_indiv_transit_frac_val]).T         
+    cond_bool = np.array([transit_condition_scatterin_gtr_scatterout, \
+                          transit_condition_depth_gtr_rms, \
+                          transit_condition_no_bimodal_flux_intransit, \
+                          transit_condition_timesym, \
+                          transit_condition_ephemeris_fits_in_WF, \
+                          transit_condition_indiv_transit_frac_gt_min]).T
+
+    return paramsout, lnLsout, cond_vals, cond_bool
 
 
 def identify_EBs(params, bjd, fcorr, ef, Rs, SNRthresh=3., rpmax=30):
     '''For each proposed planet in params, check if there is a clearly-defined 
-    secondary eclipse as is indicative of a secondary eclipse. Could also have a 
-    V-shaped "transit" but so highly inclined transiting planets.'''
+    secondary eclipse as is indicative of a secondary eclipse. Could also have 
+    a V-shaped "transit" but so highly inclined transiting planets.'''
     Nplanets = params.shape[0]
     notEB = np.ones(Nplanets)
     for i in range(Nplanets):
