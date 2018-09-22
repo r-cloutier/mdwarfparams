@@ -15,7 +15,7 @@ class K2results:
 	fs = np.array(glob.glob('%s/%s*/*'%(self.folder, self.prefix)))
 	self.fs, self.epicnames = [], np.zeros(0)
 	self.Ndetected, self.params_guess, self.cond_vals = np.zeros(0), np.zeros((0,4)), \
-                                                            np.zeros((0,4))
+                                                            np.zeros((0,5))
         self.Kepmags, self.Mss, self.Rss, self.Teffs = np.zeros(0), np.zeros(0), \
                                                        np.zeros(0), np.zeros(0)
 	self.efs = np.zeros(0)
@@ -45,8 +45,9 @@ class K2results:
                     cond_vals = [d.transit_condition_scatterin_val[g], \
                                  d.transit_condition_depth_val[g], \
                                  d.transit_condition_no_bimodal_val[g], \
-				 d.transit_condition_timesym_val[g]] if j > 0 else [np.nan]*4
-                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,4),
+				 d.transit_condition_timesym_val[g], \
+				 d.transit_condition_indiv_transit_frac_val[g]] if j > 0 else [np.nan]*5
+                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,5),
                                                axis=0)
                     
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)

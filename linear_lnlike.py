@@ -562,8 +562,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     transit_condition_no_bimodal_flux_intransit = np.zeros(Ntransits,dtype=bool)
     transit_condition_timesym_val = np.zeros(Ntransits)
     transit_condition_timesym = np.zeros(Ntransits,dtype=bool)
-    transit_condition_indiv_transit_frac_val = np.zero(Ntransits)
-    transit_condition_indiv_transit_frac_gt_min = np.zero(Ntransits, dtype=bool)
+    transit_condition_indiv_transit_frac_val = np.zeros(Ntransits)
+    transit_condition_indiv_transit_frac_gt_min = np.zeros(Ntransits, dtype=bool)
     transit_condition_ephemeris_fits_in_WF = np.zeros(Ntransits, dtype=bool)
     print 'Confirming proposed transits...'
     for i in range(Ntransits):
