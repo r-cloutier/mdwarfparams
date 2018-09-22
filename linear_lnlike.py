@@ -274,7 +274,7 @@ def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
                                                           np.zeros(0), \
 							  np.zeros(0)
     for i in range(POIs.size):
-        isclose = np.isclose(POIs[i], POIs, rtol=rP)
+        isclose = np.isclose(POIs, POIs[i], rtol=rP)
         if np.any(isclose):
             g = lnLOIs == lnLOIs[isclose].max()
             POIs_red = np.append(POIs_red, POIs[g])
@@ -334,9 +334,6 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     assert Ps.size == Zs.size
     assert Ps.size == lnLs.size
 
-    # remove common periods based on maximum likelihood
-    Ps, T0s, Ds, Zs, lnLs = remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.02)
-    
     # remove negative entries (mostly negative depths) and only allow a
     # maximum number of periodicities for efficiency
     Nmax = 100
@@ -350,17 +347,20 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     
     # get optimized parameters to get more precise Ps and T0s which will help 
     # when removing multiples
-    POIs1, T0OIs1, DOIs1, ZOIs1 = np.zeros_like(Ps), np.zeros_like(Ps), \
-		      	          np.zeros_like(Ps), np.zeros_like(Ps)
-    lnLOIs1 = np.zeros_like(Ps)
+    Ps2, T0s2, Ds2, Zs2 = np.zeros_like(Ps), np.zeros_like(Ps), \
+		      	  np.zeros_like(Ps), np.zeros_like(Ps)
+    lnLs2 = np.zeros_like(Ps)
     for i in range(Ps.size):
         params = np.array([Ps[i], T0s[i], Zs[i], Ds[i]])
-        POIs1[i],T0OIs1[i],ZOIs1[i],DOIs1[i],fmodel = _fit_params(params, bjd,
-                                                                  fcorr, ef,
-						                  self.Ms,
-                                                                  self.Rs,
-                                                                  self.Teff)
-        lnLOIs1[i] = lnlike(bjd, fcorr, ef, fmodel)
+        Ps2[i], T0s2[i], Zs2[i], Ds2[i], fmodel = _fit_params(params, bjd,
+                                                              fcorr, ef,
+						              self.Ms, self.Rs,
+                                                              self.Teff)
+        lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
+
+    # remove common periods based on maximum likelihood
+    POIs1, T0OIs1, DOIs1, ZOIs1, lnLOIs1 = \
+                                    remove_common_P(Ps2, T0s2, Ds2, Zs2, lnLs2)
 
     # update Z manually
     ZOIs2 = np.zeros(POIs1.size)
@@ -371,19 +371,14 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 	intransit = (phase >= -dur) & (phase <= dur)
 	ZOIs2[i] = 1-np.median(fcorr[intransit])
 
-    # remove common periods based on maximum likelihood
-    POIs2, T0OIs2, DOIs2, ZOIs2, lnLOIs2 = remove_common_P(POIs1, T0OIs1,
-                                                           DOIs1, ZOIs2,
-                                                           lnLOIs1, rP=.02)
-        
     # remove multiple transits (i.e. 2P, 3P, 4P...)
     g = (ZOIs2>0) & (ZOIs2<.9)
     POIs2, T0OIs2, DOIs2, ZOIs2, lnLOIs2 = remove_multiple_on_lnLs(bjd, ef,
-                                                                   POIs2[g],
-                                                                   T0OIs2[g],
-                                                                   DOIs2[g],
+                                                                   POIs1[g],
+                                                                   T0OIs1[g],
+                                                                   DOIs1[g],
                                                                    ZOIs2[g],
-                                                                   lnLOIs2[g])
+                                                                   lnLOIs1[g])
 
     # do not consider too many planets to limit FPs
     g = ZOIs2 > 0
@@ -403,8 +398,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     
     # remove duplicates and multiples
     POIs4, T0OIs4, DOIs4, ZOIs4, lnLOIs4 = remove_common_P(POIs3, T0OIs3, DOIs3,
-                                                           ZOIs3, lnLOIs3,
-                                                           rP=.02)
+                                                           ZOIs3, lnLOIs3)
     POIs5, T0OIs5, DOIs5, ZOIs5, lnLOIs5 = remove_multiple_on_lnLs(bjd, ef,
                                                                    POIs4,
                                                                    T0OIs4,
@@ -583,10 +577,9 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    if j == 0:
 	    	P, T0, depth1, duration = params[i]
 	    else:
-		P, T0, depth1, duration, fmodel = _fit_params(params[i], bjd,
-                                                              fcorr, ef, Ms,
-                                                              Rs, Teff)
-                
+		P, T0, depth1, duration,_ = _fit_params(params[i], bjd, fcorr,
+                                                        ef, Ms, Rs, Teff)
+
 	    # get in and out of transit window
             phase = foldAt(bjd, P, T0)
             phase[phase > .5] -= 1
