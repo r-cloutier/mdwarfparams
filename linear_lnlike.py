@@ -238,7 +238,8 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.01, rZ=.2):
 
         # check inverse multiples (eg P/2, P/3, ...)
         div = 2.
-        while Ps[i]/div >= .1:
+	Pmin = .1
+        while Ps[i]/div >= Pmin:
             isclose = np.isclose(Ps, Ps[i]/div, rtol=rP)
             div += 1.
             if np.any(isclose):
@@ -458,7 +459,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
 #    return popt
 
 
-def _get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
+def get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
     '''Interpolate Claret+2012 grid of limb darkening coefficients to a
     given star.'''
     # get LD coefficient grid (Z is always 0 for some reason)
@@ -475,7 +476,7 @@ def _get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
     return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
 
 
-def _get_LDcoeffs_TESS(Ms, Rs, Teff, Z=0):
+def get_LDcoeffs_TESS(Ms, Rs, Teff, Z=0):
     '''Interpolate Claret 2017 grid of limb darkening coefficients to a
     given star.'''
     # get LD coefficient grid (Z is always 0 for some reason)
@@ -509,8 +510,8 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
     assert params.shape == (4,)
     P, T0, depth, duration = params
     assert depth < .9  # sometimes the dimming is passed instead of depth 
-    u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
-    #u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
+    u1, u2 = get_LDcoeffs_Kepler(Ms, Rs, Teff)
+    #u1, u2 = get_LDcoeffs_TESS(Ms, Rs, Teff)
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = P, T0, aRs, rpRs, 90.

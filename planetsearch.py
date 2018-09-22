@@ -128,8 +128,8 @@ def get_star(epicnum):
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
-    #return (Kepmag<=15.5) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
-    return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+    return (Kepmag<=15) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)  # 11006 K2 M dwarfs w/ Kepmag<15
+    #return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
 
 
 def planet_search(epicnum):
@@ -206,8 +206,8 @@ def do_i_run_this_star(epicnum):
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
-    #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
+    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+    #epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
     for i in range(startind, endind):
 	print epics[i]
 	if do_i_run_this_star(epics[i]):
