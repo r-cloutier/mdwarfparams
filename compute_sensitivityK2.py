@@ -107,6 +107,16 @@ def injected_planet_search(epicnum, index):
     self._pickleobject()
 
 
+
+def do_i_run_this_sim(epicnum, index):
+    # check if star is already done
+    fname = 'PipelineResults/EPIC_%i_%.4d/K2LC'%(epicnum, index)
+    if os.path.exists(fname):
+        return not loadpickle(fname).DONE
+    else:
+        return True
+
+
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
@@ -115,4 +125,5 @@ if __name__ == '__main__':
     for i in range(startind, endind):
         print epics[i]
         for j in range(Nsystems):
-            injected_planet_search(epics[i], j)
+            if do_i_run_this_sim(epics[i], j):
+                injected_planet_search(epics[i], j)
