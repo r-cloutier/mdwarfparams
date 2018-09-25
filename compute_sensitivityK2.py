@@ -41,6 +41,8 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.1,30), rplims=(.5,4)):
     incs = rvs.inclination(Ptrue, Ms, Rs, bs)
     u1, u2 = llnl.get_LDcoeffs_Kepler(Ms, Rs, Teff)
 
+    print '\n', Ptrue, T0true, aRs, rpRs, incs, u1, u2
+    
     # compute transit model(s)
     fmodel = np.ones(bjd.size)
     depthtrue, durationtrue = np.zeros(Nplanets), np.zeros(Nplanets)
@@ -49,11 +51,12 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.1,30), rplims=(.5,4)):
                                           rpRs[i], incs[i], u1, u2) - 1.
         fmodel += fmodeltmp
         depthtrue[i] = abs(fmodeltmp.min())
-        prior2transit = (bjd >= T0true[i]-Ptrue[i]*.5) & (bjd < T0true[i])
-        aftertransit = (bjd <= T0true[i]+Ptrue[i]*.5) & (bjd > T0true[i])
-        T1 = bjd[prior2transit][fmodeltmp[prior2transit]==0][-1]
-        T4 = bjd[aftertransit][fmodeltmp[aftertransit]==0][0]        
-        durationtrue[i] = T4-T1
+        #prior2transit = (bjd >= T0true[i]-Ptrue[i]*.5) & (bjd < T0true[i])
+        #aftertransit = (bjd <= T0true[i]+Ptrue[i]*.5) & (bjd > T0true[i])
+        #T1 = bjd[prior2transit][fmodeltmp[prior2transit]==0][-1]
+        #T4 = bjd[aftertransit][fmodeltmp[aftertransit]==0][0]        
+        #durationtrue[i] = T4-T1
+        durationtrue[i] = rvs.transit_width(Ptrue[i], Ms, Rs, rptrue[i], bs[i])
         
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
     
