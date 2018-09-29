@@ -106,6 +106,9 @@ def injected_planet_search(epicnum, index):
     self.is_detected = np.array([int(np.any(np.isclose(params[:,0], Ptrue[i],
                                                        rtol=.02)))
                                  for i in range(Ptrue.size)]).astype(bool)
+    self.is_FP = np.array([int(np.invert(np.any(np.isclose(Ptrue, params[i,0],
+                                                           rtol=.02))))
+                           for i in range(params.shape[0])]).astype(bool)
     self.DONE = True
     self._pickleobject()
 

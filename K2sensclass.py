@@ -7,6 +7,7 @@ class K2sensitivity:
         self.fname_full = 'PipelineResults/EPIC_%isens'%self.epicnum
         self.get_data()
         self.compute_sensitivity()
+        self.FPs()
         self._pickleobject()
 
 
@@ -22,7 +23,7 @@ class K2sensitivity:
         Nmax = 20
         Nplanets = np.zeros(self.Nsim)
         self.Ps, self.rps = np.zeros((0,Nmax)), np.zeros((0,Nmax))
-        self.isdet = np.zeros((0,Nmax))
+        self.isdet = np.zeros((0,Nmax)), self.isFP((,Nmax))
         for i in range(self.Nsim):
 
             print float(i) / self.Nsim
@@ -34,12 +35,26 @@ class K2sensitivity:
             rpin = np.append(d.rptrue, filler)
             isdetin = np.append(d.is_detected, filler)
             
-            self.Ps  = np.append(self.Ps, Pin.reshape(1,Nmax), axis=0)
+            self.Ps = np.append(self.Ps, Pin.reshape(1,Nmax), axis=0)
             self.rps = np.append(self.rps, rpin.reshape(1,Nmax), axis=0)
             self.isdet = np.append(self.isdet, isdetin.reshape(1,Nmax), axis=0)
 
+            # get false positives TEMP because d.is_FP doesnt exist yet until
+            # the simulation is rerun
+            params = d.params_guess
+            is_FP =  np.array([int(np.invert(np.any(np.isclose(d.Ptrue,
+                                                               params[i,0],
+                                                               rtol=.02))))
+                               for i in range(params.shape[0])]).astype(bool)
+            self.isFP = np.append(is_FP, np.repeat(np.nan,Nmax-is_FP.size))
+            
         # trim excess planets
-        
+        end = np.where(np.all(np.isnan(self.Ps), axis=0))[0][0]
+        self.Ps = self.Ps[:,:end]
+        self.rps = self.rps[:,:end]
+        self.isdet = self.isdet[:,:end]
+        end2 = np.where(np.all(np.isnan(self.isFP), axis=0))[0][0]
+        self.isFP = self.isFP[:,:end2]
         
 
     def compute_sensitivity(self):
@@ -48,22 +63,27 @@ class K2sensitivity:
         xlen, ylen = 11, 9
         self.Pgrid = np.logspace(-1, np.log10(30), xlen+1)
         self.rpgrid = np.linspace(.5, 4, ylen+1)
-        self.Ndet, self.Ntrue = np.zeros((xlen, ylen)), \
-                                np.zeros((xlen, ylen))
+        self.Ndet, self.Ntrue, self.NFP = np.zeros((xlen, ylen)), \
+                                          np.zeros((xlen, ylen)), \
+                                          np.zeros((xlen, ylen))
         for i in range(xlen):
             for j in range(ylen):
                 g = (self.Ps >= self.Pgrid[i]) & \
                     (self.Ps <= self.Pgrid[i+1]) & \
                     (self.rps >= self.rpgrid[j]) & \
-                    (self.rpgrid <= self.rpgrid[j+1])
+                    (self.rps <= self.rpgrid[j+1])
                 self.Ndet[i,j] = self.isdet[g].sum()
                 self.Ntrue[i,j] = self.isdet[g].size
-
+                self.NFP[i,j] = self.isFP[g].sum()
+                
         # compute sensitivity
         self.sens = self.Ndet / self.Ntrue.astype(float)
         self.esens = np.sqrt(self.Ndet) / self.Ntrue.astype(float)
 
-                      
+        # compute yield correction to multiply the yield by
+        self.yield_corr = 1 - self.NFP / (self.Ndet + self.NFP)
+        
+                              
     def _pickleobject(self):
         fObj = open(self.fname_full, 'wb')
         pickle.dump(self, fObj)
