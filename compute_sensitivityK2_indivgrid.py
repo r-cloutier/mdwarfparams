@@ -4,24 +4,28 @@ class K2sensitivity:
 
     def __init__(self, epicnum):
         self.epicnum = epicnum
+        self.fname_full = 'PipelineResults/EPIC_%isens'%self.epicnum
         self.get_data()
         self.compute_sensitivity()
+        self._pickleobject()
 
 
-    def get_data():
+    def get_data(self):
         self.fs = np.array(glob.glob('PipelineResults/EPIC_%i_*/*'%self.epicnum))
         self.Nsim = self.fs.size
+        assert self.Nsim > 0
         d = loadpickle(self.fs[0])
         self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = d.Kepmag, \
                                                               d.logg, \
                                                               d.Ms, d.Rs, \
                                                               d.Teff
-        Nmax = 10
+        Nmax = 20
         Nplanets = np.zeros(self.Nsim)
         self.Ps, self.rps = np.zeros((0,Nmax)), np.zeros((0,Nmax))
         self.isdet = np.zeros((0,Nmax))
         for i in range(self.Nsim):
 
+            print float(i) / self.Nsim
             d = loadpickle(self.fs[i])
 
             Nplanets[i] = d.Ptrue.size
@@ -33,7 +37,10 @@ class K2sensitivity:
             self.Ps  = np.append(self.Ps, Pin.reshape(1,Nmax), axis=0)
             self.rps = np.append(self.rps, rpin.reshape(1,Nmax), axis=0)
             self.isdet = np.append(self.isdet, isdetin.reshape(1,Nmax), axis=0)
-            
+
+        # trim excess planets
+        
+        
 
     def compute_sensitivity(self):
         '''Get all the simulations for this star and compute the
@@ -49,7 +56,7 @@ class K2sensitivity:
                     (self.Ps <= self.Pgrid[i+1]) & \
                     (self.rps >= self.rpgrid[j]) & \
                     (self.rpgrid <= self.rpgrid[j+1])
-                self.Ndet = self.isdet[g].sum()
+                self.Ndet[i,j] = self.isdet[g].sum()
                 self.Ntrue[i,j] = self.isdet[g].size
 
         # compute sensitivity
@@ -61,3 +68,7 @@ class K2sensitivity:
         fObj = open(self.fname_full, 'wb')
         pickle.dump(self, fObj)
         fObj.close()
+
+
+if __name__ == '__main__':
+    self = K2sensitivity(215096532)
