@@ -22,7 +22,7 @@ class K2sensitivity:
         Nmax = 20
         Nplanets = np.zeros(self.Nsim)
         self.Ps, self.rps = np.zeros((0,Nmax)), np.zeros((0,Nmax))
-        self.isdet = np.zeros((0,Nmax)), self.isFP((,Nmax))
+        self.isdet, self.isFP = np.zeros((0,Nmax)), np.zeros((0,Nmax))
         for i in range(self.Nsim):
 
             print float(i) / self.Nsim
