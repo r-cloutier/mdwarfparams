@@ -7,7 +7,6 @@ class K2sensitivity:
         self.fname_full = 'PipelineResults/EPIC_%isens'%self.epicnum
         self.get_data()
         self.compute_sensitivity()
-        self.FPs()
         self._pickleobject()
 
 
@@ -59,7 +58,7 @@ class K2sensitivity:
 
     def compute_sensitivity(self):
         '''Get all the simulations for this star and compute the
-        sensitivity.'''
+        sensitivity and the number of FPs as functions of P and rp.'''
         xlen, ylen = 11, 9
         self.Pgrid = np.logspace(-1, np.log10(30), xlen+1)
         self.rpgrid = np.linspace(.5, 4, ylen+1)
@@ -81,7 +80,7 @@ class K2sensitivity:
         self.esens = np.sqrt(self.Ndet) / self.Ntrue.astype(float)
 
         # compute yield correction to multiply the yield by
-        self.yield_corr = 1 - self.NFP / (self.Ndet + self.NFP)
+        self.yield_corr = 1 - self.NFP / (self.Ndet + self.NFP.astype(float))
         
                               
     def _pickleobject(self):
