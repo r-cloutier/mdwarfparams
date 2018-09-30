@@ -45,7 +45,10 @@ class K2sensitivity:
                                                                params[i,0],
                                                                rtol=.02))))
                                for i in range(params.shape[0])]).astype(bool)
-            self.isFP = np.append(is_FP, np.repeat(np.nan,Nmax-is_FP.size))
+            filler2 = np.repeat(np.nan, Nmax-is_FP.size)
+            self.isFP = np.append(self.isFP,
+                                  np.append(is_FP,filler2).reshape(1,Nmax),
+                                  axis=0)
             
         # trim excess planets
         end = np.where(np.all(np.isnan(self.Ps), axis=0))[0][0]
