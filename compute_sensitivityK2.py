@@ -14,7 +14,7 @@ def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
     return f
 
 
-def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.1,30), rplims=(.5,4)):
+def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,30), rplims=(.5,4)):
     '''Sample M dwarf planets over a log uniform grid.'''
     Nplanets = 0
     while Nplanets < 1:
@@ -69,7 +69,8 @@ def injected_planet_search(epicnum, index):
     if not is_star_of_interest(epicnum):
         return None
     name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
-    self = K2LC('%s_%.4d'%(name, index))
+    #self = K2LC('%s_%.4d'%(name, index))
+    self = K2LC(name, index)
     self.bjd, self.f, self.ef = bjd, f, ef
     self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = Kepmag, logg, Ms, \
                                                           Rs, Teff
