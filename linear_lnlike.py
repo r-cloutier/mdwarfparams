@@ -435,9 +435,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.transit_condition_ephemeris_fits_in_WF = conds[:,5]
 
     # re-remove multiple transits based on refined parameters
-    p,t0,d,z,lnLs = remove_multiple_on_lnLs(bjd, ef, params6[:,0],
-                                            params6[:,1], params6[:,3],
-                                            params6[:,2], lnLOIs6)
+    p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
+                                    params6[:,2], lnLOIs6)
+    p,t0,d,z,lnLs = remove_multiple_on_lnLs(bjd, ef, p, t0, d, z, lnLs)
     params = np.array([p,t0,z,d]).T
 
     # try to identify EBs
@@ -448,7 +448,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.EBconditions, self.EBcondition_labels = EBconditions, \
                                                  EBcondition_labels
     
-    return params6[:,0], params6[:,1], params6[:,3], params6[:,2], lnLs, \
+    return params[:,0], params[:,1], params[:,3], params[:,2], lnLs, \
         params, EBparams, maybeEBparams
 
 
