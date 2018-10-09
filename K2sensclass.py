@@ -7,8 +7,8 @@ class K2sensitivity:
         self.epicnum = epicnum
         self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum, self.epicnum)
         self.get_data()
-        #self.compute_sensitivity()
-	#self.compute_transit_prob()
+        self.compute_sensitivity()
+	self.compute_transit_prob()
         self._pickleobject()
 
 
@@ -22,9 +22,9 @@ class K2sensitivity:
                                                               d.Ms, d.Rs, \
                                                               d.Teff
         Nmax = 20
-        self.Nplanets = np.zeros(0)
+        self.Nplanets_true, self.Nplanets_found = np.zeros(0), np.zeros(0)
         self.Ps, self.rps, self.isdet = np.zeros((0,Nmax)), np.zeros((0,Nmax)), np.zeros((0,Nmax))
-        self.PsFP, self.rpsFP, self.isFP = np.zeros((0,Nmax)), np.zeros((0,Nmax)), np.zeros((0,Nmax))
+        self.Psfound, self.rpsfound, self.isFP = np.zeros((0,Nmax)), np.zeros((0,Nmax)), np.zeros((0,Nmax))
         for i in range(self.fs.size):
 
             print float(i) / self.fs.size
@@ -32,8 +32,8 @@ class K2sensitivity:
 
 	    if d.DONE:
 		self.Nsim += 1
-            	self.Nplanets = np.append(self.Nplanets, d.Ptrue.size)
-            	filler = np.repeat(np.nan, Nmax-self.Nplanets[-1])
+            	self.Nplanets_true = np.append(self.Nplanets_true, d.Ptrue.size)
+            	filler = np.repeat(np.nan, Nmax-self.Nplanets_true[-1])
 	        Pin = np.append(d.Ptrue, filler)
             	rpin = np.append(d.rptrue, filler)
             	isdetin = np.append(d.is_detected, filler)
@@ -45,17 +45,19 @@ class K2sensitivity:
             	# get false positives TEMP because d.is_FP doesnt exist yet until
             	# the simulation is rerun
             	params = d.params_guess
-            	is_FP =  np.array([int(np.invert(np.any(np.isclose(d.Ptrue,
-                                                               	   params[i,0],
-                                                                   rtol=.02))))
-                                   for i in range(params.shape[0])]).astype(bool)
-            	filler2 = np.repeat(np.nan, Nmax-is_FP.size)
-		PinFP = np.append(params[is_FP,0], filler2)
-		rpinFP = np.append(rvs.m2Rearth(rvs.Rsun2m(params[is_FP,2]*d.Rs)), filler2)
-		self.PsFP = np.append(self.PsFP, PinFP.reshape(1,Nmax), axis=0)
-		self.rpsFP = np.append(self.rpsFP, rpinFP.reshape(1,Nmax), axis=0)
+		self.Nplanets_found = np.append(self.Nplanets_found, params.shape[0])
+		filler2 = np.repeat(np.nan, Nmax-self.Nplanets_found[-1])
+                Pinfound = np.append(params[:,0], filler2)
+                rpinfound = np.append(rvs.m2Rearth(rvs.Rsun2m(np.sqrt(params[:,2])*d.Rs)), filler2)
+                self.Psfound = np.append(self.Psfound, Pinfound.reshape(1,Nmax), axis=0)
+                self.rpsfound = np.append(self.rpsfound, rpinfound.reshape(1,Nmax), axis=0)
+
+            	is_FPin =  np.array([int(np.invert(np.any(np.isclose(d.Ptrue,
+                                                               	     params[i,0],
+                                                                     rtol=.02))))
+                                     for i in range(params.shape[0])]).astype(bool)
             	self.isFP = np.append(self.isFP,
-                                      np.append(is_FP,filler2).reshape(1,Nmax),
+                                      np.append(is_FPin,filler2).reshape(1,Nmax),
                                       axis=0)
             
         # trim excess planets
@@ -63,10 +65,10 @@ class K2sensitivity:
         self.Ps = self.Ps[:,:end]
         self.rps = self.rps[:,:end]
         self.isdet = self.isdet[:,:end]
-        end2 = np.where(np.all(np.isnan(self.isFP), axis=0))[0][0]
-	self.PsFP = self.PsFP[:,:end2]
-	self.rpsFP = self.rpsFP[:,:end2]
-        self.isFP = self.isFP[:,:end2]
+        #end2 = np.where(np.all(np.isnan(self.PsFP), axis=0))[0][0]
+	self.Psfound = self.Psfound[:,:end]
+	self.rpsfound = self.rpsfound[:,:end]
+        self.isFP = self.isFP[:,:end]
         
 
     def compute_sensitivity(self, Plims=(.5,30), rplims=(.5,4)):
@@ -87,10 +89,10 @@ class K2sensitivity:
                 self.Ndet[i,j] = self.isdet[g].sum()
                 self.Ntrue[i,j] = self.isdet[g].size
 		
-		g = (self.PsFP >= self.Pgrid[i]) & \
-                    (self.PsFP <= self.Pgrid[i+1]) & \
-                    (self.rpsFP >= self.rpgrid[j]) & \
-                    (self.rpsFP <= self.rpgrid[j+1])
+		g = (self.Psfound >= self.Pgrid[i]) & \
+                    (self.Psfound <= self.Pgrid[i+1]) & \
+                    (self.rpsfound >= self.rpgrid[j]) & \
+                    (self.rpsfound <= self.rpgrid[j+1])
                 self.NFP[i,j] = self.isFP[g].sum()
                 
         # compute sensitivity
@@ -121,9 +123,9 @@ class K2sensitivity:
 
 
 if __name__ == '__main__':
-    #fs = np.array(glob.glob('PipelineResults/EPIC_*'))
-    #print fs.size
-    #for i in range(fs.size):
-#	print fs[i]
-#	epicnum = int(fs[i].split('_')[-1])
-    self = K2sensitivity(201134718)
+    fs = np.array(glob.glob('PipelineResults/EPIC_*'))
+    print fs.size
+    for i in range(fs.size):
+	print fs[i]
+	epicnum = int(fs[i].split('_')[-1])
+    	self = K2sensitivity(epicnum)
