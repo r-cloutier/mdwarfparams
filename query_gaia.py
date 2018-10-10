@@ -28,7 +28,7 @@ def get_gaia_data(epicnums, radius_arcsec=10):
         while p == None and radius_arcsec < 3600:
             p, ep = one_gaia_query(ras[i], decs[i], radius_arcsec=radius_arcsec)
             radius_arcsec += 1
-        pars[i] = unp.uarray(p, ep)
+        pars[i] = unp.uarray(p, ep) if p != None else unp.uarray(np.nan, np.nan)
 
         # query 2MASS for the photometry
         radius_arcsec, Kmag = radius_arcsec_orig, None
@@ -36,7 +36,7 @@ def get_gaia_data(epicnums, radius_arcsec=10):
             Kmag, eKmag = one_2MASS_query(ras[i], decs[i],
                                           radius_arcsec=radius_arcsec)
             radius_arcsec += 1
-        Kmags[i] = unp.uarray(Kmag, eKmag)
+        Kmags[i] = unp.uarray(Kmag, eKmag) if Kmag != None else unp.uarray(np.nan, np.nan)
             
     # compute quantities of interest
     pars = np.ascontiguousarray(pars)
@@ -44,6 +44,15 @@ def get_gaia_data(epicnums, radius_arcsec=10):
     dists, mus = compute_distance_modulus(pars)
     MKs = compute_MK(Kmags, mus)
     Rss = MK2Rs(MKs)
+
+    # save results
+    hdr = 'EPIC,ra_deg,dec_deg,parallax_mas,e_parallax,Kmag,e_Kmag,dist_pc,e_dist,mu,e_mu,MK,e_MK,Rs_RSun,e_Rs'
+    outarr = np.array([epicnums, ras, dec, unp.nominal_values(pars), unp.std_devs(pars),
+		       unp.nominal_values(Kmags), unp.std_devs(Kmags), unp.nominal_values(dists), 
+		       unp.std_devs(dists), unp.nominal_values(mus), unp.std_devs(mus),
+		       unp.nominal_values(MKs), unp.std_devs(MKs), unp.nominal_values(Rss), 
+		       unp.std_devs(Rss)]).T
+    np.savetxt('input_data/K2targets/K2Mdwarf_radii.csv', outarr, delimiter=',', hdr=hdr, fmt='%.8e')
 
 
     
