@@ -115,6 +115,34 @@ class K2sensitivity:
 	# correction from beta distribution fit (Kipping 2013)
 	self.transit_prob *= 1.08
 
+
+    def plot_map(self, zmap, zlabel='', avgtitle=False, sumtitle=False, pltt=True, label=False):
+	assert zmap.shape == (self.Pgrid.size-1, self.rpgrid.size-1)
+	fig = plt.figure()
+	ax = fig.add_subplot(111)
+	img = ax.pcolormesh(self.Pgrid, self.rpgrid, zmap.T, cmap=plt.get_cmap('hot_r'))
+	cbar_axes = fig.add_axes([.1,.1,.87,.04])
+	cbar = fig.colorbar(img, cax=cbar_axes, orientation='horizontal')
+        cbar.set_label(zlabel)
+	ax.set_xscale('log')
+	ax.set_xlabel('Period [days]'), ax.set_ylabel('Planet Radius [R$_{\oplus}$]')
+	if sumtitle:
+	    ax.set_title('Total = %i'%np.nansum(zmap), fontsize=12)
+	if avgtitle:
+	    ax.set_title('Average = %.3f'%np.nanmean(zmap), fontsize=12)
+
+	# fill nans
+	g = np.where(np.isnan(zmap))
+	for i in range(g[0].size):
+	    x1, x2 = self.Pgrid[g[0][i]], self.Pgrid[g[0][i]+1]
+	    y1, y2 = self.rpgrid[g[1][i]], self.rpgrid[g[1][i]+1]
+	    ax.fill([x1,x2,x2,x1], [y1,y1,y2,y2], fill=False, hatch='\\')
+
+	fig.subplots_adjust(bottom=.24, top=.95)
+	if pltt:
+	    plt.show()
+	plt.close('all')
+
                           
     def _pickleobject(self):
         fObj = open(self.fname_full, 'wb')
