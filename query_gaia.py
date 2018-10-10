@@ -103,3 +103,13 @@ def MK2Rs(MKs):
     p = np.poly1d((c,b,a))
     Rss = p(MKs)
     return unp.uarray(Rss, Rss*Rs_sigma_frac)
+
+
+
+if __name__ == '__main__':
+    fs = np.array(glob.glob('MAST/K2/EPIC*'))
+    epicnums = np.zeros(fs.size)
+    for i in range(fs.size):
+        epicnums[i] = int(fs[i].split('EPIC')[-1])
+    
+    get_gaia_data(epicnums)

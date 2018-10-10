@@ -116,7 +116,7 @@ class K2sensitivity:
 	self.transit_prob *= 1.08
 
 
-    def plot_map(self, zmap, zlabel='', avgtitle=False, sumtitle=False, pltt=True, label=False):
+    def plot_map(self, zmap, zlabel='', avgtitle=False, sumtitle=False, issens=False, pltt=True, label=False):
 	assert zmap.shape == (self.Pgrid.size-1, self.rpgrid.size-1)
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
@@ -137,6 +137,14 @@ class K2sensitivity:
 	    x1, x2 = self.Pgrid[g[0][i]], self.Pgrid[g[0][i]+1]
 	    y1, y2 = self.rpgrid[g[1][i]], self.rpgrid[g[1][i]+1]
 	    ax.fill([x1,x2,x2,x1], [y1,y1,y2,y2], fill=False, hatch='\\')
+
+	# fill low sens if plotting a sensitivity map
+	if issens:
+	    g = np.where(zmap<.15)
+            for i in range(g[0].size):
+            	x1, x2 = self.Pgrid[g[0][i]], self.Pgrid[g[0][i]+1]
+            	y1, y2 = self.rpgrid[g[1][i]], self.rpgrid[g[1][i]+1]
+            	ax.fill([x1,x2,x2,x1], [y1,y1,y2,y2], fill=False, hatch='//')
 
 	fig.subplots_adjust(bottom=.24, top=.95)
 	if pltt:

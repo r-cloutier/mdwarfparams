@@ -128,7 +128,7 @@ def get_star(epicnum):
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
-    return (Kepmag<=14) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)  # 3528 K2 M dwarfs w/ Kepmag<14
+    return (Kepmag<=14) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff>=2700) & (Teff<=4000)  # 3528 K2 M dwarfs w/ Kepmag<14
     #return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
 
 
