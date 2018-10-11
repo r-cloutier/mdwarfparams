@@ -7,6 +7,7 @@ class K2sensitivity:
         self.epicnum = epicnum
         self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum, self.epicnum)
         self.get_data()
+        #self.get_probable_detections()
         self.compute_sensitivity()
 	self.compute_transit_prob()
         self._pickleobject()
@@ -69,7 +70,33 @@ class K2sensitivity:
 	self.Psfound = self.Psfound[:,:end]
 	self.rpsfound = self.rpsfound[:,:end]
         self.isFP = self.isFP[:,:end]
-        
+
+
+    def get_probable_detections(maxfrac=.5, rtol=.02):
+        '''planets frequently flagged as an FP are probable actual planet 
+        detections in the light curve but are flagged as a FP because they 
+        are not injected by the algorithm. They should be flagged as a planet 
+        detection and removed from the list of FPs to improve the accuracy of
+        the ensuing FP correction.'''
+        # probably shouldnt do this because multiple FPs could also be due
+        # to a poor K2SFF systematics correction which means that it must be
+        # included in the FP correction
+        assert False
+        assert 0 < maxfrac < 1
+        assert rtol > 0
+        P_FP = self.Psfound[self.isFP == 1]
+        Pdet = np.zeros(0)
+        for i in range(P_FP.size):
+            
+            N_at_this_P = float(np.isclose(P_FP[i], P_FP, rtol=rtol).sum())
+
+            # save this planet if it is 'falsely' detected in more than
+            # maxfrac of the simulations and correct the number of FPs
+            if N_at_this_P / self.Nsim > maxfrac:
+                Pdet = np.append(Pdet, P_FP[i])
+                g = np.isclose(P_FP[i], self.Psfound, rtol=rtol)
+                self.isFP[g] = 0
+
 
     def compute_sensitivity(self, Plims=(.5,30), rplims=(.5,4)):
         '''Get all the simulations for this star and compute the
@@ -116,11 +143,12 @@ class K2sensitivity:
 	self.transit_prob *= 1.08
 
 
-    def plot_map(self, zmap, zlabel='', avgtitle=False, sumtitle=False, issens=False, pltt=True, label=False):
-	assert zmap.shape == (self.Pgrid.size-1, self.rpgrid.size-1)
+    def plot_map(self, zmap, zlabel='', xarr=np.zeros(0), yarr=np.zeros(0), avgtitle=False, sumtitle=False, issens=False, pltt=True, label=False):
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
-	img = ax.pcolormesh(self.Pgrid, self.rpgrid, zmap.T, cmap=plt.get_cmap('hot_r'))
+	xarr = self.Pgrid if xarr.size == 0 else xarr
+        yarr = self.rpgrid if yarr.size == 0 else yarr
+	img = ax.pcolormesh(xarr, yarr, zmap.T, cmap=plt.get_cmap('hot_r'))
 	cbar_axes = fig.add_axes([.1,.1,.87,.04])
 	cbar = fig.colorbar(img, cax=cbar_axes, orientation='horizontal')
         cbar.set_label(zlabel)
@@ -134,16 +162,16 @@ class K2sensitivity:
 	# fill nans
 	g = np.where(np.isnan(zmap))
 	for i in range(g[0].size):
-	    x1, x2 = self.Pgrid[g[0][i]], self.Pgrid[g[0][i]+1]
-	    y1, y2 = self.rpgrid[g[1][i]], self.rpgrid[g[1][i]+1]
+	    x1, x2 = xarr[g[0][i]], xarr[g[0][i]+1]
+	    y1, y2 = yarr[g[1][i]], yarr[g[1][i]+1]
 	    ax.fill([x1,x2,x2,x1], [y1,y1,y2,y2], fill=False, hatch='\\')
 
 	# fill low sens if plotting a sensitivity map
 	if issens:
 	    g = np.where(zmap<.15)
             for i in range(g[0].size):
-            	x1, x2 = self.Pgrid[g[0][i]], self.Pgrid[g[0][i]+1]
-            	y1, y2 = self.rpgrid[g[1][i]], self.rpgrid[g[1][i]+1]
+            	x1, x2 = xarr[g[0][i]], xarr[g[0][i]+1]
+            	y1, y2 = yarr[g[1][i]], yarr[g[1][i]+1]
             	ax.fill([x1,x2,x2,x1], [y1,y1,y2,y2], fill=False, hatch='//')
 
 	fig.subplots_adjust(bottom=.24, top=.95)
