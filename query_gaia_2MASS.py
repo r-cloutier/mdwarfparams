@@ -27,13 +27,13 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
         if np.isfinite(ras[i]) and np.isfinite(decs[i]):
 
             pars[i] = np.nan, np.nan
-            while (np.isnan(pars[i,0])) and (radius_arcsec < 3600):
+            while (np.isnan(pars[i,0])) and (radius_arcsec < 60):
                 p = query_one_star(ras[i], decs[i], radius_arcsec=radius_arcsec)
                 pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
                 logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
                                     unp.uarray(Rss[i,0],Rss[i,1]))
                 loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
-                radius_arcsec += 2
+                radius_arcsec += 5
 
         else:
             p = np.repeat(np.nan,16).reshape(8,2)
@@ -121,12 +121,15 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
                                 r2[j]['e_Kmag'][0]
             
             # check that GAIA and 2MASS photometry aproximately match
-            matches = np.zeros(4).astype(bool)
-            matches[0],_,_ = does_G_K_match(Gmag, Hmag, Kmag)
-            matches[1],_,_ = does_GBP_K_match(GBPmag, Hmag, Kmag)
-            matches[2],_,_ = does_GRP_K_match(GRPmag, Hmag, Kmag)
-            matches[3],_,_ = does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag)
-            match = np.all(matches)
+            if np.ma.is_masked(par) or np.ma.is_masked(Gmag):
+                match = False
+            else:
+                matches = np.zeros(4).astype(bool)
+                matches[0],_,_ = does_G_K_match(Gmag, Hmag, Kmag)
+                matches[1],_,_ = does_GBP_K_match(GBPmag, Hmag, Kmag)
+                matches[2],_,_ = does_GRP_K_match(GRPmag, Hmag, Kmag)
+                matches[3],_,_ = does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag)
+                match = np.all(matches)
 
             if match:
                 dist, mu = compute_distance_modulus(unp.uarray(par,epar))
@@ -154,7 +157,7 @@ def does_G_K_match(Gmag, Hmag, Kmag):
     if -.1 < H_K < .7:
         p = np.poly1d((-1.359, 12.0733, 0.6613))
         G_K = p(H_K)
-        return np.isclose(G_K, Gmag-Kmag, atol=2*.3692), Gmag-Kmag, G_K
+        return np.isclose(G_K, Gmag-Kmag, atol=3*.3692), Gmag-Kmag, G_K
     else:
         return False, Gmag-Kmag, G_K
 
@@ -166,7 +169,7 @@ def does_GBP_K_match(GBPmag, Hmag, Kmag):
     if -.1 < H_K < .6:
         p = np.poly1d((2.711, 14.66, 0.8174))
         GBP_K = p(H_K)
-        return np.isclose(GBP_K, GBPmag-Kmag, atol=2*.4839), GBPmag-Kmag, GBP_K
+        return np.isclose(GBP_K, GBPmag-Kmag, atol=3*.4839), GBPmag-Kmag, GBP_K
     else:
         return False, GBPmag-Kmag, GBP_K
 
@@ -178,7 +181,7 @@ def does_GRP_K_match(GRPmag, Hmag, Kmag):
     if -.1 < H_K < .7:
         p = np.poly1d((-1.721, 9.287, 0.3560))
         GRP_K = p(H_K)
-        return np.isclose(GRP_K, GRPmag-Kmag, atol=2*.2744), GRPmag-Kmag, GRP_K
+        return np.isclose(GRP_K, GRPmag-Kmag, atol=3*.2744), GRPmag-Kmag, GRP_K
     else:
         return False, GRPmag-Kmag, GRP_K
 
@@ -190,7 +193,7 @@ def does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag):
     if -.1 < H_K < .55:
         p = np.poly1d((1.991, 6.098, 0.4238))
         GBP_GRP = p(H_K)
-        return np.isclose(GBP_GRP, GBPmag-GRPmag, atol=2*.2144), \
+        return np.isclose(GBP_GRP, GBPmag-GRPmag, atol=3*.2144), \
             GBPmag-GRPmag, GBP_GRP
     else:
         return False, GBPmag-GRPmag, GBP_GRP
@@ -255,9 +258,12 @@ def MK2Ms(MK):
     
 
 if __name__ == '__main__':
-    fs = np.array(glob.glob('MAST/K2/EPIC*'))
-    epicnums = np.zeros(fs.size)
-    for i in range(fs.size):
-        epicnums[i] = int(fs[i].split('EPIC')[-1])
-    
-    get_stellar_data(epicnums, overwrite=True)
+    #fs = np.array(glob.glob('MAST/K2/EPIC*'))
+    #epicnums = np.zeros(fs.size)
+    #for i in range(fs.size):
+    #    epicnums[i] = int(fs[i].split('EPIC')[-1])
+    epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
+                          delimiter=',')[:,0]
+
+    epicnums = epicnums[3:4]
+    get_stellar_data(epicnums, overwrite=False)
