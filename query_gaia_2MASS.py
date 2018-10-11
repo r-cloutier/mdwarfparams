@@ -8,10 +8,10 @@ from uncertainties import unumpy as unp
 from planetsearch import get_star
 
 
-def get_stellar_data(epicnums, radius_arcsec=10):
+def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
-    ras, decs, Kepmags = np.zeros(Nstars), np.zeros(Nstars), np.zeros(0)
+    ras, decs, Kepmags = np.zeros(Nstars), np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     dists, mus = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     MKs, Rss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
@@ -25,30 +25,36 @@ def get_stellar_data(epicnums, radius_arcsec=10):
         # search gaia and 2MASS until we find a likely match
         # based on photometry
         if np.isfinite(ras[i]) and np.isfinite(decs[i]):
-            
-            pars[i] = np.nan, np.nan 
+
+            pars[i] = np.nan, np.nan
             while (np.isnan(pars[i,0])) and (radius_arcsec < 3600):
                 p = query_one_star(ras[i], decs[i], radius_arcsec=radius_arcsec)
                 pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
-                loggs[i] = compute_logg(unp.uarray(Mss[i]), unp.uarray(Rss[i]))
+                logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
+                                    unp.uarray(Rss[i,0],Rss[i,1]))
+                loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
                 radius_arcsec += 2
 
         else:
             p = np.repeat(np.nan,16).reshape(8,2)
             pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i] = p
-            loggs[i] = compute_logg(unp.uarray(Mss[i]), unp.uarray(Rss[i]))
-
+            logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
+                                unp.uarray(Rss[i,0],Rss[i,1]))
+            loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
+                
+            
     # save results
     hdr = 'EPIC,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Kmag,e_Kmag,'+ \
           'dist_pc,e_dist,mu,e_mu,MK,e_MK,Rs_RSun,e_Rs,Teff_K,e_Teff,'+ \
-          'Ms_MSun,e_Ms'
+          'Ms_MSun,e_Ms,logg_dex,e_logg'
     outarr = np.array([epicnums, ras, decs, Kepmags, pars[:,0], pars[:,1], 
                        Kmags[:,0], Kmags[:,1], dists[:,0], dists[:,1],
                        mus[:,0], mus[:,1], MKs[:,0], MKs[:,1], Rss[:,0],
-                       Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0], Mss[:,1]]).T
+                       Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0], Mss[:,1],
+                       loggs[:,0], loggs[:,1]]).T
 
-    fout = 'input_data/K2targets/K2Mdwarf_radii.csv'
-    if os.path.exists(fout):
+    fout = 'input_data/K2targets/K2Mdwarfsv4.csv'
+    if os.path.exists(fout) and not overwrite:
         inarr = np.loadtxt(fout, delimiter=',')
         assert inarr.shape[1] == outarr.shape[1]
         np.savetxt(fout, np.append(inarr, outarr, axis=0),
@@ -97,10 +103,20 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
     # step through possible matches
     for i in range(len(rG)):
         for j in range(len(r2)):
-            Gmag, GBPmag, GRPmag = rG['phot_g_mean_mag'][i], \
-                                   rG['phot_bp_mean_mag'][i], \
-                                   rG['phot_rp_mean_mag'][i]
+            
+            # get giaa parameters
             par, epar = rG['parallax'][i], rG['parallax_error'][i]
+            Gmag = rG['phot_g_mean_mag'][i]
+            GBPmag = rG['phot_bp_mean_mag'][i]
+            FBP = rG['phot_bp_mean_flux'][i]
+            eFBP = rG['phot_bp_mean_flux_error'][i]
+            eGBPmag = -2.5*np.log10(FBP / (FBP+eFBP))
+            GRPmag = rG['phot_rp_mean_mag'][i]
+            FRP = rG['phot_rp_mean_flux'][i]
+            eFRP = rG['phot_rp_mean_flux_error'][i]
+            eGRPmag = -2.5*np.log10(FRP / (FRP+eFRP))
+            
+            # get 2MASS photometry
             Hmag, Kmag, eKmag = r2[j]['Hmag'][0], r2[j]['Kmag'][0], \
                                 r2[j]['e_Kmag'][0]
             
@@ -116,7 +132,8 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
                 dist, mu = compute_distance_modulus(unp.uarray(par,epar))
                 MK = compute_MK(unp.uarray(Kmag, eKmag), mu)
                 Rs = MK2Rs(MK)
-                Teff = MK2Teff(MK)
+                Teff = gaia2Teff(unp.uarray(GBPmag, eGBPmag),
+                                 unp.uarray(GRPmag, eGRPmag))
                 Ms = MK2Ms(MK)
                 return [par,epar], [Kmag,eKmag], \
                     [unp.nominal_values(dist), unp.std_devs(dist)], \
@@ -194,28 +211,46 @@ def compute_MK(Kmags, mus):
     return Kmags - mus
 
 
-def MK2Rs(MKs):
-    '''Use relation from Mann+2015
+def MK2Rs(MK):
+    '''Use relation from Mann+2015 (table 1)
     http://adsabs.harvard.edu/abs/2015ApJ...804...64M
     '''
-    g = 4.6 < MKs < 9.8
-    a, b, c, Rs_sigma_frac = 1.9515, -.3520, .01680, .0289
-    p = np.poly1d((c,b,a))
-    Rss = p(MKs)
-    eRss = np.sqrt(unp.std_devs(Rss)**2 + \
-                   (unp.nominal_values(Rss)*Rs_sigma_frac)**2)
-    return unp.uarray(unp.nominal_values(Rss), eRss)
+    if 4.6 < float(unp.nominal_values(MK)) < 9.8:
+        a, b, c, Rs_sigma_frac = 1.9515, -.3520, .01680, .0289
+        p = np.poly1d((c,b,a))
+        Rss = p(MK)
+        eRss = np.sqrt(unp.std_devs(Rss)**2 + \
+                       (unp.nominal_values(Rss)*Rs_sigma_frac)**2)
+        return unp.uarray(unp.nominal_values(Rss), eRss)
+    else:
+        return unp.uarray(np.nan, np.nan)
 
 
-def MK2Ms(MKs):
+def gaia2Teff(GBPmag, GRPmag):
+    '''Use the relation from Mann+2015 (table 2)
+    http://adsabs.harvard.edu/abs/2015ApJ...804...64M
+    '''
+    a, b, c, d, e  = 3.245, -2.4309, 1.043, -.2127, .01649
+    p = np.poly1d((e,d,c,b,a))
+    Teff = 35e2 * p(GBPmag-GRPmag)
+    eTeff = np.sqrt(unp.std_devs(Teff)**2 + 55**2)
+    return unp.uarray(unp.nominal_values(Teff), eTeff)
+
+
+def MK2Ms(MK):
     '''Use relation from Benedict+2016
     http://arxiv.org/abs/1608.04775'''
-    c0, c1, c2, c3, c4, x0 = unp.uarray(.2311,4e-4), unp.uarray(-.1352,7e-4), \
-                             unp.uarray(.04,5e-4), unp.uarray(.0038,2e-4), \
-                             unp.uarray(-.0032,1e-4), 7.5
-    p = np.poly1d((c4,c3,c2,c1,c0))
-    Ms = p(MKs-x0)
-    return Ms
+    if 5 <= unp.nominal_values(MK) <= 10:
+        c0, c1, c2, c3, c4, x0 = unp.uarray(.2311,4e-4), \
+                                 unp.uarray(-.1352,7e-4), \
+                                 unp.uarray(.04,5e-4), \
+                                 unp.uarray(.0038,2e-4), \
+                                 unp.uarray(-.0032,1e-4), 7.5
+        dMK = MK - x0
+        Ms = c0 + c1*dMK + c2*dMK**2 + c3*dMK**3 + c4*dMK**4
+        return Ms
+    else:
+        return unp.uarray(np.nan, np.nan)
     
     
 
@@ -225,4 +260,4 @@ if __name__ == '__main__':
     for i in range(fs.size):
         epicnums[i] = int(fs[i].split('EPIC')[-1])
     
-    #get_stellar_data(epicnums)
+    get_stellar_data(epicnums, overwrite=True)

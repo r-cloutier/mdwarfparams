@@ -8,7 +8,7 @@ from truncate_cmap import *
 #from joint_LCmodel import *
 
 global K2Mdwarffile
-K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv3.csv'
+K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv4.csv'
 
 def read_K2_data_OLD(fits_path):
     '''Get one light curve and from the "best" aperture.'''
