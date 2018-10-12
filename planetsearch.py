@@ -5,47 +5,9 @@ import batman
 import sys
 from massradius import radF2mass
 from truncate_cmap import *
-#from joint_LCmodel import *
 
 global K2Mdwarffile
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv4.csv'
-
-def read_K2_data_OLD(fits_path):
-    '''Get one light curve and from the "best" aperture.'''
-    hdu = fits.open(fits_path)
-    for i in range(1,len(hdu)):
-	if hdu[i].header['EXTNAME'] == 'BESTAPER':
-    	    bjd, f = hdu[i].data['T']+hdu[i].header['BJDREFI'], hdu[i].data['FCOR']
-	    name = hdu[i].header['OBJECT'].replace(' ','_')
-            print name
-            names,_,Rss,Mss,Teffs = np.genfromtxt('MAST/K2_epic', delimiter=',', dtype='|S50').T
-            Rs = float(Rss[names==name].astype(float))
-            Ms = float(Mss[names==name].astype(float))
-            Teff = float(Teffs[names==name].astype(float))
-	    # read or get flux error
-	    effile = 'MAST/K2_eflux'
-	    names, efs = np.genfromtxt(effile, delimiter=',',dtype='|S50').T
-	    if name in names:	
-		ef = np.repeat(efs[names==name].astype(float), bjd.size)
-	    else:
-		bad = True
-		while bad:
-		    plt.plot(np.arange(bjd.size), (f/np.nanmedian(f)-1)*1e6, '.'), plt.show()
-		    start = int(raw_input('First index to estimate ef = '))
-		    end = int(raw_input('Last index to estimate ef = '))
-		    ef = float((f/np.nanmedian(f))[start:end].std())
-		    bad = not bool(int(raw_input('Is %.4e ppm a reasonable ef value (1=yes, 0=no)? '%(ef*1e6))))
-		h = open(effile, 'r')
-		g = h.read()
-		h.close()
-		g += '%s,%6e\n'%(name, ef)
-		h = open(effile, 'w')
-		h.write(g)
-		h.close()
-		ef = np.repeat(ef, bjd.size)
-    	    break
-    s = np.argsort(bjd)
-    return name, Rs, Ms, Teff, bjd[s], f[s], ef[s]
 
 
 def read_Kepler_data(fits_dir, maxdays=2e2):
@@ -84,9 +46,12 @@ def read_K2_data(epicnum):
 	pass
 
     # download tar file
-    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92]  # from https://archive.stsci.edu/hlsps/k2sff/
+    # from https://archive.stsci.edu/hlsps/k2sff/
+    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92]  
     for j in range(len(campaigns)):
-        folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j], int(str(epicnum)[:4]), int(str(epicnum)[4:9]))
+        folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
+                                         int(str(epicnum)[:4]),
+                                         int(str(epicnum)[4:9]))
         fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
         url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
         os.system('wget %s'%url)
@@ -105,44 +70,64 @@ def read_K2_data(epicnum):
      
     for i in range(1,len(hdu)):
         if hdu[i].header['EXTNAME'] == 'BESTAPER':
-            bjd, f = hdu[i].data['T']+hdu[i].header['BJDREFI'], hdu[i].data['FCOR']
+            bjd = hdu[i].data['T']+hdu[i].header['BJDREFI']
+            f = hdu[i].data['FCOR']
             name = hdu[i].header['OBJECT'].replace(' ','_')
-            Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
+            star_dict = get_star(epicnum)
             # estimate flux error on 96 hour timescales
-	    ef_6hrs = hdu[i].header['QCDPP6']  * 1e-6    # ppm to normalized flux
+	    ef_6hrs = hdu[i].header['QCDPP6']*1e-6  # ppm to normalized flux
             ef_96hrs = ef_6hrs * np.sqrt(96./6)
             break
 
     ef = np.repeat(ef_96hrs, bjd.size)
     s = np.argsort(bjd)
-    return name, Kepmag, logg, Ms, Rs, Teff, bjd[s], f[s], ef[s]
+    return name, star_dict, bjd[s], f[s], ef[s]
 
 
 def get_star(epicnum):
-    epics, Kepmags, Teffs, loggs,  Rss, Mss = np.loadtxt(K2Mdwarffile, delimiter=',').T
-    g = epics == epicnum
+    d = np.loadtxt(K2Mdwarffile, delimiter=',')
+    epicnums = d[:,0]
+    g = epicnums == epicnum
     assert g.sum() == 1
-    return float(Kepmags[g]), float(loggs[g]), float(Mss[g]), float(Rss[g]), float(Teffs[g])
+    star_info = d[g].reshape(23)
+    star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
+                 'dec': star_info[2], 'K2campaign': star_info[3],
+                 'Kepmag': star_info[4], 'par': star_info[5],
+                 'e_par': star_info[6], 'Kmag': star_info[7],
+                 'e_Kmag': star_info[8], 'dist': star_info[9],
+                 'e_dist': star_info[10], 'mu': star_info[11],
+                 'e_mu': star_info[12], 'MK': star_info[13],
+                 'e_MK': star_info[14], 'Rs': star_info[15],
+                 'e_Rs': star_info[16], 'Teff': star_info[17],
+                 'e_Teff': star_info[18], 'Ms': star_info[19],
+                 'e_Ms': star_info[20], 'logg': star_info[21],
+                 'e_logg': star_info[22]}
+    return star_dict
 
 
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
-    Kepmag, logg, Ms, Rs, Teff = get_star(epicnum)
-    return (Kepmag<=14) & (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff>=2700) & (Teff<=4000)  # 3528 K2 M dwarfs w/ Kepmag<14
-    #return (Ms<=.75) & (Rs<=.75) & (logg>3) & (Teff<=4000)
+    star_dict = get_star(epicnum)
+    # 3528 K2 M dwarfs w/ Kepmag<14
+    return (star_dict['Kepmag'] <= 14) & (star_dict['Ms'] <= .75) & \
+        (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
+        (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
 
 
 def planet_search(epicnum):
-    '''Run a planet search on an input Kepler or K2 light curve using the pipeline defined in 
-    compute_sensitivity to search for planets.'''
+    '''Run a planet search on an input Kepler or K2 light curve using the 
+    pipeline defined in compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
     if not is_star_of_interest(epicnum):
         return None
-    name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
-    self = K2LC(name)
+    name, star_dict, bjd, f, ef = read_K2_data(epicnum)
+
+    # save stellar data and time-series
+    self = K2LC(name, -99)  # -99 is unique to planet_search
     self.bjd, self.f, self.ef = bjd, f, ef
-    self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = Kepmag, logg, Ms, Rs, Teff
+    for attr in star_dict.keys():
+        setattr(self, attr, star_dict[attr])
     self.DONE = False
     self._pickleobject()
 
