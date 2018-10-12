@@ -72,7 +72,7 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
 def get_data_from_fits(epicnum):
     # download tar file
     # from https://archive.stsci.edu/hlsps/k2sff/
-    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92]
+    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92][::-1]
     for j in range(len(campaigns)):
         folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
                                          int(str(epicnum)[:4]),
@@ -288,8 +288,8 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[0:1000]
+    epicnums = epicnums[250:500]
     t0 = time.time()
-    get_stellar_data(epicnums, overwrite=True)
+    get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
