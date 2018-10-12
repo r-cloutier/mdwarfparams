@@ -20,6 +20,8 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     loggs = np.zeros((Nstars, 2))
     for i in range(epicnums.size):
 
+        print float(i) / epicnums.size
+        
         # download fits header and get coordinates
         ras[i], decs[i], Kepmags[i] = get_data_from_fits(epicnums[i])
 
@@ -120,6 +122,18 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
             # get 2MASS photometry
             Hmag, Kmag, eKmag = r2[j]['Hmag'][0], r2[j]['Kmag'][0], \
                                 r2[j]['e_Kmag'][0]
+
+            # change bad values to NaN
+            if np.ma.is_masked(par) or par<=0: par, epar = np.nan, np.nan 
+            if np.ma.is_masked(epar) or epar<=0: par, epar = np.nan, np.nan 
+            if np.ma.is_masked(Gmag): Gmag = np.nan
+            if np.ma.is_masked(GBPmag): GBPmag, eGBPmag = np.nan, np.nan
+            if np.ma.is_masked(eGBPmag): GBPmag, eGBPmag = np.nan, np.nan
+            if np.ma.is_masked(GRPmag): GRPmag, eGRPmag = np.nan, np.nan
+            if np.ma.is_masked(eGRPmag): GRPmag, eGRPmag = np.nan, np.nan
+            if np.ma.is_masked(Hmag): Hmag = np.nan
+            if np.ma.is_masked(Kmag): Kmag, eKmag = np.nan, np.nan
+            if np.ma.is_masked(eKmag): Kmag, eKmag = np.nan, np.nan
             
             # check that GAIA and 2MASS photometry aproximately match
             if np.ma.is_masked(par) or np.ma.is_masked(Gmag):
@@ -205,10 +219,13 @@ def compute_logg(Ms, Rs):
     return unp.log10(G*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
     
     
-def compute_distance_modulus(pars_mas):
-    dists_pc = 1. / (pars_mas*1e-3)
-    mus = 5.*unp.log10(dists_pc) - 5
-    return dists_pc, mus
+def compute_distance_modulus(par_mas):
+    if par_mas > 0:
+        dist_pc = 1. / (par_mas*1e-3)
+        mu = 5.*unp.log10(dist_pc) - 5
+        return dist_pc, mu
+    else:
+        return unp.uarray(np.nan, np.nan), unp.uarray(np.nan, np.nan) 
 
 
 def compute_MK(Kmags, mus):
@@ -266,5 +283,8 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[4:6]
-    get_stellar_data(epicnums, overwrite=True)
+    epicnums = epicnums[100:1000]
+    t0 = time.time()
+    get_stellar_data(epicnums, overwrite=False)
+    print 'Took %.3f min'%((time.time()-t0)/60.)
+    
