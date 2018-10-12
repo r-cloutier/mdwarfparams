@@ -11,6 +11,7 @@ from planetsearch import get_star
 def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
+    radius_arcsec_orig = radius_arcsec+0
     ras, decs, Kepmags = np.zeros(Nstars), np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     dists, mus = np.zeros((Nstars,2)), np.zeros((Nstars,2))
@@ -27,7 +28,8 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
         if np.isfinite(ras[i]) and np.isfinite(decs[i]):
 
             pars[i] = np.nan, np.nan
-            while (np.isnan(pars[i,0])) and (radius_arcsec < 60):
+            radius_arcsec = radius_arcsec_orig
+            while (np.isnan(pars[i,0])) and (radius_arcsec <= 60):
                 p = query_one_star(ras[i], decs[i], radius_arcsec=radius_arcsec)
                 pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
                 logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
@@ -41,7 +43,6 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
             logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
                                 unp.uarray(Rss[i,0],Rss[i,1]))
             loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
-                
             
     # save results
     hdr = 'EPIC,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Kmag,e_Kmag,'+ \
@@ -52,7 +53,7 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
                        mus[:,0], mus[:,1], MKs[:,0], MKs[:,1], Rss[:,0],
                        Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0], Mss[:,1],
                        loggs[:,0], loggs[:,1]]).T
-
+    
     fout = 'input_data/K2targets/K2Mdwarfsv4.csv'
     if os.path.exists(fout) and not overwrite:
         inarr = np.loadtxt(fout, delimiter=',')
@@ -159,7 +160,7 @@ def does_G_K_match(Gmag, Hmag, Kmag):
         G_K = p(H_K)
         return np.isclose(G_K, Gmag-Kmag, atol=3*.3692), Gmag-Kmag, G_K
     else:
-        return False, Gmag-Kmag, G_K
+        return False, Gmag-Kmag, None
 
 
 def does_GBP_K_match(GBPmag, Hmag, Kmag):
@@ -171,7 +172,7 @@ def does_GBP_K_match(GBPmag, Hmag, Kmag):
         GBP_K = p(H_K)
         return np.isclose(GBP_K, GBPmag-Kmag, atol=3*.4839), GBPmag-Kmag, GBP_K
     else:
-        return False, GBPmag-Kmag, GBP_K
+        return False, GBPmag-Kmag, None
 
 
 def does_GRP_K_match(GRPmag, Hmag, Kmag):
@@ -183,7 +184,7 @@ def does_GRP_K_match(GRPmag, Hmag, Kmag):
         GRP_K = p(H_K)
         return np.isclose(GRP_K, GRPmag-Kmag, atol=3*.2744), GRPmag-Kmag, GRP_K
     else:
-        return False, GRPmag-Kmag, GRP_K
+        return False, GRPmag-Kmag, None
 
     
 def does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag):
@@ -196,7 +197,7 @@ def does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag):
         return np.isclose(GBP_GRP, GBPmag-GRPmag, atol=3*.2144), \
             GBPmag-GRPmag, GBP_GRP
     else:
-        return False, GBPmag-GRPmag, GBP_GRP
+        return False, GBPmag-GRPmag, None
 
 
 def compute_logg(Ms, Rs):
@@ -265,5 +266,5 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[3:4]
-    get_stellar_data(epicnums, overwrite=False)
+    epicnums = epicnums[4:6]
+    get_stellar_data(epicnums, overwrite=True)
