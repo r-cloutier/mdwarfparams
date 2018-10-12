@@ -12,7 +12,8 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
     radius_arcsec_orig = radius_arcsec+0
-    ras, decs, Kepmags = np.zeros(Nstars), np.zeros(Nstars), np.zeros(Nstars)
+    ras, decs = np.zeros(Nstars), np.zeros(Nstars)
+    Kepmags, K2campaigns = np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     dists, mus = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     MKs, Rss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
@@ -23,8 +24,8 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
         print float(i) / epicnums.size
         
         # download fits header and get coordinates
-        ras[i], decs[i], Kepmags[i] = get_data_from_fits(epicnums[i])
-
+        ras[i],decs[i],Kepmags[i],K2campaigns[i] = get_data_from_fits(epicnums[i])
+        
         # search gaia and 2MASS until we find a likely match
         # based on photometry
         if np.isfinite(ras[i]) and np.isfinite(decs[i]):
@@ -47,15 +48,15 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
             loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
             
     # save results
-    hdr = 'EPIC,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Kmag,e_Kmag,'+ \
-          'dist_pc,e_dist,mu,e_mu,MK,e_MK,Rs_RSun,e_Rs,Teff_K,e_Teff,'+ \
+    hdr = 'EPIC,ra_deg,dec_deg,campaign,Kepmag,parallax_mas,e_parallax,Kmag,'+ \
+          'e_Kmag,dist_pc,e_dist,mu,e_mu,MK,e_MK,Rs_RSun,e_Rs,Teff_K,e_Teff,'+ \
           'Ms_MSun,e_Ms,logg_dex,e_logg'
-    outarr = np.array([epicnums, ras, decs, Kepmags, pars[:,0], pars[:,1], 
-                       Kmags[:,0], Kmags[:,1], dists[:,0], dists[:,1],
-                       mus[:,0], mus[:,1], MKs[:,0], MKs[:,1], Rss[:,0],
-                       Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0], Mss[:,1],
-                       loggs[:,0], loggs[:,1]]).T
-    
+    outarr = np.array([epicnums, ras, decs, K2campaigns, Kepmags, pars[:,0],
+                       pars[:,1], Kmags[:,0], Kmags[:,1], dists[:,0],
+                       dists[:,1], mus[:,0], mus[:,1], MKs[:,0], MKs[:,1],
+                       Rss[:,0], Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0],
+                       Mss[:,1], loggs[:,0], loggs[:,1]]).T
+
     fout = 'input_data/K2targets/K2Mdwarfsv4.csv'
     if os.path.exists(fout) and not overwrite:
         inarr = np.loadtxt(fout, delimiter=',')
@@ -81,9 +82,12 @@ def get_data_from_fits(epicnum):
         if os.path.exists(fname):
             hdr = fits.open(fname)[0].header
             os.system('rm %s'%fname)
-            return hdr['RA_OBJ'], hdr['DEC_OBJ'], hdr['KEPMAG']
+	    ra, dec, campaign = hdr['RA_OBJ'], hdr['DEC_OBJ'], hdr['CAMPAIGN']
+	    Kepmag = np.nan if isinstance(hdr['KEPMAG'], fits.card.Undefined) \
+                     else hdr['KEPMAG']
+            return ra, dec, Kepmag, campaign
 
-    return np.repeat(np.nan, 3)
+    return np.repeat(np.nan, 4)
 
 
 def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
@@ -283,7 +287,7 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[100:1000]
+    epicnums = epicnums[0:2300]
     t0 = time.time()
-    get_stellar_data(epicnums, overwrite=False)
+    get_stellar_data(epicnums, overwrite=True)
     print 'Took %.3f min'%((time.time()-t0)/60.)
