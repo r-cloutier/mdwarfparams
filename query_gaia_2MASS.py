@@ -287,4 +287,3 @@ if __name__ == '__main__':
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
-    
