@@ -47,7 +47,7 @@ def read_K2_data(epicnum):
 
     # download tar file
     # from https://archive.stsci.edu/hlsps/k2sff/
-    campaigns = [0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,91,92][::-1]
+    campaigns = [0,1,2,3,4,5,6,7,8,91,92,102,111,112,12,13,14,15,16,17][::-1]
     for j in range(len(campaigns)):
         folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
                                          int(str(epicnum)[:4]),
