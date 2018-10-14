@@ -108,8 +108,8 @@ def get_star(epicnum):
 def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     star_dict = get_star(epicnum)
-    # 3528 K2 M dwarfs w/ Kepmag<14
-    return (star_dict['Kepmag'] <= 14) & (star_dict['Ms'] <= .75) & \
+    # 3083 K2 M dwarfs w/ Kepmag<15.2
+    return (star_dict['Kepmag'] < 15.2) & (star_dict['Ms'] <= .75) & \
         (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
         (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
 

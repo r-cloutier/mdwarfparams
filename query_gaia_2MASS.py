@@ -288,7 +288,7 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[5850:9630]
+    epicnums = epicnums[9500:10500]
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
