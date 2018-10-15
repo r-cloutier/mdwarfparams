@@ -68,12 +68,11 @@ def injected_planet_search(epicnum, index):
     # get data and only run the star if it is of interest
     if not is_star_of_interest(epicnum):
         return None
-    name, Kepmag, logg, Ms, Rs, Teff, bjd, f, ef = read_K2_data(epicnum)
-    #self = K2LC('%s_%.4d'%(name, index))
+    name, star_dict, bjd, f, ef = read_K2_data(epicnum)
     self = K2LC(name, index)
     self.bjd, self.f, self.ef = bjd, f, ef
-    self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = Kepmag, logg, Ms, \
-                                                          Rs, Teff
+    for attr in star_dict.keys():
+        setattr(self, attr, star_dict[attr])
     self.DONE = False
     self._pickleobject()
 
