@@ -78,7 +78,8 @@ def injected_planet_search(epicnum, index):
 
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
-                                    sample_planets_uniform(bjd, Ms, Rs, Teff)
+                                    sample_planets_uniform(bjd, self.Ms, self.Rs, 
+							   self.Teff)
     self.params_true = np.array([Ptrue, T0true, depthtrue, durationtrue]).T
     self.Ptrue, self.rptrue = Ptrue, rptrue
     f += fmodel - 1.
