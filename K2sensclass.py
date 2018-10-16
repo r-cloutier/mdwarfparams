@@ -7,15 +7,21 @@ class K2sensitivity:
         self.epicnum = epicnum
         self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum, self.epicnum)
         self.get_data()
-        #self.get_probable_detections()
-        self.compute_sensitivity()
-	self.compute_transit_prob()
+	if self.fs.size > 0:
+            #self.get_probable_detections()
+            self.compute_sensitivity()
+	    self.compute_transit_prob()
         self._pickleobject()
 
 
     def get_data(self):
         self.fs = np.array(glob.glob('PipelineResults/EPIC_%i/K2LC*'%self.epicnum))
-        assert self.fs.size > 0
+	# remove planet search result (i.e. with index -99)
+	if np.any(np.in1d(self.fs, 'PipelineResults/EPIC_%i/K2LC_-00099'%self.epicnum)):
+	    g = np.where(np.in1d(self.fs, 'PipelineResults/EPIC_%i/K2LC_-00099'%self.epicnum))[0][0]
+	    self.fs = np.delete(self.fs, g)
+        if self.fs.size == 0:
+	    return None
         self.Nsim = 0
         d = loadpickle(self.fs[0])
         self.Kepmag, self.logg, self.Ms, self.Rs, self.Teff = d.Kepmag, \
