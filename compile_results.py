@@ -22,7 +22,7 @@ class K2results:
         self.Teffs, self.e_Teffs = np.zeros(0), np.zeros(0)
         self.loggs, self.e_loggs = np.zeros(0), np.zeros(0)
 	for i in range(fs.size):
-	    print float(i)/fs.size
+	    print float(i)/fs.size, fs[i]
 	    d = loadpickle(fs[i])
 	    if d.DONE:
 		Ndet = int(d.params_guess.shape[0])
@@ -45,14 +45,17 @@ class K2results:
 
                     #g = np.isclose(d.params_guess_priorto_confirm[:,0], P, rtol=.05)
                     Pss = d.params_guess_priorto_confirm[:,0]
-                    g = abs(Pss-P) == np.min(abs(Pss-P))
-		    print self.epicnames[-1], g.sum()
-                    cond_vals = [d.transit_condition_scatterin_val[g], \
-                                 d.transit_condition_depth_val[g], \
-                                 d.transit_condition_no_bimodal_val[g], \
-				 d.transit_condition_timesym_val[g], \
-				 d.transit_condition_indiv_transit_frac_val[g]] if j > 0 else [np.nan]*5
-                    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,5),
+		    if Pss.size > 0:    
+                      	g = abs(Pss-P) == np.min(abs(Pss-P))
+		    	assert g.sum() in range(2)
+                    	cond_vals = [d.transit_condition_scatterin_val[g], \
+                                     d.transit_condition_depth_val[g], \
+                                     d.transit_condition_no_bimodal_val[g], \
+				     d.transit_condition_timesym_val[g], \
+				     d.transit_condition_indiv_transit_frac_val[g]] if j > 0 else [np.nan]*5
+                    else:
+			cond_vals = np.repeat(np.nan, 5)
+		    self.cond_vals = np.append(self.cond_vals, np.array(cond_vals).reshape(1,5),
                                                axis=0)
                     
   	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
