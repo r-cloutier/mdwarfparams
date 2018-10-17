@@ -34,7 +34,7 @@ def lnlike(theta, t, f, ef, u1, u2):
 def lnprior(theta, theta0, inclims):
     Ntransits = (theta.size-5) / 5
     P0, T00, aRs0, rpRs0, inc0 = theta0
-    lna, lnl, lnG, lnP, s = theta
+    lna, lnl, lnG, lnP, s = theta[:5]
     lps = np.zeros(5+5*Ntransits)
     lps[0] = lnuniform(lna, np.log(1e-5), np.log(1))
     lps[1] = lnuniform(lnl, np.log(1), np.log(1e4))
@@ -64,14 +64,16 @@ def run_emcee(theta, t, f, ef, initialize, u1, u2, Ms, Rs,
     '''Run mcmc on an input light curve with no transit model.'''
     # initialize chains
     assert len(theta) == len(initialize)
+    assert len(theta) == 10
     p0 = []
     for i in range(nwalkers):
     	p0.append(theta + initialize*np.random.randn(len(theta)))
     
     # initialize sampler
+    P = theta[5]
     inclims = np.array([float(rvs.inclination(P,Ms,Rs,1)),
                         float(rvs.inclination(P,Ms,Rs,-1))])
-    args = (theta, t, f, ef, inclims, u1, u2)
+    args = (theta[5:10], t, f, ef, inclims, u1, u2)
     sampler = emcee.EnsembleSampler(nwalkers, len(theta), lnprob, args=args,
                                     a=a)
 
@@ -90,4 +92,4 @@ def run_emcee(theta, t, f, ef, initialize, u1, u2, Ms, Rs,
     print "Mean acceptance fraction: %.4f"%np.mean(sampler.acceptance_fraction)
     print 'Full MCMC took %.4f minutes'%((time.time()-t0)/60.)
 
-    return sampler, samples
+    return sampler, samples, get_results(samples)

@@ -150,13 +150,22 @@ def planet_search(epicnum):
     self._pickleobject()
 
     # fit joint model to light curve
-    _,_,_,_,_,theta = _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff)
-    self.u1, self.u2 = theta[-2:]
-    initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
-    _,self.samples,self.params_results = run_emcee(theta[:5], bjd, f, ef,
-                                                   initialize, self.u1, self.u2,
-                                                   self.Ms, self.Rs, burnin=200,
-                                                   nwalkers=100, nsteps=400,a=2)
+    self.Ndet = self.params_guess.shape[0]
+    self.params_results = np.zeros((self.Ndet, 5))
+    for i in range(self.Ndet):
+        _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
+                                          self.fcorr, self.ef, self.Ms, self.Rs,
+                                          self.Teff)
+        self.u1, self.u2 = theta[-2:]
+        s = self.ef.mean()*.1
+        initialize = [1e-1, 1e-1, 1e-1, 1e-1, s*.1,
+                      1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
+        thetafull = np.append(np.append(self.thetaGPout, s), theta[:5])
+        _,_,self.params_results = run_emcee(thetafull, self.bjd, self.f,
+                                            self.ef, initialize, self.u1,
+                                            self.u2, self.Ms, self.Rs,
+                                            nwalkers=100, burnin=200,
+                                            nsteps=400,a=2)
     self.DONE = True
     self._pickleobject()
     
