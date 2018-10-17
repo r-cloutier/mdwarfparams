@@ -24,15 +24,16 @@ def remove_detected_planets(epicnum, bjd, f):
         raise ValueError('initial planet search has not been run.')
 
     # get planet transit models
-    fmodel = np.ones(bjd.size)
+    fmodel = np.zeros(bjd.size)
     for i in range(d.Ndet):
         func = llnl.transit_model_func_curve_fit(d.u1, d.u2)
         P, T0, aRs, rpRs, inc = d.params_optimized[i]
         fmodel += func(bjd, P, T0, aRs, rpRs, inc) - 1
 
-    # remove planets to clean the light curve
-    f -= fmodel + 1
-    return f
+    # remove planets to clean the light curve 
+    # should add (not subtract) the model because transits have negative flux values
+    f_noplanets = f + fmodel
+    return f_noplanets
 
 
 def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,30), rplims=(.5,4)):
