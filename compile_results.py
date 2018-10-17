@@ -1,13 +1,14 @@
 from K2LCclass import *
-from depth2rp import *
-
+from uncertainties import unumpy as unp
+import rvs
 
 class K2results:
 
-    def __init__(self, folder):
+    def __init__(self, folder, xlen=44, ylen=28):
 	self.folder = folder
 	self.fname_out = '%s/EPIC_K2results'%self.folder
-	
+	self._xlen, self._ylen = int(xlen), int(ylen)	
+
 	self.get_results()
         self.compute_detections()
 	self._pickleobject()
@@ -29,10 +30,10 @@ class K2results:
 	    print float(i)/fs.size, fs[i]
 	    d = loadpickle(fs[i])
 	    if d.DONE:
-		for j in range(self.Ndet+1):
+		for j in range(d.Ndet+1):
 		    self.fs.append(fs[i])
 		    self.epicnames = np.append(self.epicnames, d.epicnum)
-                    self.Ndetected = np.append(self.Ndetected, self.Ndet)
+                    self.Ndetected = np.append(self.Ndetected, d.Ndet)
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.efs = np.append(self.efs, d.ef.mean())
                     self.Mss = np.append(self.Mss, d.Ms)
@@ -121,12 +122,11 @@ class K2results:
                                                 np.repeat(np.nan, Ntrials)
 
         # compute detection map over P and rp
-        xlen, ylen = 11, 7
-        self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]), xlen+1)
-        self.rpgrid = np.linspace(rplims[0], rplims[1], ylen+1)
-        Ndet = np.zeros((xlen, ylen))
-        for i in range(xlen):
-            for j in range(ylen):
+        self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]), self._xlen+1)
+        self.rpgrid = np.linspace(rplims[0], rplims[1], self._ylen+1)
+        self.Ndet = np.zeros((self._xlen, self._ylen))
+        for i in range(self._xlen):
+            for j in range(self._ylen):
                 g = (self.Ps_MC >= self.Pgrid[i]) & \
                     (self.Ps_MC <= self.Pgrid[i+1]) & \
                     (self.rps_MC >= self.rpgrid[j]) & \
