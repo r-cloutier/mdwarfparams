@@ -314,8 +314,8 @@ def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff):
         div = 2.
         while Ps[i]/div >= .1:
             params = np.array([Ps[i]/div, T0s[i], Zs[i], Ds[i]])
-            P, T0, Z, D, fmodel = _fit_params(params, bjd, fcorr, ef, 
-                                              Ms, Rs, Teff)
+            P, T0, Z, D, fmodel,_ = _fit_params(params, bjd, fcorr, ef, 
+                                                Ms, Rs, Teff)
             Ps2 = np.append(Ps2, P)
             T0s2 = np.append(T0s2, T0)
             Ds2 = np.append(Ds2, D)
@@ -353,10 +353,10 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     lnLs2 = np.zeros_like(Ps)
     for i in range(Ps.size):
         params = np.array([Ps[i], T0s[i], Zs[i], Ds[i]])
-        Ps2[i], T0s2[i], Zs2[i], Ds2[i], fmodel = _fit_params(params, bjd,
-                                                              fcorr, ef,
-						              self.Ms, self.Rs,
-                                                              self.Teff)
+        Ps2[i], T0s2[i], Zs2[i], Ds2[i], fmodel,_ = _fit_params(params, bjd,
+                                                                fcorr, ef,
+						                self.Ms, self.Rs,
+                                                                self.Teff)
         lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
 
     # remove common periods based on maximum likelihood
@@ -528,11 +528,13 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
         duration = P/(np.pi*aRs) * np.sqrt((1+np.sqrt(depth))**2 - b*b)
 	func = transit_model_func_curve_fit(u1, u2)
 	fmodel = func(bjd, P, T0, aRs, rpRs, inc)
+	params = np.array([P,T0,aRs,rpRs,inc,u1,u2])
     except RuntimeError, ValueError:
 	func = transit_model_func_curve_fit(u1, u2)
 	fmodel = func(bjd, P, T0, aRs, rpRs, 90.)
         P, T0, depth, duration = np.repeat(np.nan, 4)
-    return P, T0, depth, duration, fmodel
+	params = np.repeat(np.nan, 7)
+    return P, T0, depth, duration, fmodel, params
 
 
 def trim_planets(params, lnLOIs, Nplanetsmax=5):
@@ -578,8 +580,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    if j == 0:
 	    	P, T0, depth1, duration = params[i]
 	    else:
-		P, T0, depth1, duration,_ = _fit_params(params[i], bjd, fcorr,
-                                                        ef, Ms, Rs, Teff)
+		P, T0, depth1, duration,_,_ = _fit_params(params[i], bjd, fcorr,
+                                                          ef, Ms, Rs, Teff)
 
 	    # get in and out of transit window
             phase = foldAt(bjd, P, T0)

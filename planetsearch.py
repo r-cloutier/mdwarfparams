@@ -3,6 +3,7 @@ from TESS_search import *
 import linear_lnlike as llnl
 import batman
 import sys
+from GPmcmcN import run_emcee
 from massradius import radF2mass
 from truncate_cmap import *
 
@@ -148,27 +149,14 @@ def planet_search(epicnum):
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
-    # are planets detected?
-    '''self.is_detected = np.array([int(np.any(np.isclose(params[:,0], Ps[i],
-                                                       rtol=.02)))
-                                 for i in range(Ps.size)])
-    assert tesslc.is_detected.size == tesslc.params_true.shape[0]
-    tesslc.is_FP = np.array([int(np.invert(np.any(np.isclose(tesslc.params_guess[i,0],Ps,rtol=.02))))
-                             for i in range(tesslc.params_guess.shape[0])])
-    assert tesslc.is_FP.size == tesslc.params_guess.shape[0]
-    tesslc.paramsFP_guess = tesslc.params_guess[tesslc.is_FP.astype(bool)]
-    tesslc.pickleobject()
-
-    # do joint GP+transit model
-    if np.any(tesslc.is_detected.astype(bool)):
-        params, transit_params, resultsGPfin, mufin, sigfin, LDcoeffs = \
-                                                            joint_LC_fit(tesslc)
-        tesslc.params_guessfin = params
-        tesslc.transit_params = transit_params
-        tesslc.u1, tesslc.u2 = LDcoeffs
-        tesslc.resultsGPfin = resultsGPfin
-        tesslc.mufin, tesslc.sigfin = mufin, sigfin
-    '''
+    # fit joint model to light curve
+    _,_,_,_,_,theta = _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff)
+    self.u1, self.u2 = theta[-2:]
+    initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
+    _,self.samples,self.params_results = run_emcee(theta[:5], bjd, f, ef,
+                                                   initialize, self.u1, self.u2,
+                                                   self.Ms, self.Rs, burnin=200,
+                                                   nwalkers=100, nsteps=400,a=2)
     self.DONE = True
     self._pickleobject()
     
