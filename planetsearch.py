@@ -8,7 +8,7 @@ from massradius import radF2mass
 from truncate_cmap import *
 
 global K2Mdwarffile
-K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv4.csv'
+K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv5.csv'
 
 
 def read_Kepler_data(fits_dir, maxdays=2e2):
@@ -151,19 +151,22 @@ def planet_search(epicnum):
 
     # fit joint model to light curve
     self.Ndet = self.params_guess.shape[0]
+    self.params_optimized = np.zeros((self.Ndet, 5))
+    self.params_optimized_labels = np.array(['P','T0','a/Rs','rp/Rs','inc'])
     self.params_results = np.zeros((self.Ndet, 3, 5))
     nwalkers, burnin, nsteps = 100, 200, 400
     self.params_samples = np.zeros((self.Ndet, nwalkers*nsteps, 5))
     for i in range(self.Ndet):
         _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
-                                          self.fcorr, self.ef, self.Ms, self.Rs,
-                                          self.Teff)
-        self.u1, self.u2 = theta[-2:]
+                                          self.fcorr, self.ef, self.Ms,
+                                          self.Rs, self.Teff)
+        self.params_optimized[i] = theta[:5]
+        self.u1, self.u2 = self.params_optimized[i,-2:]
         initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
-        _,samples,results = run_emcee(theta[:5], self.bjd, self.fcorr, self.ef,
-                                      initialize, self.u1, self.u2, self.Ms,
-                                      self.Rs, nwalkers=nwalkers, nsteps=nsteps,
-                                      burnin=burnin, a=2)
+        _,samples,results = run_emcee(self.params_optimized[i,:5], self.bjd,
+                                      self.fcorr, self.ef, initialize, self.u1,
+                                      self.u2, self.Ms, self.Rs, nwalkers=nwalkers,
+                                      burnin=burnin, nsteps=nsteps, a=2)
         self.params_samples[i] = samples
         self.params_results[i] = results
 

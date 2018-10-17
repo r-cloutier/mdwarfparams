@@ -115,7 +115,6 @@ def do_optimize_0(bjd, f, ef, N=10,
         tbin, fbin, efbin =boxcar(bjd[g], medfilt(f[g],medkernel), ef[g], dt=dt)
         gp,mu,sig,thetaGPs_out[i] = fit_GP_0(thetaGPs_in[i],
                                              tbin, fbin, efbin)
-	print 'here', tbin.size, mu.size
         # compute residuals and the normality test p-value
         _,pvalues[i] = normaltest(fbin-mu)
     # select the most gaussian-like residuals

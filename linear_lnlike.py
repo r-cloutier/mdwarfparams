@@ -9,8 +9,10 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
 # for real K2 LCs
+#dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
+                                                        #2., 1., .6, .1, .7
 dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
-                                                        2., 1., .6, .1, .7
+							2., 2., .7, .1, .7
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -233,7 +235,6 @@ def remove_multiple_on_lnLs(bjd, ef, Ps, T0s, Ds, Zs, lnLs, rP=.01, rZ=.2):
                 # depth within rZ (i.e. rZ=10%)
 		iscloselnL = (lnLs[isclose] <= lnLs[i])#& \
                              #(abs(1-Zs[isclose]/Zs[i]) < SNRZ)
-                print i, j, Ps[isclose][iscloselnL]
 		to_remove = np.append(to_remove, Ps[isclose][iscloselnL])
 
         # check inverse multiples (eg P/2, P/3, ...)
