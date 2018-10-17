@@ -3,7 +3,7 @@ from TESS_search import *
 import linear_lnlike as llnl
 import batman
 import sys
-from GPmcmcN import run_emcee
+from mcmc1 import run_emcee
 from massradius import radF2mass
 from truncate_cmap import *
 
@@ -151,21 +151,22 @@ def planet_search(epicnum):
 
     # fit joint model to light curve
     self.Ndet = self.params_guess.shape[0]
-    self.params_results = np.zeros((self.Ndet, 5))
+    self.params_results = np.zeros((self.Ndet, 3, 5))
+    nwalkers, burnin, nsteps = 100, 200, 400
+    self.params_samples = np.zeros((self.Ndet, nwalkers*nsteps, 5))
     for i in range(self.Ndet):
         _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
                                           self.fcorr, self.ef, self.Ms, self.Rs,
                                           self.Teff)
         self.u1, self.u2 = theta[-2:]
-        s = self.ef.mean()*.1
-        initialize = [1e-1, 1e-1, 1e-1, 1e-1, s*.1,
-                      1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
-        thetafull = np.append(np.append(self.thetaGPout, s), theta[:5])
-        _,_,self.params_results = run_emcee(thetafull, self.bjd, self.f,
-                                            self.ef, initialize, self.u1,
-                                            self.u2, self.Ms, self.Rs,
-                                            nwalkers=100, burnin=200,
-                                            nsteps=400,a=2)
+        initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
+        _,samples,results = run_emcee(theta[:5], self.bjd, self.fcorr, self.ef,
+                                      initialize, self.u1, self.u2, self.Ms,
+                                      self.Rs, nwalkers=nwalkers, nsteps=nsteps,
+                                      burnin=burnin, a=2)
+        self.params_samples[i] = samples
+        self.params_results[i] = results
+
     self.DONE = True
     self._pickleobject()
     
