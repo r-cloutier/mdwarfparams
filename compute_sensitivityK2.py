@@ -31,8 +31,7 @@ def remove_detected_planets(epicnum, bjd, f):
         fmodel += func(bjd, P, T0, aRs, rpRs, inc) - 1
 
     # remove planets to clean the light curve 
-    # should add (not subtract) the model because transits have negative flux values
-    f_noplanets = f + fmodel
+    f_noplanets = f - fmodel
     return f_noplanets
 
 
