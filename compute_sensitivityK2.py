@@ -14,6 +14,27 @@ def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
     return f
 
 
+def remove_detected_planets(epicnum, bjd, f):
+    '''Remove planet detections using their optimized parameters to clean the 
+    light curve before searching for injected planets.'''
+    # get planet search results
+    try:
+        d = loadpickle('PipelineResults/EPIC_%i/K2LC_-00099'%epicnum)
+    except IOError:
+        raise ValueError('initial planet search has not been run.')
+
+    # get planet transit models
+    fmodel = np.ones(bjd.size)
+    for i in range(d.Ndet):
+        func = llnl.transit_model_func_curve_fit(d.u1, d.u2)
+        P, T0, aRs, rpRs, inc = d.params_optimized[i]
+        fmodel += func(bjd, P, T0, aRs, rpRs, inc) - 1
+
+    # remove planets to clean the light curve
+    f -= fmodel + 1
+    return f
+
+
 def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,30), rplims=(.5,4)):
     '''Sample M dwarf planets over a log uniform grid.'''
     Nplanets = 0
@@ -68,26 +89,32 @@ def injected_planet_search(epicnum, index):
     # get data and only run the star if it is of interest
     if not is_star_of_interest(epicnum):
         return None
+
     name, star_dict, bjd, f, ef = read_K2_data(epicnum)
     self = K2LC(name, index)
-    self.bjd, self.f, self.ef = bjd, f, ef
+    self.bjd, self.f_orig, self.ef = bjd, np.copy(f), ef
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
     self.DONE = False
     self._pickleobject()
 
+    # remove planets detected by the planet search which should already
+    # have been run
+    self.f_noplanets = remove_detected_planets(epicnum, self.bjd, self.f_orig)
+    
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
-                                    sample_planets_uniform(bjd, self.Ms, self.Rs, 
-							   self.Teff)
+                                    sample_planets_uniform(bjd, self.Ms,
+                                                           self.Rs, self.Teff)
     self.params_true = np.array([Ptrue, T0true, depthtrue, durationtrue]).T
     self.Ptrue, self.rptrue = Ptrue, rptrue
-    f += fmodel - 1.
-    self.f = f
+    self.f = self.f_noplanets + fmodel - 1
     self._pickleobject()
     
     # fit initial GP
-    thetaGPall, resultsGPall, thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef)
+    thetaGPall, resultsGPall, thetaGPin, thetaGPout = do_optimize_0(self.bjd,
+                                                                    self.f,
+                                                                    self.ef)
     self.thetaGPall, self.resultsGPall = thetaGPall, resultsGPall
     self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
     self._pickleobject()
@@ -95,8 +122,8 @@ def injected_planet_search(epicnum, index):
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print 'Searching for transit-like events...\n'
-    params, EBparams, maybeEBparams = find_transits(self, bjd, f, ef,
-                                                    thetaGPout)
+    params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
+                                                    self.ef, thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])
@@ -116,13 +143,20 @@ def injected_planet_search(epicnum, index):
 
 
 def do_i_run_this_sim(epicnum, index):
-    # check if star is already done
-    fname = 'PipelineResults/EPIC_%i_%.4d/K2LC'%(epicnum, index)
-    if os.path.exists(fname):
-        return not loadpickle(fname).DONE
-    else:
-        return True
+    # check if planet search has already been run
+    fname = 'PipelineResults/EPIC_%i/K2LC_-00099'%epicnum
+    if os.path.exists(fname) and loadpickle(fname).DONE:
+        
+        # check if star is already done
+        fname = 'PipelineResults/EPIC_%i/K2LC_%.5d'%(epicnum, index)
+        if os.path.exists(fname):
+            return not loadpickle(fname).DONE
+        else:
+            return True
 
+    else:
+        return False
+        
 
 if __name__ == '__main__':
     startind = int(sys.argv[1])
