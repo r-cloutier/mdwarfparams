@@ -38,13 +38,15 @@ def lnprior(theta, theta0, inclims):
     lps = np.zeros(5)
     lps[0] = lnuniform(P, P0*.9, P0*1.1)
     lps[1] = lnuniform(T0, T00-P0*1.1, T00+P0*1.1)
-    lps[2] = lnuniform(aRs, aRs0*.9, aRs0*1.1)
+    lps[2] = lnuniform(aRs, aRs0*.7, aRs0*1.3)
     lps[3] = lnuniform(rpRs, 0, 1)
     lps[4] = lnuniform(inc, inclims[0], inclims[1])
     return lps.sum()
 
 
-def lnprob(theta, theta0, bjd, f, ef, inclims, u1, u2):
+def lnprob(theta, theta0, bjd, f, ef, inclims, u1, u2, zeroplanetmodel):
+    if zeroplanetmodel:  # set rp/Rs to zero if considering a zero-planet model
+	theta[3] = 0.
     lp = lnprior(theta, theta0, inclims)
     if np.isfinite(lp):
         return lp + lnlike(theta, bjd, f, ef, u1, u2)
@@ -53,7 +55,8 @@ def lnprob(theta, theta0, bjd, f, ef, inclims, u1, u2):
 
 
 def run_emcee(theta, bjd, f, ef, initialize, u1, u2, Ms, Rs,
-              nwalkers=100, burnin=200, nsteps=400, a=2):
+              nwalkers=100, burnin=200, nsteps=400, a=2, 
+	      zeroplanetmodel=False):
     '''Run mcmc on an input light curve with no transit model.'''
     # initialize chains
     assert len(theta) == len(initialize)
@@ -66,7 +69,7 @@ def run_emcee(theta, bjd, f, ef, initialize, u1, u2, Ms, Rs,
     P = theta[0]
     inclims = np.array([float(rvs.inclination(P,Ms,Rs,1)),
                         float(rvs.inclination(P,Ms,Rs,-1))])
-    args = (theta, bjd, f, ef, inclims, u1, u2)
+    args = (theta, bjd, f, ef, inclims, u1, u2, zeroplanetmodel)
     sampler = emcee.EnsembleSampler(nwalkers, len(theta), lnprob, args=args,
                                     a=a)
 
@@ -79,10 +82,10 @@ def run_emcee(theta, bjd, f, ef, initialize, u1, u2, Ms, Rs,
     sampler.reset()
 
     # run MCMC
-    print 'Running MCMC (RVs)...'
+    print 'Running full MCMC...'
     p0,_,_ = sampler.run_mcmc(p0, nsteps)
     samples = sampler.chain.reshape((-1, len(theta)))
     print "Mean acceptance fraction: %.4f"%np.mean(sampler.acceptance_fraction)
     print 'Full MCMC took %.4f minutes'%((time.time()-t0)/60.)
 
-    return sampler, samples, get_results(samples)
+    return sampler, samples

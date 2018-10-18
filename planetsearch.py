@@ -1,14 +1,16 @@
 from K2LCclass import *
 from TESS_search import *
 import linear_lnlike as llnl
-import batman
-import sys
+import batman, sys
 from mcmc1 import run_emcee
+from priors import get_results
 from massradius import radF2mass
 from truncate_cmap import *
+from perrakisFML import *
 
-global K2Mdwarffile
+global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv5.csv'
+threshBayesfactor = 1e2
 
 
 def read_Kepler_data(fits_dir, maxdays=2e2):
@@ -115,6 +117,90 @@ def is_star_of_interest(epicnum):
         (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
 
 
+def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
+    '''Run an MCMC on the detrended light curve for 1 planet models to obtain
+    the posterior PDFs and model parameter uncertainties.'''
+    self.Ndet = self.params_guess.shape[0]
+    self.params_optimized = np.zeros((self.Ndet, 5))
+    self.params_optimized_labels = np.array(['P','T0','a/Rs','rp/Rs','inc'])
+    nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
+    self.params_lnprobs = np.zeros((self.Ndet, 2, nwalkers*nsteps))
+    self.params_samples = np.zeros((self.Ndet, 2, nwalkers*nsteps, 5))
+    self.params_results = np.zeros((self.Ndet, 3, 5))
+
+    for i in range(self.Ndet):
+
+        _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
+                                          self.fcorr, self.ef, self.Ms,
+                                          self.Rs, self.Teff)
+        self.params_optimized[i] = theta[:5]
+        self.u1, self.u2 = theta[-2:]
+        
+        # do 0 and 1-planet models
+        for j in range(2):
+
+            zeroplanetmodel = True if j == 0 else False        
+            initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
+            print 'Running MCMC on %i-planet model with P=%.3f days'%(j,
+                                                                      theta[0])
+            sampler,samples = run_emcee(self.params_optimized[i], self.bjd,
+                                        self.fcorr, self.ef, initialize,
+                                        self.u1, self.u2, self.Ms, self.Rs,
+                                        a=2, nwalkers=nwalkers, burnin=burnin,
+                                        nsteps=nsteps,
+                                        zeroplanetmodel=zeroplanetmodel)
+            self.params_samples[i,j] = samples
+            self.params_lnprobs[i,j] = sampler.lnprobability.flatten()
+            if j == 1:
+                results = get_results(samples)
+                self.params_results[i] = results
+
+
+def compute_model_evidences(samples, lnprobs):
+    '''Compute the model evidences for 0 and 1-planet models for each detected
+    planet.'''
+    Nplanets = samples.shape[0]
+    assert samples.shape[:2] == (Nplanets, 2)
+    assert lnprobs.shape[:2] == (Nplanets, 2)
+
+    # compute lnZ for 0 and 1-planet models for each detected planet 
+    lnevidences = np.zeros((Nplanets, 2))
+    for i in range(Nplanets):
+        for j in range(2):
+            print j
+            g = np.invert(np.all(samples[i,j]==0, axis=0))
+            lnevidences[i,j] = compute_perrakis_FML(samples[i,j,:,g].T,
+                                                    lnprobs[i,j])
+        
+    return lnevidences
+
+
+def compute_evidence_ratios(lnZs):
+    '''Compute the model evidence ratio for 0 to 1-planets models for each 
+    detected planet (crudely) assuming uniform model priors.'''
+    prior_ratio_1_0 = 1.
+    Nplanets = lnZs.shape[0]
+    evidence_ratios = np.zeros(Nplanets)
+    for i in range(Nplanets):
+        evidence_ratios[i] = np.exp(lnZs[i,1] - lnZs[i,0]) * prior_ratio_1_0
+
+    return evidence_ratios
+
+
+def get_planet_detections(evidence_ratios, params_guess):
+    '''Flag planets as either detected or otherwise based on their model 
+    evidences and the threshold evidence (i.e. a free parameter).'''
+    Nplanets = evidence_ratios.size
+    assert params_guess.shape[0] == Nplanets
+
+    detected = np.zeros(Nplanets).astype(bool)
+    detected[evidence_ratios >= threshBayesfactor] = True
+    params_guess_out = params_guess[order][detected]
+
+    s = np.argsort(params_guess_out[:,0])
+    return params_guess_out[s]
+        
+
 def planet_search(epicnum):
     '''Run a planet search on an input Kepler or K2 light curve using the 
     pipeline defined in compute_sensitivity to search for planets.'''
@@ -149,26 +235,16 @@ def planet_search(epicnum):
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
-    # fit joint model to light curve
-    self.Ndet = self.params_guess.shape[0]
-    self.params_optimized = np.zeros((self.Ndet, 5))
-    self.params_optimized_labels = np.array(['P','T0','a/Rs','rp/Rs','inc'])
-    self.params_results = np.zeros((self.Ndet, 3, 5))
-    nwalkers, burnin, nsteps = 100, 200, 400
-    self.params_samples = np.zeros((self.Ndet, nwalkers*nsteps, 5))
-    for i in range(self.Ndet):
-        _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
-                                          self.fcorr, self.ef, self.Ms,
-                                          self.Rs, self.Teff)
-        self.params_optimized[i] = theta[:5]
-        self.u1, self.u2 = self.params_optimized[i,-2:]
-        initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
-        _,samples,results = run_emcee(self.params_optimized[i,:5], self.bjd,
-                                      self.fcorr, self.ef, initialize, self.u1,
-                                      self.u2, self.Ms, self.Rs, nwalkers=nwalkers,
-                                      burnin=burnin, nsteps=nsteps, a=2)
-        self.params_samples[i] = samples
-        self.params_results[i] = results
+    # fit transit models to light curve
+    run_mcmc(self)
+
+    # compute model evidences for 0-Ndet planet models
+    #self.lnevidences = compute_model_evidences(self.params_samples,
+    #                                           self.params_lnprobs)
+    #self.evidence_ratios = compute_evidence_ratios(self.lnevidences)
+    #self.params_guess_final = get_planet_detections(self.evidence_ratios,
+    #                                                self.params_guess)
+    #self.Ndet = self.params_guess_final.shape[0]
 
     self.DONE = True
     self._pickleobject()
@@ -193,7 +269,8 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    #epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv', delimiter=',')
+    #epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv',
+    #                   delimiter=',')
     for i in range(startind, endind):
 	print epics[i]
 	if do_i_run_this_star(epics[i]):

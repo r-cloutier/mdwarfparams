@@ -5,7 +5,8 @@ class K2sensitivity:
 
     def __init__(self, epicnum):
         self.epicnum = epicnum
-        self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum, self.epicnum)
+        self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum,
+                                                                  self.epicnum)
         self.get_data()
 	if self.fs.size > 0:
             #self.get_probable_detections()
