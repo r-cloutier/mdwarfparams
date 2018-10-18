@@ -4,7 +4,7 @@ import vetting as vett
 import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
-global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac
+global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff
 #dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
 #dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
 #dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5

@@ -131,11 +131,11 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
 
     for i in range(self.Ndet):
 
-        _,_,_,_,_,theta = llnl.fit_params(self.params_guess[i], self.bjd,
-                                          self.fcorr, self.ef, self.Ms,
-                                          self.Rs, self.Teff)
+        _,_,_,_,fmodel,theta = llnl.fit_params(self.params_guess[i], self.bjd,
+                                               self.fcorr, self.ef, self.Ms,
+                                               self.Rs, self.Teff)
         self.params_optimized[i] = theta[:5]
-	self.fmodel[i] = 
+	self.fmodels[i] = fmodel
         self.u1, self.u2 = theta[-2:]
         func = transit_model_func_curve_fit(self.u1, self.u2)
 	self.fmodel[i] = func(self.bjd, *self.params_optimized[i])
