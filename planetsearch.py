@@ -123,6 +123,7 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
     self.Ndet = self.params_guess.shape[0]
     self.params_optimized = np.zeros((self.Ndet, 5))
     self.params_optimized_labels = np.array(['P','T0','a/Rs','rp/Rs','inc'])
+    self.fmodels = np.zeros((self.Ndet, self.bjd.size))
     nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
     self.params_lnprobs = np.zeros((self.Ndet, 2, nwalkers*nsteps))
     self.params_samples = np.zeros((self.Ndet, 2, nwalkers*nsteps, 5))
@@ -134,8 +135,11 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
                                           self.fcorr, self.ef, self.Ms,
                                           self.Rs, self.Teff)
         self.params_optimized[i] = theta[:5]
+	self.fmodel[i] = 
         self.u1, self.u2 = theta[-2:]
-        
+        func = transit_model_func_curve_fit(self.u1, self.u2)
+	self.fmodel[i] = func(self.bjd, *self.params_optimized[i])
+
         # do 0 and 1-planet models
         for j in range(2):
 

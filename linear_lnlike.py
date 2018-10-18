@@ -13,6 +13,7 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac
                                                         #2., 1., .6, .1, .7
 dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
 							2., 2., .7, .1, .7
+min_autocorr_coeff = .6
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -425,7 +426,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    bimodalfrac,
                                                    T0tolerance,
 						   np.nan,
-                                                   transitlikefrac])
+                                                   transitlikefrac,
+                                                   min_autocorr_coeff])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
     self.transit_condition_labels = np.array(['scatterin_gtr_scatterout',
@@ -433,7 +435,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                               'no_bimodal_flux_intransit',
                                               'flux_symmetric_in_time',
                                               'good_ephemeris',
-                                              'indiv_transit_fraction'])
+                                              'indiv_transit_fraction',
+                                              'not_autocorrelated_residuals'])
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
@@ -551,6 +554,20 @@ def trim_planets(params, lnLOIs, Nplanetsmax=5):
 	return params, lnLOIs
 
 
+def is_not_autocorrelated(timeseries):
+    x = np.ascontiguousarray(timeseries)
+    n = x.size
+    norm = (x - np.mean(x))
+    result = np.correlate(norm, norm, mode='same')
+    acorr = result[n//2 + 1:] / (x.var() * np.arange(n-1, n//2, -1))
+    lag = np.abs(acorr).argmax() + 1
+    r = acorr[lag-1]        
+    if np.abs(r) <= min_autocorr_coeff:
+        return True, r
+    else: 
+        return False, r
+    
+    
 def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                      minNpnts_intransit=4):
     '''Look at proposed transits and confirm whether or not a significant 
@@ -696,20 +713,33 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     paramsout = np.delete(paramsout, to_remove_inds, 0)
     lnLsout = np.delete(lnLs, to_remove_inds)
 
+    # check autocorrelation after removing planets (is autocorrelated if the
+    # systematic correction is bad -> planets detections are not robust)
+    fmodel_tot = np.zeros(bjd.size)
+    for i in range(paramsout.shape[0]):
+        _,_,_,_,fmodel,_ = fit_params(paramsout[i], bjd, fcorr,
+                                      ef, Ms, Rs, Teff)
+        fmodel_tot += fmodel - 1.
+    cond_autocorr, autocorr_coeff = is_not_autocorrelated(fcorr - fmodel_tot)
+    transit_condition_autocorr_leq_max = np.repeat(cond_autocorr, Ntransits)
+    transit_condition_autocorr_val = np.repeat(autocorr_coeff, Ntransits)
+    
     # combine conditions
     cond_vals = np.array([transit_condition_scatterin_val, \
                           transit_condition_depth_val, \
                           transit_condition_no_bimodal_val, \
                           transit_condition_timesym_val, \
                           transit_condition_ephemeris_fits_in_WF, \
-                          transit_condition_indiv_transit_frac_val]).T
+                          transit_condition_indiv_transit_frac_val, \
+                          transit_condition_autocorr_val]).T
     
     cond_bool = np.array([transit_condition_scatterin_gtr_scatterout, \
                           transit_condition_depth_gtr_rms, \
                           transit_condition_no_bimodal_flux_intransit, \
                           transit_condition_timesym, \
                           transit_condition_ephemeris_fits_in_WF, \
-                          transit_condition_indiv_transit_frac_gt_min]).T
+                          transit_condition_indiv_transit_frac_gt_min, \
+                          transit_condition_autocorr_leq_max]).T
 
     return paramsout, lnLsout, cond_vals, cond_bool
 
