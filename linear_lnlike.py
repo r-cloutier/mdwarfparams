@@ -415,25 +415,24 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     # identify bona-fide transit-like events
     self.params_guess_priorto_confirm, self.lnLOIs_priorto_confirm = params6, \
                                                                      lnLOIs6
-    self.dispersion_sig, self.depth_sig, self.bimodalfrac = dispersion_sig, \
-                                                            depth_sig, \
-                                                            bimodalfrac
     self._pickleobject()
     params6, lnLOIs6, cond_vals, conds = confirm_transits(params6, lnLOIs6,
                                                           bjd, fcorr, ef,
                                                           self.Ms, self.Rs,
                                                           self.Teff)
-    self.transit_condition_scatterin_val = cond_vals[:,0]
-    self.transit_condition_scatterin_gtr_scatterout = conds[:,0]
-    self.transit_condition_depth_val = cond_vals[:,1]
-    self.transit_condition_depth_gtr_rms = conds[:,2]
-    self.transit_condition_no_bimodal_val = cond_vals[:,2]
-    self.transit_condition_no_bimodal_flux_intransit = conds[:,2]
-    self.transit_condition_timesym_val = cond_vals[:,3]
-    self.transit_condition_timesym = conds[:,3]
-    self.transit_condition_indiv_transit_frac_val = cond_vals[:,4]
-    self.transit_condition_indiv_transit_frac_gt_min = conds[:,4]
-    self.transit_condition_ephemeris_fits_in_WF = conds[:,5]
+    self.transit_condition_free_params = np.array([dispersion_sig,
+                                                   depth_sig,
+                                                   bimodalfrac,
+                                                   T0tolerance,
+                                                   transitlikefrac])
+    self.transit_condition_values = cond_vals
+    self.transit_condition_bool = conds
+    self.transit_condition_labels = np.array(['scatterin_gtr_scatterout',
+                                              'depth_gtr_rms',
+                                              'no_bimodal_flux_intransit',
+                                              'flux_symmetric_in_time',
+                                              'indiv_transit_fraction',
+                                              'good_ephemeris'])
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
@@ -700,8 +699,10 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     cond_vals = np.array([transit_condition_scatterin_val, \
                           transit_condition_depth_val, \
                           transit_condition_no_bimodal_val, \
-                          transit_condition_timesym_val,
-                          transit_condition_indiv_transit_frac_val]).T         
+                          transit_condition_timesym_val, \
+                          transit_condition_ephemeris_fits_in_WF, \
+                          transit_condition_indiv_transit_frac_val]).T
+    
     cond_bool = np.array([transit_condition_scatterin_gtr_scatterout, \
                           transit_condition_depth_gtr_rms, \
                           transit_condition_no_bimodal_flux_intransit, \
