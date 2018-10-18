@@ -258,7 +258,7 @@ def do_i_run_this_star(epicnum):
     if g.sum() != 1:
 	return False
     # check if star is already done
-    fname = 'PipelineResults/EPIC_%i/K2LC'%epicnum
+    fname = 'PipelineResults/EPIC_%i/K2LC_-00099'%epicnum
     if os.path.exists(fname):
         return not loadpickle(fname).DONE
     else:

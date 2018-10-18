@@ -424,6 +424,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    depth_sig,
                                                    bimodalfrac,
                                                    T0tolerance,
+						   np.nan,
                                                    transitlikefrac])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
@@ -431,8 +432,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                               'depth_gtr_rms',
                                               'no_bimodal_flux_intransit',
                                               'flux_symmetric_in_time',
-                                              'indiv_transit_fraction',
-                                              'good_ephemeris'])
+                                              'good_ephemeris',
+                                              'indiv_transit_fraction'])
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
