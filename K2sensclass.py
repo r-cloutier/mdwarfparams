@@ -1,5 +1,6 @@
 from K2LCclass import *
 import rvs
+from uncertainties import unumpy as unp
 
 class K2sensitivity:
 
@@ -29,6 +30,9 @@ class K2sensitivity:
                                                               d.logg, \
                                                               d.Ms, d.Rs, \
                                                               d.Teff
+        self.e_logg, self.e_Ms, self.e_Rs, self.e_Teff = d.e_logg, \
+                                                         d.e_Ms, d.e_Rs, \
+                                                         d.e_Teff
         Nmax = 20
         self.Nplanets_true, self.Nplanets_found = np.zeros(0), np.zeros(0)
         self.Ps, self.rps, self.isdet = np.zeros((0,Nmax)), np.zeros((0,Nmax)), np.zeros((0,Nmax))
@@ -105,62 +109,113 @@ class K2sensitivity:
                 self.isFP[g] = 0
 
 
-    def compute_sensitivity(self, Plims=(.5,30), rplims=(.5,4)):
+    def compute_sensitivity(self, xlen=120, ylen=60, Plims=(.5,80),
+                            rplims=(1,10)):
         '''Get all the simulations for this star and compute the
         sensitivity and the number of FPs as functions of P and rp.'''
-        xlen, ylen = 11, 7
-        self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]), xlen+1)
-        self.rpgrid = np.linspace(rplims[0], rplims[1], ylen+1)
-        self.Ndet, self.Ntrue, self.NFP = np.zeros((xlen, ylen)), \
-                                          np.zeros((xlen, ylen)), \
-                                          np.zeros((xlen, ylen))
-        for i in range(xlen):
-            for j in range(ylen):
-                g = (self.Ps >= self.Pgrid[i]) & \
-                    (self.Ps <= self.Pgrid[i+1]) & \
+        self._xlen, self._ylen = int(xlen), int(ylen)
+        self.logPgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]),
+                                    self._xlen+1)
+        self.rpgrid = np.linspace(rplims[0], rplims[1], self._ylen+1)
+        self.logrpgrid = np.logspace(np.log10(rplims[0]), np.log10(rplims[1]),
+                                     self._ylen+1)
+        self.Ndet, self.Ntrue, self.NFP = np.zeros((self._xlen, self._ylen)), \
+                                          np.zeros((self._xlen, self._ylen)), \
+                                          np.zeros((self._xlen, self._ylen))
+        self.logNdet, self.logNtrue, self.logNFP = np.zeros_like(self.Ndet), \
+                                                   np.zeros_like(self.Ntrue), \
+                                                   np.zeros_like(self.NFP)
+        for i in range(self._xlen):
+            for j in range(self._ylen):
+                # get detections in log-linear space
+                g = (self.Ps >= self.logPgrid[i]) & \
+                    (self.Ps <= self.logPgrid[i+1]) & \
                     (self.rps >= self.rpgrid[j]) & \
                     (self.rps <= self.rpgrid[j+1])
                 self.Ndet[i,j] = self.isdet[g].sum()
                 self.Ntrue[i,j] = self.isdet[g].size
-		
-		g = (self.Psfound >= self.Pgrid[i]) & \
-                    (self.Psfound <= self.Pgrid[i+1]) & \
+
+		# get FPs in log-linear space
+		g = (self.Psfound >= self.logPgrid[i]) & \
+                    (self.Psfound <= self.logPgrid[i+1]) & \
                     (self.rpsfound >= self.rpgrid[j]) & \
                     (self.rpsfound <= self.rpgrid[j+1])
                 self.NFP[i,j] = self.isFP[g].sum()
                 
+                # get detections in log-log space
+                g = (self.Ps >= self.logPgrid[i]) & \
+                    (self.Ps <= self.logPgrid[i+1]) & \
+                    (self.rps >= self.logrpgrid[j]) & \
+                    (self.rps <= self.logrpgrid[j+1])
+                self.logNdet[i,j] = self.isdet[g].sum()
+                self.logNtrue[i,j] = self.isdet[g].size
+
+		# get FPs in log-log space
+		g = (self.Psfound >= self.logPgrid[i]) & \
+                    (self.Psfound <= self.logPgrid[i+1]) & \
+                    (self.rpsfound >= self.logrpgrid[j]) & \
+                    (self.rpsfound <= self.logrpgrid[j+1])
+                self.logNFP[i,j] = self.isFP[g].sum()
+
         # compute sensitivity
         self.sens = self.Ndet / self.Ntrue.astype(float)
         self.esens = np.sqrt(self.Ndet) / self.Ntrue.astype(float)
+        self.logsens = self.logNdet / self.logNtrue.astype(float)
+        self.logesens = np.sqrt(self.logNdet) / self.logNtrue.astype(float)
 
         # compute yield correction to multiply the yield by
         self.yield_corr = 1 - self.NFP / (self.Ndet + self.NFP.astype(float))
+        self.logyield_corr = 1 - self.logNFP / \
+                             (self.logNdet + self.logNFP.astype(float))
         
     
     def compute_transit_prob(self):
-	self.transit_prob = np.zeros((self.Pgrid.size-1, self.rpgrid.size-1))
-	for i in range(self.Pgrid.size-1):
-	    for j in range(self.rpgrid.size-1):
-		Pmid = 10**(np.log10(self.Pgrid[i]) + np.diff(np.log10(self.Pgrid[i:i+2])/2))
+	self.transit_prob, self.etransit_prob = np.zeros_like(self.sens), \
+                                                np.zeros_like(self.sens)
+	self.logtransit_prob,self.elogtransit_prob = np.zeros_like(self.sens), \
+                                                     np.zeros_like(self.sens)
+	for i in range(self._xlen-1):
+	    for j in range(self._ylen-1):
+
+                # compute transit probability in log-linear space 
+                Pmid = 10**(np.log10(self.logPgrid[i]) + \
+                            np.diff(np.log10(self.logPgrid[i:i+2])/2))
 		rpmid = np.mean(self.rpgrid[j:j+2])
-		sma = rvs.AU2m(rvs.semimajoraxis(Pmid, self.Ms, 0))
-		self.transit_prob[i,j] = (rvs.Rsun2m(self.Rs) + rvs.Rearth2m(rpmid)) / sma
+		sma = rvs.AU2m(rvs.semimajoraxis(Pmid, unp.uarray(self.Ms,
+                                                                  self.e_Ms),
+                                                 0))
+                transit_prob =  (rvs.Rsun2m(unp.uarray(self.Rs, self.e_Rs)) + \
+                                 rvs.Rearth2m(rpmid)) / sma
+                self.transit_prob[i,j] = unp.nominal_values(transit_prob)
+                self.etransit_prob[i,j] = unp.std_devs(transit_prob)
+                
+                # compute transit probability in log-linear space 
+                rpmid = np.mean(self.logrpgrid[j:j+2])
+		transit_prob =  (rvs.Rsun2m(unp.uarray(self.Rs, self.e_Rs)) + \
+                                 rvs.Rearth2m(rpmid)) / sma
+                self.logtransit_prob[i,j] = unp.nominal_values(transit_prob)
+                self.elogtransit_prob[i,j] = unp.std_devs(transit_prob)
 
 	# correction from beta distribution fit (Kipping 2013)
 	self.transit_prob *= 1.08
+        self.logtransit_prob *= 1.08
 
 
-    def plot_map(self, zmap, zlabel='', xarr=np.zeros(0), yarr=np.zeros(0), avgtitle=False, sumtitle=False, issens=False, pltt=True, label=False):
+    def plot_map(self, xarr, yarr, zmap, zlabel='', avgtitle=False,
+                 sumtitle=False, issens=False, pltt=True, label=False):
 	fig = plt.figure()
 	ax = fig.add_subplot(111)
-	xarr = self.Pgrid if xarr.size == 0 else xarr
-        yarr = self.rpgrid if yarr.size == 0 else yarr
 	img = ax.pcolormesh(xarr, yarr, zmap.T, cmap=plt.get_cmap('hot_r'))
 	cbar_axes = fig.add_axes([.1,.1,.87,.04])
 	cbar = fig.colorbar(img, cax=cbar_axes, orientation='horizontal')
         cbar.set_label(zlabel)
-	ax.set_xscale('log')
-	ax.set_xlabel('Period [days]'), ax.set_ylabel('Planet Radius [R$_{\oplus}$]')
+	if not np.all(np.isclose(np.diff(xarr), np.diff(xarr)[0])):
+            ax.set_xscale('log')
+        if not np.all(np.isclose(np.diff(yarr), np.diff(yarr)[0])):
+            ax.set_yscale('log')
+
+        ax.set_xlabel('Period [days]')
+        ax.set_ylabel('Planet Radius [R$_{\oplus}$]')
 	if sumtitle:
 	    ax.set_title('Total = %i'%np.nansum(zmap), fontsize=12)
 	if avgtitle:
@@ -194,9 +249,10 @@ class K2sensitivity:
 
 
 if __name__ == '__main__':
-    fs = np.array(glob.glob('PipelineResults/EPIC_*'))
+    '''    fs = np.array(glob.glob('PipelineResults/EPIC_*'))
     print fs.size
     for i in range(fs.size):
 	print fs[i]
 	epicnum = int(fs[i].split('_')[-1])
     	self = K2sensitivity(epicnum)
+    '''

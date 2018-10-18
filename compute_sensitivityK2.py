@@ -35,7 +35,7 @@ def remove_detected_planets(epicnum, bjd, f):
     return f_noplanets
 
 
-def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,30), rplims=(.5,4)):
+def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,80), rplims=(1,10)):
     '''Sample M dwarf planets over a log uniform grid.'''
     Nplanets = 0
     while Nplanets < 1:
@@ -54,7 +54,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,30), rplims=(.5,4)):
     T0true = np.zeros(Nplanets)
     while np.any((T0true <= bjd.min()) | (T0true >= bjd.max())):
         T0true = np.random.choice(bjd, Nplanets) + np.random.randn(Nplanets)*.5
-    rptrue = np.random.uniform(rpmin, rpmax, Nplanets)
+    rptrue = 10**np.random.uniform(np.log10(rpmin), np.log10(rpmax), Nplanets)
     rpRs = rvs.Rearth2m(rptrue) / rvs.Rsun2m(Rs)
     aRs = rvs.AU2m(rvs.semimajoraxis(Ptrue, Ms, 0)) / rvs.Rsun2m(Rs)
     assert np.all(aRs > 1)

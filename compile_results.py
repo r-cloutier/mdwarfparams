@@ -4,7 +4,7 @@ import rvs
 
 class K2results:
 
-    def __init__(self, folder, xlen=44, ylen=28):
+    def __init__(self, folder, xlen=120, ylen=60):
 	self.folder = folder
 	self.fname_out = '%s/EPIC_K2results'%self.folder
 	self._xlen, self._ylen = int(xlen), int(ylen)	
@@ -99,7 +99,7 @@ class K2results:
 
         
 
-    def compute_detections(self, Ntrials=1e3, Plims=(.5,30), rplims=(.5,4)):
+    def compute_detections(self, Ntrials=1e3, Plims=(.5,80), rplims=(1,10)):
         '''compute detections over P and rp using MC simulations over the 
         radius uncertainties.'''
         Nsims, Ntrials = self.fs.size, int(Ntrials)
@@ -123,7 +123,7 @@ class K2results:
 
         # compute detection map over P and rp
         self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]), self._xlen+1)
-        self.rpgrid = np.linspace(rplims[0], rplims[1], self._ylen+1)
+        self.rpgrid = np.logspace(np.log10(rplims[0]), np.log10(rplims[1]), self._ylen+1)
         self.Ndet = np.zeros((self._xlen, self._ylen))
         for i in range(self._xlen):
             for j in range(self._ylen):
