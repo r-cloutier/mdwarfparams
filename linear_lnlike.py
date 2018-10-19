@@ -610,7 +610,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             intransit = (phase*P >= -Dfrac*duration) & \
                         (phase*P <= Dfrac*duration)
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
-	    Dfrac = 0.
+	    Dfrac = .05
             outtransit = (phase*P <= -(1.+Dfrac)*duration) | \
                          (phase*P >= (1.+Dfrac)*duration)
             #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
