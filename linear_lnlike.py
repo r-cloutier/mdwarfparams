@@ -723,7 +723,9 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     cond_autocorr, autocorr_coeff = is_not_autocorrelated(fcorr - fmodel_tot)
     transit_condition_autocorr_leq_max = np.repeat(cond_autocorr, Ntransits)
     transit_condition_autocorr_val = np.repeat(autocorr_coeff, Ntransits)
-    
+    if not cond_autocorr:
+        paramsout, lnLsout = np.zeros((0,4)), np.zeros(0)
+ 
     # combine conditions
     cond_vals = np.array([transit_condition_scatterin_val, \
                           transit_condition_depth_val, \
