@@ -12,7 +12,7 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min
 #dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
                                                         #2., 1., .6, .1, .7
 dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
-							2., 2., .7, .1, .7
+							2.8, 8., .7, .1, .7
 min_autocorr_coeff = .6
 
 
@@ -417,10 +417,11 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.params_guess_priorto_confirm, self.lnLOIs_priorto_confirm = params6, \
                                                                      lnLOIs6
     self._pickleobject()
-    params6, lnLOIs6, cond_vals, conds = confirm_transits(params6, lnLOIs6,
-                                                          bjd, fcorr, ef,
-                                                          self.Ms, self.Rs,
-                                                          self.Teff)
+    params6,Ntransits,lnLOIs6,cond_vals,conds = confirm_transits(params6, lnLOIs6,
+                                                                 bjd, fcorr, ef,
+                                                                 self.Ms, self.Rs,
+                                                                 self.Teff)
+    self.Ntransits = Ntransits
     self.transit_condition_free_params = np.array([dispersion_sig,
                                                    depth_sig,
                                                    bimodalfrac,
@@ -554,6 +555,14 @@ def trim_planets(params, lnLOIs, Nplanetsmax=5):
 	return params, lnLOIs
 
 
+def compute_Ntransits(bjd, P, T0):
+    possible_T0s = np.arange(-400,400)*P + T0
+    assert possible_T0s.min() < bjd.min()
+    assert possible_T0s.max() > bjd.max()
+    Ntransits = np.sum((possible_T0s >= bjd.min()) & (possible_T0s <= bjd.max()))    
+    return Ntransits
+
+    
 def is_not_autocorrelated(timeseries):
     x = np.ascontiguousarray(timeseries)
     n = x.size
@@ -572,23 +581,25 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                      minNpnts_intransit=4):
     '''Look at proposed transits and confirm whether or not a significant 
     dimming is seen.'''
-    Ntransits = params.shape[0]
-    assert lnLs.size == Ntransits
-    paramsout, to_remove_inds = np.zeros((Ntransits,4)), np.zeros(0)
-    transit_condition_scatterin_val = np.zeros(Ntransits)
-    transit_condition_scatterin_gtr_scatterout = np.zeros(Ntransits, dtype=bool)
-    transit_condition_depth_val = np.zeros(Ntransits)
-    transit_condition_depth_gtr_rms = np.zeros(Ntransits, dtype=bool)
-    transit_condition_no_bimodal_val = np.zeros(Ntransits)
-    transit_condition_no_bimodal_flux_intransit = np.zeros(Ntransits,dtype=bool)
-    transit_condition_timesym_val = np.zeros(Ntransits)
-    transit_condition_timesym = np.zeros(Ntransits,dtype=bool)
-    transit_condition_indiv_transit_frac_val = np.zeros(Ntransits)
-    transit_condition_indiv_transit_frac_gt_min = np.zeros(Ntransits, dtype=bool)
-    transit_condition_ephemeris_fits_in_WF = np.zeros(Ntransits, dtype=bool)
+    Nplanets = params.shape[0]
+    assert lnLs.size == Nplanets
+    paramsout, to_remove_inds = np.zeros((Nplanets,4)), np.zeros(0)
+    Ntransits = np.zeros((Nplanets))
+    transit_condition_scatterin_val = np.zeros(Nplanets)
+    transit_condition_scatterin_gtr_scatterout = np.zeros(Nplanets, dtype=bool)
+    transit_condition_depth_val = np.zeros(Nplanets)
+    transit_condition_depth_gtr_rms = np.zeros(Nplanets, dtype=bool)
+    transit_condition_no_bimodal_val = np.zeros(Nplanets)
+    transit_condition_no_bimodal_flux_intransit = np.zeros(Nplanets,dtype=bool)
+    transit_condition_timesym_val = np.zeros(Nplanets)
+    transit_condition_timesym = np.zeros(Nplanets,dtype=bool)
+    transit_condition_indiv_transit_frac_val = np.zeros(Nplanets)
+    transit_condition_indiv_transit_frac_gt_min = np.zeros(Nplanets, dtype=bool)
+    transit_condition_ephemeris_fits_in_WF = np.zeros(Nplanets, dtype=bool)
+
     print 'Confirming proposed transits...'
-    for i in range(Ntransits):
-	print float(i) / Ntransits
+    for i in range(Nplanets):
+	print float(i) / Nplanets
 	
 	# try original first, then try optimized parameters if necessary
 	# TEMP
@@ -610,12 +621,15 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             intransit = (phase*P >= -Dfrac*duration) & \
                         (phase*P <= Dfrac*duration)
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
-	    Dfrac = .05
-            outtransit = (phase*P <= -(1.+Dfrac)*duration) | \
-                         (phase*P >= (1.+Dfrac)*duration)
+	    Dfrac = .55
+            outtransit = (phase*P <= -Dfrac*duration) | \
+                         (phase*P >= Dfrac*duration)
             #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
             #         'bo'), plt.show()
 
+            # calculate number of transits
+            Ntransits[i] = compute_Ntransits(bjd, P, T0)
+            
             # check scatter in and out of the proposed transit to see if the
             # transit is real
             cond1_val = (np.median(fcorr[outtransit]) - \
@@ -630,7 +644,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             sigdepth = np.std(fcorr[intransit])
             depth = depth2 #depth1
             cond5 = depth > 0
-            cond2_val = depth / sigdepth
+            cond2_val = depth / sigdepth * np.sqrt(Ntransits[i])
             cond2 = cond2_val > depth_sig
             transit_condition_depth_val[i] = cond2_val
 	    transit_condition_depth_gtr_rms[i] = cond2
@@ -722,8 +736,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                                       ef, Ms, Rs, Teff)
         fmodel_tot += fmodel - 1.
     cond_autocorr, autocorr_coeff = is_not_autocorrelated(fcorr - fmodel_tot)
-    transit_condition_autocorr_leq_max = np.repeat(cond_autocorr, Ntransits)
-    transit_condition_autocorr_val = np.repeat(autocorr_coeff, Ntransits)
+    transit_condition_autocorr_leq_max = np.repeat(cond_autocorr, Nplanets)
+    transit_condition_autocorr_val = np.repeat(autocorr_coeff, Nplanets)
     if not cond_autocorr:
         paramsout, lnLsout = np.zeros((0,4)), np.zeros(0)
  
@@ -744,7 +758,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_indiv_transit_frac_gt_min, \
                           transit_condition_autocorr_leq_max]).T
 
-    return paramsout, lnLsout, cond_vals, cond_bool
+    return paramsout, Ntransits, lnLsout, cond_vals, cond_bool
 
 
 def identify_EBs(params, bjd, fcorr, ef, Rs, SNRthresh=3., rpmax=30):
