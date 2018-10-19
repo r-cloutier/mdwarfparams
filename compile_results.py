@@ -15,23 +15,35 @@ class K2results:
 
 
     def get_results(self):
-	fs = np.array(glob.glob('%s/EPIC_*/K2LC_-00099'%self.folder))
+        # planet search files
+        fs = np.array(glob.glob('%s/EPIC_*/K2LC_-00099'%self.folder))
 	self.fs, self.epicnames = [], np.zeros(0)
+
+        # detected planet params
 	self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
-        self.params_optimized, self.cond_vals = np.zeros((0,5)), np.zeros((0,5))
+        self.params_optimized = np.zeros((0,5))
+        self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
+        self.rps, self.e_rps = np.zeros(0), np.zeros(0)        
+
+        # POI params
+        self.cond_vals, self.cond_free_params = np.zeros((0,7)), np.zeros((0,7))
+
+        # stellar params
         self.Kepmags, self.efs = np.zeros(0), np.zeros(0)
 	self.Mss, self.e_Mss = np.zeros(0), np.zeros(0)
         self.Rss, self.e_Rss = np.zeros(0), np.zeros(0)
         self.Teffs, self.e_Teffs = np.zeros(0), np.zeros(0)
         self.loggs, self.e_loggs = np.zeros(0), np.zeros(0)
-        self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
-        self.rps, self.e_rps = np.zeros(0), np.zeros(0)
+        
 	for i in range(fs.size):
-	    print float(i)/fs.size, fs[i]
+
+            print float(i)/fs.size, fs[i]
 	    d = loadpickle(fs[i])
 	    if d.DONE:
+                
 		for j in range(d.Ndet+1):
-		    self.fs.append(fs[i])
+
+	            self.fs.append(fs[i])
 		    self.epicnames = np.append(self.epicnames, d.epicnum)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
@@ -45,7 +57,7 @@ class K2results:
                     self.loggs = np.append(self.loggs, d.logg)
                     self.e_loggs = np.append(self.e_loggs, d.e_logg)
 
-                    # save parameter guesses
+                    # save parameter guesses of detected planets
                     params = d.params_guess[j-1] if j > 0 \
                              else np.repeat(np.nan,4)
 		    self.params_guess = np.append(self.params_guess,
@@ -64,19 +76,18 @@ class K2results:
                     # save transit vetting results
                     P = params[0]
                     Pss = d.params_guess_priorto_confirm[:,0]
-		    if Pss.size > 0:    
+		    if Pss.size > 0:
                       	g = abs(Pss-P) == np.min(abs(Pss-P))
 		    	assert g.sum() in range(2)
-                    	cond_vals = [d.transit_condition_scatterin_val[g], \
-                                     d.transit_condition_depth_val[g], \
-                                     d.transit_condition_no_bimodal_val[g], \
-				     d.transit_condition_timesym_val[g], \
-				     d.transit_condition_indiv_transit_frac_val[g]] if j > 0 else [np.nan]*5
+                    	cond_vals = d.transit_condition_values[g] if j > 0 \
+                                    else np.repeat(np.nan,7)
                     else:
-			cond_vals = np.repeat(np.nan, 5)
+			cond_vals = np.repeat(np.nan, 7)
 		    self.cond_vals = np.append(self.cond_vals,
-                                               np.array(cond_vals).reshape(1,5),
-                                               axis=0)
+                                               cond_vals.reshape(1,7), axis=0)
+                    self.cond_free_params = np.append(self.cond_free_params,
+                                d.transit_condition_free_params.reshape(1,7),
+                                                      axis=0)
 
                     # save periods and planets radii
                     self.Ps = np.append(self.Ps, params_opt[0])

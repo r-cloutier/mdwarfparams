@@ -563,9 +563,9 @@ def is_not_autocorrelated(timeseries):
     lag = np.abs(acorr).argmax() + 1
     r = acorr[lag-1]        
     if np.abs(r) <= min_autocorr_coeff:
-        return True, r
+        return True, np.abs(r)
     else: 
-        return False, r
+        return False, np.abs(r)
     
     
 def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
