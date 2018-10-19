@@ -137,8 +137,6 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
         self.params_optimized[i] = theta[:5]
 	self.fmodels[i] = fmodel
         self.u1, self.u2 = theta[-2:]
-        func = transit_model_func_curve_fit(self.u1, self.u2)
-	self.fmodel[i] = func(self.bjd, *self.params_optimized[i])
 
         # do 0 and 1-planet models
         for j in range(2):
