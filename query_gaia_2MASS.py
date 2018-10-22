@@ -15,7 +15,7 @@ fout = 'input_data/K2targets/K2Mdwarfsv6.csv'
 def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
-    radius_arcsec_orig = np.copy(radius_arcsec)
+    radius_arcsec_orig = radius_arcsec+0
     ras, decs = np.zeros(Nstars), np.zeros(Nstars)
     Kepmags, K2campaigns = np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
@@ -240,7 +240,7 @@ def compute_distance_modulus(par_mas):
         return unp.uarray(np.nan, np.nan), unp.uarray(np.nan, np.nan) 
 
 
-def compute_AK_mwdust(ls, bs, dist, edist):
+def compute_AK_mwdust(ls, bs, dist, edist, eAK_frac=.3):
     '''Using the EB-V map from 2014MNRAS.443.2907S and the extinction vector
     RK = 0.31 from Schlafly and Finkbeiner 2011 (ApJ 737, 103)'''
     dustmap = mwdust.Combined15(filter='2MASS Ks')
@@ -252,7 +252,7 @@ def compute_AK_mwdust(ls, bs, dist, edist):
         print ls[i], bs[i], dist_kpc[i], edist_kpc[i]
         v = dustmap(ls[i], bs[i],
                     np.array([dist_kpc[i], dist_kpc[i]+edist_kpc[i]]))
-        AK[i], eAK[i] = v[0], abs(np.diff(v))
+        AK[i], eAK[i] = v[0], np.sqrt(abs(np.diff(v))**2 + (eAK_frac*v[0])**2)
     return unp.uarray(AK, eAK)
 
 
@@ -308,8 +308,8 @@ if __name__ == '__main__':
     ##fname = 'input_data/K2targets/K2Mdwarfsv1_midM.csv' 
     epicnums = np.loadtxt(fname, delimiter=',')[:,0]
 
-    epicnums = epicnums[0:1000]
+    epicnums = epicnums[50:300]
     t0 = time.time()
-    get_stellar_data(epicnums, overwrite=True)
+    get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
