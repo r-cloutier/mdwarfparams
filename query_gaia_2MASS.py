@@ -103,13 +103,13 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
     rG = Gaia.query_object_async(coordinate=coord, radius=rad)
     # return NaN if no GAIA star is found
     if len(rG) == 0:
-        return np.repeat(np.nan, 16).reshape(8,2)
+        return np.repeat(np.nan, 18).reshape(9,2)
 
     # get 2MASS data
     r2 = Vizier.query_region(coord, radius=rad, catalog='II/246')
     # return NaN if no 2MASS star is found
     if len(r2) == 0:
-        return np.repeat(np.nan, 16).reshape(8,2)
+        return np.repeat(np.nan, 18).reshape(9,2)
 
     # step through possible matches
     for i in range(len(rG)):
@@ -175,7 +175,7 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
                     [unp.nominal_values(Ms), unp.std_devs(Ms)], \
                   
     # return NaN if not found a match by now
-    return np.repeat(np.nan,16).reshape(8,2)
+    return np.repeat(np.nan,18).reshape(9,2)
 
 
 def does_G_K_match(Gmag, Hmag, Kmag):
