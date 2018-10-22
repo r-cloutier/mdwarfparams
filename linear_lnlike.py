@@ -735,10 +735,14 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
         _,_,_,_,fmodel,_ = fit_params(paramsout[i], bjd, fcorr,
                                       ef, Ms, Rs, Teff)
         fmodel_tot += fmodel - 1.
-    cond_autocorr, autocorr_coeff = is_not_autocorrelated(fcorr - fmodel_tot)
-    transit_condition_autocorr_leq_max = np.repeat(cond_autocorr, Nplanets)
-    transit_condition_autocorr_val = np.repeat(autocorr_coeff, Nplanets)
-    if not cond_autocorr:
+    cond_autocorrs, autocorr_coeffs = np.zeros(2, dtype=bool), np.zeros(2)
+    cond_autocorrs[0], autocorr_coeffs[0] = is_not_autocorrelated(fcorr - \
+                                                                  fmodel_tot)
+    cond_autocorrs[1], autocorr_coeffs[1] = is_not_autocorrelated(fcorr)
+    transit_condition_autocorr_leq_max = np.repeat(np.any(cond_autocorrs),
+                                                   Nplanets)
+    transit_condition_autocorr_val = np.repeat(autocorr_coeffs.min(), Nplanets)
+    if np.all(cond_autocorrs == False):
         paramsout, lnLsout = np.zeros((0,4)), np.zeros(0)
  
     # combine conditions
