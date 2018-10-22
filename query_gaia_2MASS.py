@@ -9,11 +9,13 @@ from uncertainties import unumpy as unp
 from planetsearch import get_star
 import mwdust
 
+global fout
+fout = 'input_data/K2targets/K2Mdwarfsv6.csv'
 
 def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
-    radius_arcsec_orig = radius_arcsec+0
+    radius_arcsec_orig = np.copy(radius_arcsec)
     ras, decs = np.zeros(Nstars), np.zeros(Nstars)
     Kepmags, K2campaigns = np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
@@ -303,14 +305,11 @@ def MK2Ms(MK):
     
 
 if __name__ == '__main__':
-    #fs = np.array(glob.glob('MAST/K2/EPIC*'))
-    #epicnums = np.zeros(fs.size)
-    #for i in range(fs.size):
-    #    epicnums[i] = int(fs[i].split('EPIC')[-1])
-    epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
-                          delimiter=',')[:,0]
+    fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
+    ##fname = 'input_data/K2targets/K2Mdwarfsv1_midM.csv' 
+    epicnums = np.loadtxt(fname, delimiter=',')[:,0]
 
-    epicnums = epicnums[0:2]
+    epicnums = epicnums[1:1000]
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
