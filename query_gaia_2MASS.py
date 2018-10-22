@@ -7,6 +7,7 @@ import rvs
 from send_email import *
 from uncertainties import unumpy as unp
 from planetsearch import get_star
+import mwdust
 
 
 def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
@@ -17,9 +18,9 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     Kepmags, K2campaigns = np.zeros(Nstars), np.zeros(Nstars)
     pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     dists, mus = np.zeros((Nstars,2)), np.zeros((Nstars,2))
-    MKs, Rss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
+    AKs, MKs = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     Teffs, Mss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
-    loggs = np.zeros((Nstars, 2))
+    Rss, loggs = np.zeros((Nstars, 2)), np.zeros((Nstars, 2))
     for i in range(epicnums.size):
 
         print float(i) / epicnums.size
@@ -35,30 +36,30 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
             radius_arcsec = radius_arcsec_orig
             while (np.isnan(pars[i,0])) and (radius_arcsec <= 60):
                 p = query_one_star(ras[i], decs[i], radius_arcsec=radius_arcsec)
-                pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
+                pars[i],Kmags[i],dists[i],mus[i],AKs[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
                 logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
                                     unp.uarray(Rss[i,0],Rss[i,1]))
                 loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
                 radius_arcsec += 5
 
         else:
-            p = np.repeat(np.nan,16).reshape(8,2)
-            pars[i],Kmags[i],dists[i],mus[i],MKs[i],Rss[i],Teffs[i],Mss[i] = p
+            p = np.repeat(np.nan,18).reshape(9,2)
+            pars[i],Kmags[i],dists[i],mus[i],AKs[i],MKs[i],Rss[i],Teffs[i],Mss[i] = p
             logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
                                 unp.uarray(Rss[i,0],Rss[i,1]))
             loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
             
     # save results
     hdr = 'EPIC,ra_deg,dec_deg,campaign,Kepmag,parallax_mas,e_parallax,Kmag,'+ \
-          'e_Kmag,dist_pc,e_dist,mu,e_mu,MK,e_MK,Rs_RSun,e_Rs,Teff_K,e_Teff,'+ \
-          'Ms_MSun,e_Ms,logg_dex,e_logg'
+          'e_Kmag,dist_pc,e_dist,mu,e_mu,AK,e_AK,MK,e_MK,Rs_RSun,e_Rs,'+ \
+          'Teff_K,e_Teff,Ms_MSun,e_Ms,logg_dex,e_logg'
     outarr = np.array([epicnums, ras, decs, K2campaigns, Kepmags, pars[:,0],
                        pars[:,1], Kmags[:,0], Kmags[:,1], dists[:,0],
-                       dists[:,1], mus[:,0], mus[:,1], MKs[:,0], MKs[:,1],
-                       Rss[:,0], Rss[:,1], Teffs[:,0], Teffs[:,1], Mss[:,0],
-                       Mss[:,1], loggs[:,0], loggs[:,1]]).T
+                       dists[:,1], mus[:,0], mus[:,1], AKs[:,0], AKs[:,1],
+                       MKs[:,0], MKs[:,1], Rss[:,0], Rss[:,1], Teffs[:,0],
+                       Teffs[:,1], Mss[:,0],Mss[:,1], loggs[:,0], loggs[:,1]]).T
 
-    fout = 'input_data/K2targets/K2Mdwarfsv4.csv'
+    fout = 'input_data/K2targets/K2Mdwarfsv6.csv'
     if os.path.exists(fout) and not overwrite:
         inarr = np.loadtxt(fout, delimiter=',')
         assert inarr.shape[1] == outarr.shape[1]
@@ -153,7 +154,11 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
 
             if match:
                 dist, mu = compute_distance_modulus(unp.uarray(par,epar))
-                MK = compute_MK(unp.uarray(Kmag, eKmag), mu)
+                print unp.nominal_values(dist)
+                l, b = coord.galactic.l.deg, coord.galactic.b.deg
+		AK = compute_AK_mwdust(l, b, unp.nominal_values(dist),
+                                       unp.std_devs(dist))
+                MK = compute_MK(unp.uarray(Kmag, eKmag), mu, AK)
                 Rs = MK2Rs(MK)
                 Teff = gaia2Teff(unp.uarray(GBPmag, eGBPmag),
                                  unp.uarray(GRPmag, eGRPmag))
@@ -161,6 +166,7 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
                 return [par,epar], [Kmag,eKmag], \
                     [unp.nominal_values(dist), unp.std_devs(dist)], \
                     [unp.nominal_values(mu), unp.std_devs(mu)], \
+                    [unp.nominal_values(AK), unp.std_devs(AK)], \
                     [unp.nominal_values(MK), unp.std_devs(MK)], \
                     [unp.nominal_values(Rs), unp.std_devs(Rs)], \
                     [unp.nominal_values(Teff), unp.std_devs(Teff)], \
@@ -233,8 +239,24 @@ def compute_distance_modulus(par_mas):
         return unp.uarray(np.nan, np.nan), unp.uarray(np.nan, np.nan) 
 
 
-def compute_MK(Kmags, mus):
-    return Kmags - mus
+def compute_AK_mwdust(ls, bs, dist, edist):
+    '''Using the EB-V map from 2014MNRAS.443.2907S and the extinction vector
+    RK = 0.31 from Schlafly and Finkbeiner 2011 (ApJ 737, 103)'''
+    dustmap = mwdust.Combined15(filter='2MASS Ks')
+    dist_kpc, edist_kpc = np.ascontiguousarray(dist)*1e-3, \
+                          np.ascontiguousarray(edist)*1e-3
+    ls, bs = np.ascontiguousarray(ls), np.ascontiguousarray(bs)
+    AK, eAK = np.zeros(ls.size), np.zeros(ls.size)
+    for i in range(ls.size):
+        print ls[i], bs[i], dist_kpc[i], edist_kpc[i]
+        v = dustmap(ls[i], bs[i],
+                    np.array([dist_kpc[i], dist_kpc[i]+edist_kpc[i]]))
+        AK[i], eAK[i] = v[0], abs(np.diff(v))
+    return unp.uarray(AK, eAK)
+
+
+def compute_MK(Kmags, mus, AKs):
+    return Kmags - mus - AKs
 
 
 def MK2Rs(MK):
@@ -288,7 +310,7 @@ if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfsv1.csv',
                           delimiter=',')[:,0]
 
-    epicnums = epicnums[9500:10500]
+    epicnums = epicnums[0:2]
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
