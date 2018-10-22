@@ -61,7 +61,6 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
                        MKs[:,0], MKs[:,1], Rss[:,0], Rss[:,1], Teffs[:,0],
                        Teffs[:,1], Mss[:,0],Mss[:,1], loggs[:,0], loggs[:,1]]).T
 
-    fout = 'input_data/K2targets/K2Mdwarfsv6.csv'
     if os.path.exists(fout) and not overwrite:
         inarr = np.loadtxt(fout, delimiter=',')
         assert inarr.shape[1] == outarr.shape[1]
@@ -116,7 +115,7 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
         for j in range(len(r2)):
             
             # get giaa parameters
-            par, epar = rG['parallax'][i], rG['parallax_error'][i]
+            par, epar = rG['parallax'][i]+.03, rG['parallax_error'][i]
             Gmag = rG['phot_g_mean_mag'][i]
             GBPmag = rG['phot_bp_mean_mag'][i]
             FBP = rG['phot_bp_mean_flux'][i]
@@ -309,8 +308,8 @@ if __name__ == '__main__':
     ##fname = 'input_data/K2targets/K2Mdwarfsv1_midM.csv' 
     epicnums = np.loadtxt(fname, delimiter=',')[:,0]
 
-    epicnums = epicnums[1:1000]
+    epicnums = epicnums[0:1000]
     t0 = time.time()
-    get_stellar_data(epicnums, overwrite=False)
+    get_stellar_data(epicnums, overwrite=True)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
