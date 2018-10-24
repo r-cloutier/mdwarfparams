@@ -305,10 +305,11 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
-    ##fname = 'input_data/K2targets/K2Mdwarfsv1_midM.csv' 
+    ##fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
+    ##fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
     epicnums = np.loadtxt(fname, delimiter=',')[:,0]
 
-    epicnums = epicnums[50:300]
+    epicnums = epicnums[9000:11000]
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)

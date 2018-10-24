@@ -110,7 +110,7 @@ class K2sensitivity:
 
 
     def compute_sensitivity(self, xlen=120, ylen=60, Plims=(.5,80),
-                            rplims=(1,10)):
+                            rplims=(.5,10)):
         '''Get all the simulations for this star and compute the
         sensitivity and the number of FPs as functions of P and rp.'''
         self._xlen, self._ylen = int(xlen), int(ylen)

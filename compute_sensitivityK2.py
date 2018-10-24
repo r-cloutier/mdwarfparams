@@ -35,7 +35,7 @@ def remove_detected_planets(epicnum, bjd, f):
     return f_noplanets
 
 
-def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,80), rplims=(1,10)):
+def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,80), rplims=(.5,10)):
     '''Sample M dwarf planets over a log uniform grid.'''
     Nplanets = 0
     while Nplanets < 1:
