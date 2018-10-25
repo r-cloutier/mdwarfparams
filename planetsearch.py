@@ -92,19 +92,20 @@ def get_star(epicnum):
     epicnums = d[:,0]
     g = epicnums == epicnum
     assert g.sum() == 1
-    star_info = d[g].reshape(23)
+    star_info = d[g].reshape(25)
     star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
                  'dec': star_info[2], 'K2campaign': star_info[3],
                  'Kepmag': star_info[4], 'par': star_info[5],
                  'e_par': star_info[6], 'Kmag': star_info[7],
                  'e_Kmag': star_info[8], 'dist': star_info[9],
                  'e_dist': star_info[10], 'mu': star_info[11],
-                 'e_mu': star_info[12], 'MK': star_info[13],
-                 'e_MK': star_info[14], 'Rs': star_info[15],
-                 'e_Rs': star_info[16], 'Teff': star_info[17],
-                 'e_Teff': star_info[18], 'Ms': star_info[19],
-                 'e_Ms': star_info[20], 'logg': star_info[21],
-                 'e_logg': star_info[22]}
+                 'e_mu': star_info[12], 'AK': star_info[13],
+                 'e_AK': star_info[14], 'MK': star_info[15],
+                 'e_MK': star_info[16], 'Rs': star_info[17],
+                 'e_Rs': star_info[18], 'Teff': star_info[19],
+                 'e_Teff': star_info[20], 'Ms': star_info[21],
+                 'e_Ms': star_info[22], 'logg': star_info[23],
+                 'e_logg': star_info[24]}
     return star_dict
 
 

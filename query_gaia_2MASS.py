@@ -10,7 +10,7 @@ from planetsearch import get_star
 import mwdust
 
 global fout
-fout = 'input_data/K2targets/K2Mdwarfsv6.csv'
+fout = 'input_data/K2targets/K2Mdwarfsv6_leq3300.csv'
 
 def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
     
@@ -304,12 +304,11 @@ def MK2Ms(MK):
     
 
 if __name__ == '__main__':
-    fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
     ##fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
-    ##fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
+    fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
     epicnums = np.loadtxt(fname, delimiter=',')[:,0]
 
-    epicnums = epicnums[9000:11000]
+    epicnums = epicnums[1000:]
     t0 = time.time()
     get_stellar_data(epicnums, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
