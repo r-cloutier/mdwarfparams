@@ -151,6 +151,7 @@ class K2results:
     def save_stars_with_detections(self):
         epic_tmp = self.epicnums[self.unique_inds]
         epicnum2save = epic_tmp[self.Ndetected[self.unique_inds] > 0]
+	self.Nstars_withdet = epicnum2save.size
         np.savetxt('input_data/K2targets/K2Mdwarfs_withdetections.csv',
                    epicnum2save, delimiter=',', fmt='%i')
 
