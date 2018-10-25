@@ -11,13 +11,14 @@ class K2results:
 
 	self.get_results()
         self.compute_detections()
+	self.save_stars_with_detections()
 	self._pickleobject()
 
 
     def get_results(self):
         # planet search files
         fs = np.array(glob.glob('%s/EPIC_*/K2LC_-00099'%self.folder))
-	self.fs, self.epicnames = [], np.zeros(0)
+	self.fs, self.epicnums = [], np.zeros(0)
 
         # detected planet params
 	self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
@@ -44,7 +45,7 @@ class K2results:
 		for j in range(d.Ndet+1):
 
 	            self.fs.append(fs[i])
-		    self.epicnames = np.append(self.epicnames, d.epicnum)
+		    self.epicnums = np.append(self.epicnums, d.epicnum)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.efs = np.append(self.efs, d.ef.mean())
@@ -101,7 +102,7 @@ class K2results:
                     self.e_rps = np.append(self.e_rps, e_rp)
                     
                     
-  	_, self.unique_inds = np.unique(self.epicnames, return_index=True)
+  	_, self.unique_inds = np.unique(self.epicnums, return_index=True)
 	self.Nstar = self.unique_inds.size
         assert self.unique_inds.size == self.Nstar
 	self.Nplanets = self.Ndetected[self.unique_inds].sum()
@@ -133,8 +134,10 @@ class K2results:
                                                 np.repeat(np.nan, Ntrials)
 
         # compute detection map over P and rp
-        self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]), self._xlen+1)
-        self.rpgrid = np.logspace(np.log10(rplims[0]), np.log10(rplims[1]), self._ylen+1)
+        self.Pgrid = np.logspace(np.log10(Plims[0]), np.log10(Plims[1]),
+                                 self._xlen+1)
+        self.rpgrid = np.logspace(np.log10(rplims[0]), np.log10(rplims[1]),
+                                  self._ylen+1)
         self.Ndet = np.zeros((self._xlen, self._ylen))
         for i in range(self._xlen):
             for j in range(self._ylen):
@@ -144,7 +147,14 @@ class K2results:
                     (self.rps_MC <= self.rpgrid[j+1])
                 self.Ndet[i,j] = g.sum() / float(Ntrials)
 
-        
+
+    def save_stars_with_detections(self):
+        epic_tmp = self.epicnums[self.unique_inds]
+        epicnum2save = epic_tmp[self.Ndetected[self.unique_inds] > 0]
+        np.savetxt('input_data/K2targets/K2Mdwarfs_withdetections.csv',
+                   epicnum2save, delimiter=',', fmt='%i')
+
+                
     def _pickleobject(self):
         fObj = open(self.fname_out, 'wb')
         pickle.dump(self, fObj)
