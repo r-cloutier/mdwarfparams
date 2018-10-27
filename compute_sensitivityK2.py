@@ -160,10 +160,12 @@ def do_i_run_this_sim(epicnum, index):
 
 if __name__ == '__main__':
     startind = int(sys.argv[1])
-    endind = int(sys.argv[2])
-    Nsystems = int(sys.argv[3])
-    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    for i in range(startind, endind):
+    #endind = int(sys.argv[2])
+    Nsystems = int(sys.argv[2])
+    #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+    epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
+		       delimiter=',')
+    for i in range(startind, startind+1):
         print epics[i]
         for j in range(Nsystems):
             if do_i_run_this_sim(epics[i], j):

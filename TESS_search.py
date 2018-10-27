@@ -4,7 +4,7 @@ import GPmcmc0 as mcmc0
 import GPmcmcN as mcmcN
 import linear_lnlike as llnl
 import rvs
-from KepK2LCclass import KepK2LC
+from K2LCclass import *
 from scipy.stats import normaltest
 from scipy.signal import medfilt
 

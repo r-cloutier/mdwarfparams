@@ -9,7 +9,7 @@ from truncate_cmap import *
 from perrakisFML import *
 
 global K2Mdwarffile, threshBayesfactor
-K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv5.csv'
+K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
 threshBayesfactor = 1e2
 
 
@@ -113,7 +113,7 @@ def is_star_of_interest(epicnum):
     '''Return True is star obeys the desired conditions'''
     star_dict = get_star(epicnum)
     # 3083 K2 M dwarfs w/ Kepmag<15.2
-    return (star_dict['Kepmag'] < 15.2) & (star_dict['Ms'] <= .75) & \
+    return (star_dict['Ms'] <= .75) & \
         (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
         (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
 
@@ -272,8 +272,6 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    #epics = np.loadtxt('input_data/K2targets/K2knownMdwarfplanets.csv',
-    #                   delimiter=',')
     for i in range(startind, endind):
 	print epics[i]
 	if do_i_run_this_star(epics[i]):

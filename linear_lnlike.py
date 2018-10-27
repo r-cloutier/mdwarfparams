@@ -557,8 +557,10 @@ def trim_planets(params, lnLOIs, Nplanetsmax=5):
 
 def compute_Ntransits(bjd, P, T0):
     possible_T0s = np.arange(-400,400)*P + T0
-    assert possible_T0s.min() < bjd.min()
-    assert possible_T0s.max() > bjd.max()
+    i = 2
+    while (possible_T0s.min() >= bjd.min()) or (possible_T0s.max() <= bjd.max()):
+	possible_T0s = np.arange(-400*i,400*i)*P + T0
+	i += 1
     Ntransits = np.sum((possible_T0s >= bjd.min()) & (possible_T0s <= bjd.max()))    
     return Ntransits
 
