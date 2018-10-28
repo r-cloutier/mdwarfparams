@@ -47,30 +47,38 @@ def read_K2_data(epicnum):
 	os.mkdir('MAST/K2')
     except OSError:
 	pass
+    folder2 = 'MAST/K2/EPIC%i'%epicnum
+    try:
+       	os.mkdir(folder2)
+    except OSError:
+       	pass
 
-    # download tar file
+    # download tar file if not already
     # from https://archive.stsci.edu/hlsps/k2sff/
-    campaigns = [0,1,2,3,4,5,6,7,8,91,92,102,111,112,12,13,14,15,16,17][::-1]
-    for j in range(len(campaigns)):
-        folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
-                                         int(str(epicnum)[:4]),
-                                         int(str(epicnum)[4:9]))
-        fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
-        url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
-        os.system('wget %s'%url)
-        if os.path.exists(fname):
-            folder2 = 'MAST/K2/EPIC%i'%epicnum
-            try:
-                os.mkdir(folder2)
-            except OSError:
-                pass
-            os.system('mv %s %s'%(fname, folder2))
-            break
+    fnames = np.array(glob.glob('%s/hlsp*.fits'))
+    if fnames.size == 0:
+        campaigns=[0,1,2,3,4,5,6,7,8,91,92,102,111,112,12,13,14,15,16,17][::-1]
+        for j in range(len(campaigns)):
+            folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
+                                             int(str(epicnum)[:4]),
+                                             int(str(epicnum)[4:9]))
+            fname = 'hlsp_k2sff_k2_lightcurve_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
+            url = 'https://archive.stsci.edu/hlsps/k2sff/%s/%s'%(folder, fname)
+            os.system('wget %s'%url)
+            if os.path.exists(fname):
+                os.system('mv %s %s'%(fname, folder2))
+                break
 
-    # read fits file
-    hdu = fits.open('%s/%s'%(folder2, fname))
-    assert len(hdu) > 1
-     
+        # read fits file
+        hdu = fits.open('%s/%s'%(folder2, fname))
+        assert len(hdu) > 1
+
+    # file already downloaded
+    else:
+        hdu = fits.open(fnames[0])
+        assert len(hdu) > 1
+
+    # get data from fits file
     for i in range(1,len(hdu)):
         if hdu[i].header['EXTNAME'] == 'BESTAPER':
             bjd = hdu[i].data['T']+hdu[i].header['BJDREFI']
