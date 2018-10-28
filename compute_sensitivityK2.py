@@ -82,7 +82,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,80), rplims=(.5,10)):
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
     
 
-def injected_planet_search(epicnum, index, starting_index=0):
+def injected_planet_search(epicnum, index):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
@@ -91,7 +91,7 @@ def injected_planet_search(epicnum, index, starting_index=0):
         return None
 
     name, star_dict, bjd, f, ef = read_K2_data(epicnum)
-    self = K2LC(name, index+starting_index)
+    self = K2LC(name, index)
     self.bjd, self.f_orig, self.ef = bjd, np.copy(f), ef
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -169,5 +169,6 @@ if __name__ == '__main__':
     for i in range(startind, startind+1):
         print epics[i]
         for j in range(Nsystems):
-            if do_i_run_this_sim(epics[i], j):
-                injected_planet_search(epics[i], j, starting_index)
+            index = j + starting_index
+            if do_i_run_this_sim(epics[i], index):
+                injected_planet_search(epics[i], index)
