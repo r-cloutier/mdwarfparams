@@ -82,7 +82,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,80), rplims=(.5,10)):
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
     
 
-def injected_planet_search(epicnum, index):
+def injected_planet_search(epicnum, index, starting_index=0):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
@@ -91,7 +91,7 @@ def injected_planet_search(epicnum, index):
         return None
 
     name, star_dict, bjd, f, ef = read_K2_data(epicnum)
-    self = K2LC(name, index)
+    self = K2LC(name, index+starting_index)
     self.bjd, self.f_orig, self.ef = bjd, np.copy(f), ef
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -162,6 +162,7 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     #endind = int(sys.argv[2])
     Nsystems = int(sys.argv[2])
+    starting_index = int(sys.argv[3])
     #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
     epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
 		       delimiter=',')
@@ -169,4 +170,4 @@ if __name__ == '__main__':
         print epics[i]
         for j in range(Nsystems):
             if do_i_run_this_sim(epics[i], j):
-                injected_planet_search(epics[i], j)
+                injected_planet_search(epics[i], j, starting_index)
