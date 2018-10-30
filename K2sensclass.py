@@ -249,10 +249,8 @@ class K2sensitivity:
 
 
 if __name__ == '__main__':
-    '''    fs = np.array(glob.glob('PipelineResults/EPIC_*'))
-    print fs.size
-    for i in range(fs.size):
-	print fs[i]
-	epicnum = int(fs[i].split('_')[-1])
-    	self = K2sensitivity(epicnum)
-    '''
+    epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv',
+                          delimiter=',')
+    for i in range(epicnums.size):
+        print epicnums[i]
+        self = K2sensitivity(epicnums[i])
