@@ -174,13 +174,13 @@ class K2sensitivity:
                                                 np.zeros_like(self.sens)
 	self.logtransit_prob,self.elogtransit_prob = np.zeros_like(self.sens), \
                                                      np.zeros_like(self.sens)
-	for i in range(self._xlen-1):
-	    for j in range(self._ylen-1):
+	for i in range(self._xlen):
+	    for j in range(self._ylen):
 
                 # compute transit probability in log-linear space 
                 Pmid = 10**(np.log10(self.logPgrid[i]) + \
                             np.diff(np.log10(self.logPgrid[:2])/2))
-		rpmid = np.mean(self.rpgrid[j:j+2])
+		rpmid = self.rpgrid[j] + np.diff(self.rpgrid)[0]/2.
 		sma = rvs.AU2m(rvs.semimajoraxis(Pmid, unp.uarray(self.Ms,
                                                                   self.e_Ms),
                                                  0))
@@ -196,10 +196,15 @@ class K2sensitivity:
                                  rvs.Rearth2m(rpmid)) / sma
                 self.logtransit_prob[i,j] = unp.nominal_values(transit_prob)
                 self.elogtransit_prob[i,j] = unp.std_devs(transit_prob)
+		if self.logtransit_prob[i,j] == 0:
+		    print i, j, sma, rpmid
 
 	# correction from beta distribution fit (Kipping 2013)
-	self.transit_prob *= 1.08
-        self.logtransit_prob *= 1.08
+	factor = 1.08
+	self.transit_prob *= factor
+	self.etransit_prob *= factor
+        self.logtransit_prob *= factor
+	self.elogtransit_prob *= factor
 
 
     def plot_map(self, xarr, yarr, zmap, zlabel='', avgtitle=False,
@@ -289,9 +294,9 @@ class K2sensitivityFULL:
                 self.logPgrid, self.logrpgrid = d.logPgrid, d.logrpgrid
 
             weight = d.Nsim / norm
-            self.sensFULL         += weight * zero_nans(d.sens)
-            self.yield_corrFULL   += weight * zero_nans(d.yield_corr)
-            self.transit_probFULL += weight * zero_nans(d.transit_prob)
+            self.sensFULL         += weight * zero_nans(d.logsens)
+            self.yield_corrFULL   += weight * zero_nans(d.logyield_corr)
+            self.transit_probFULL += weight * zero_nans(d.logtransit_prob)
 
 
     def _pickleobject(self):
@@ -317,5 +322,5 @@ if __name__ == '__main__':
     	self = K2sensitivity(epicnums[i])
 
     xlen, ylen = 14, 8
-    self = K2sensitivityFULL('PipelineResults/SensCalculations', xlen=xlen,
+    self = K2sensitivityFULL('PipelineResults', xlen=xlen,
                              ylen=ylen)
