@@ -179,7 +179,7 @@ class K2sensitivity:
 
                 # compute transit probability in log-linear space 
                 Pmid = 10**(np.log10(self.logPgrid[i]) + \
-                            np.diff(np.log10(self.logPgrid[i:i+2])/2))
+                            np.diff(np.log10(self.logPgrid[:2])/2))
 		rpmid = np.mean(self.rpgrid[j:j+2])
 		sma = rvs.AU2m(rvs.semimajoraxis(Pmid, unp.uarray(self.Ms,
                                                                   self.e_Ms),
@@ -190,7 +190,8 @@ class K2sensitivity:
                 self.etransit_prob[i,j] = unp.std_devs(transit_prob)
                 
                 # compute transit probability in log-linear space 
-                rpmid = np.mean(self.logrpgrid[j:j+2])
+                rpmid = 10**(np.log10(self.logrpgrid[j]) + \
+                             np.diff(np.log10(self.logrpgrid[:2])/2))
 		transit_prob =  (rvs.Rsun2m(unp.uarray(self.Rs, self.e_Rs)) + \
                                  rvs.Rearth2m(rpmid)) / sma
                 self.logtransit_prob[i,j] = unp.nominal_values(transit_prob)
@@ -248,9 +249,73 @@ class K2sensitivity:
         fObj.close()
 
 
+        
+class K2sensitivityFULL:
+
+    def __init__(self, folder, xlen=120, ylen=60):
+        self.folder = folder
+        self._xlen, self._ylen = int(xlen), int(ylen)
+	self.fs = np.array(glob.glob('%s/EPIC_*/EPIC_*_sens'%self.folder))
+        self.fname_full = '%s/EPIC_K2sens'%self.folder
+        self.get_full_maps()
+        self._pickleobject()
+
+
+    def get_full_maps(self):
+        '''combine the maps from the injection/recovery simulations on 
+        individual systems to get the master maps.'''
+        # firstly, get the number of simulations run on each systems
+        # for weighting
+        self.Nsims = np.array([loadpickle(self.fs[i]).Nsim
+                               for i in range(self.fs.size)])
+        norm = float(self.Nsims.sum())
+        
+        # combine maps
+        d = loadpickle(self.fs[0])
+        self.logPgrid, self.logrpgrid = d.logPgrid, d.logrpgrid
+        self.sensFULL         = np.zeros((self._xlen, self._ylen))
+        self.yield_corrFULL   = np.zeros_like(self.sensFULL)
+        self.transit_probFULL = np.zeros_like(self.sensFULL)
+
+        for i in range(self.fs.size):
+            print float(i) / self.fs.size
+            d = loadpickle(self.fs[i])
+
+            # compute bin the maps if necessary
+            if (d.sens.shape[0] != self._xlen) or \
+               (d.sens.shape[1] != self._ylen):
+                d.compute_sensitivity(xlen=self._xlen, ylen=self._ylen)
+                d.compute_transit_prob()
+                self.logPgrid, self.logrpgrid = d.logPgrid, d.logrpgrid
+
+            weight = d.Nsim / norm
+            self.sensFULL         += weight * zero_nans(d.sens)
+            self.yield_corrFULL   += weight * zero_nans(d.yield_corr)
+            self.transit_probFULL += weight * zero_nans(d.transit_prob)
+
+
+    def _pickleobject(self):
+        fObj = open(self.fname_full, 'wb')
+        pickle.dump(self, fObj)
+        fObj.close()
+
+        
+
+def zero_nans(arr):
+    arrv2 = np.copy(arr)
+    g = (np.isnan(arr)) | (np.isinf(arr))
+    arrv2[g] = 0.
+    return arrv2
+
+
+
 if __name__ == '__main__':
     epicnums = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv',
-                          delimiter=',')
+			  delimiter=',')
     for i in range(epicnums.size):
-        print epicnums[i]
-        self = K2sensitivity(epicnums[i])
+	print epicnums[i]
+    	self = K2sensitivity(epicnums[i])
+
+    xlen, ylen = 14, 8
+    self = K2sensitivityFULL('PipelineResults/SensCalculations', xlen=xlen,
+                             ylen=ylen)
