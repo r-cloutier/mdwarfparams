@@ -227,7 +227,7 @@ class K2occurrencerate:
                 if d.DONE:
                     self.Nsims[i] += 1
                     self.Nplanets_inj[i,j] = d.Ptrue.size
-                    filler = np.repeat(np.nan, Nmax-self.Nplanets_inj[i,j])
+                    filler = np.repeat(np.nan, NmaxPs-self.Nplanets_inj[i,j])
 	            self.Ps_inj[i,j]  = np.append(d.Ptrue, filler)
             	    self.rps_inj[i,j] = np.append(d.rptrue, filler)
             	    self.is_rec[i,j]  = np.append(d.is_detected, filler)
@@ -235,20 +235,23 @@ class K2occurrencerate:
                     # get false positives 
             	    params = d.params_guess
 		    self.Nplanets_rec[i,j] = params.shape[0]
-		    filler2 = np.repeat(np.nan, Nmax-self.Nplanets_rec[i,-1])
+		    filler2 = np.repeat(np.nan, NmaxPs-self.Nplanets_rec[i,j])
                     rp = rvs.m2Rearth(rvs.Rsun2m(np.sqrt(params[:,2])*d.Rs))
                     self.Ps_rec[i,j]  = np.append(params[:,0], filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
 
         # trim excess planets
-        end = np.where(np.all(np.isnan(self.Ps_inj[:,:,])))[0][0] #TEMP
-        self.Ps_inj = self.Ps_inj[:,:,:end]
-        self.rps_inj = self.rps_inj[:,:,:end]
-        self.is_rec = self.is_rec[:,:,:end]
-        self.Ps_rec = self.Psfound[:,:,:end]
-	self.rps_rec = self.rpsfound[:,:,:end]
-        self.is_FP = self.isFP[:,:,:end]
+        endfs = int(np.nanmax(self.Nsims))
+        endPs = int(np.nanmax(self.Nplanets_inj))
+        self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
+        self.rps_inj = self.rps_inj[:,:endfs,:endPs]
+        self.is_rec = self.is_rec[:,:endfs,:endPs]
+
+        endPs = int(np.nanmax(self.Nplanets_rec))
+        self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
+        self.rps_rec = self.rps_rec[:,:endfs,:endPs]
+        self.is_FP = self.is_FP[:,:endfs,:endPs]
 
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()
@@ -275,14 +278,14 @@ class K2occurrencerate:
                         (self.Ps_inj[i] <= self.logPgrid[j+1]) & \
                         (self.rps_inj[i] >= self.logrpgrid[k]) & \
                         (self.rps_inj[i] <= self.logrpgrid[k+1])
-                    self.Nrec_i[i,j,k] = self.is_rec[g].sum()
-                    self.Ninj_i[i,j,k] = self.is_rec[g].size
+                    self.Nrec_i[i,j,k] = self.is_rec[i,g].sum()
+                    self.Ninj_i[i,j,k] = self.is_rec[i,g].size
 
 		    g = (self.Ps_rec[i] >= self.logPgrid[j]) & \
                         (self.Ps_rec[i] <= self.logPgrid[j+1]) & \
                         (self.rps_rec[i] >= self.logrpgrid[k]) & \
                         (self.rps_rec[i] <= self.logrpgrid[k+1])
-                    self.NFP_i[i,j,k] = self.is_FP[g].sum()
+                    self.NFP_i[i,j,k] = self.is_FP[i,g].sum()
 
         # compute sensitivity
         self.sens_i = self.Nrec_i / self.Ninj_i.astype(float)
@@ -312,7 +315,7 @@ class K2occurrencerate:
                     
                     epicnum = self.epicnums_wdet[i]
                     g = np.where(self.epicnums_planetsearch == epicnum)[0][0]
-                    Ms = unp.uarray(self.Mss[g], self.e_Ms[g])
+                    Ms = unp.uarray(self.Mss[g], self.e_Mss[g])
                     sma = rvs.AU2m(rvs.semimajoraxis(Pmid, Ms, 0))
                     
                     Rs = unp.uarray(self.Rss[g], self.e_Rss[g])
@@ -420,5 +423,11 @@ def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
 
 
 if __name__ == '__main__':
-    folder = sys.argv[1]
-    self = K2occurrencerate(folder, compute_detections=True)
+    #folder = sys.argv[1]
+    #self = K2occurrencerate(folder, compute_detections=True)
+    fname = sys.argv[1]
+    self = loadpickle(fname)
+    self.fname_out = '%s/EPIC_K2results'%self.folder
+    self.get_simulation_results()
+    self._pickleobject()
+    
