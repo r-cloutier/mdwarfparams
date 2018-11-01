@@ -196,8 +196,6 @@ class K2sensitivity:
                                  rvs.Rearth2m(rpmid)) / sma
                 self.logtransit_prob[i,j] = unp.nominal_values(transit_prob)
                 self.elogtransit_prob[i,j] = unp.std_devs(transit_prob)
-		if self.logtransit_prob[i,j] == 0:
-		    print i, j, sma, rpmid
 
 	# correction from beta distribution fit (Kipping 2013)
 	factor = 1.08
@@ -261,6 +259,7 @@ class K2sensitivityFULL:
         self.folder = folder
         self._xlen, self._ylen = int(xlen), int(ylen)
 	self.fs = np.array(glob.glob('%s/EPIC_*/EPIC_*_sens'%self.folder))
+	self.Nstars = self.fs.size
         self.fname_full = '%s/EPIC_K2sens'%self.folder
         self.get_full_maps()
         self._pickleobject()
@@ -272,7 +271,7 @@ class K2sensitivityFULL:
         # firstly, get the number of simulations run on each systems
         # for weighting
         self.Nsims = np.array([loadpickle(self.fs[i]).Nsim
-                               for i in range(self.fs.size)])
+                               for i in range(self.Nstars)])
         norm = float(self.Nsims.sum())
         
         # combine maps
@@ -282,8 +281,8 @@ class K2sensitivityFULL:
         self.yield_corrFULL   = np.zeros_like(self.sensFULL)
         self.transit_probFULL = np.zeros_like(self.sensFULL)
 
-        for i in range(self.fs.size):
-            print float(i) / self.fs.size
+        for i in range(self.Nstars):
+            print float(i) / self.Nstars
             d = loadpickle(self.fs[i])
 
             # compute bin the maps if necessary
