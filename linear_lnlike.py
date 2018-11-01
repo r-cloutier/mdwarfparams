@@ -5,15 +5,11 @@ import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
 global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff
-#dispersion_sig, depth_sig, bimodalfrac = 3., 3., .5
-#dispersion_sig, depth_sig, bimodalfrac = 2., 1.35, .5  # v3
-#dispersion_sig, depth_sig, bimodalfrac = 1.6, 1., .5
 # for real K2 LCs
-#dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
-                                                        #2., 1., .6, .1, .7
-dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac = \
-							2.8, 8., .7, .1, .7
-min_autocorr_coeff = .6
+#dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
+#							2.8, 8., .7, .1, .7, .6
+dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
+                                                        2.4, 4.5, .7, .1, .7, .6
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -417,9 +413,11 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     self.params_guess_priorto_confirm, self.lnLOIs_priorto_confirm = params6, \
                                                                      lnLOIs6
     self._pickleobject()
-    params6,Ntransits,lnLOIs6,cond_vals,conds = confirm_transits(params6, lnLOIs6,
+    params6,Ntransits,lnLOIs6,cond_vals,conds = confirm_transits(params6,
+                                                                 lnLOIs6,
                                                                  bjd, fcorr, ef,
-                                                                 self.Ms, self.Rs,
+                                                                 self.Ms,
+                                                                 self.Rs,
                                                                  self.Teff)
     self.Ntransits = Ntransits
     self.transit_condition_free_params = np.array([dispersion_sig,
@@ -427,7 +425,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    bimodalfrac,
                                                    T0tolerance,
 						   np.nan,
-                                                   transitlikefrac,
+                                                   #transitlikefrac,
                                                    min_autocorr_coeff])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
@@ -436,7 +434,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                               'no_bimodal_flux_intransit',
                                               'flux_symmetric_in_time',
                                               'good_ephemeris',
-                                              'indiv_transit_fraction',
+                                              #'indiv_transit_fraction',
                                               'not_autocorrelated_residuals'])
 
     # re-remove multiple transits based on refined parameters
@@ -676,7 +674,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    transit_condition_timesym[i] = cond4
 
             # check that most individual transits look like transits
-            Dfrac = .5
+            '''Dfrac = .5
             events_BJD = np.arange(-1000,1000)*P + T0
             g = (events_BJD >= bjd.min()) & (events_BJD <= bjd.max())
             events_BJD = events_BJD[g]
@@ -692,8 +690,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                               (bjd <= t0-8*duration)
                 outtransit2 = (bjd <= t0+10*duration) & \
                               (bjd >= t0+8*duration)
-                ##plt.plot(bjd, fcorr, 'o', bjd[outtransit1],
-                ##         fcorr[outtransit1], 'o'), plt.show()
+                plt.plot(bjd, fcorr, 'o', bjd[outtransit1],
+                         fcorr[outtransit1], 'o'), plt.show()
                 fin = np.median(fcorr[intransit])
                 sigdepth = np.std(fcorr[intransit]) if intransit.sum() > 1 \
                            else np.median(ef[intransit])
@@ -705,17 +703,17 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             cond6 = cond6_val >= transitlikefrac
             transit_condition_indiv_transit_frac_val[i] = cond6_val
             transit_condition_indiv_transit_frac_gt_min[i] = cond6
-    
+            '''
+
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
             # single transit-like event
-            cond7 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
+            cond6 = ((T0-P >= bjd.min()) | (T0+P <= bjd.max())) & \
                     (T0 >= bjd.min()) & (T0 <= bjd.max()) & \
                     (P < bjd.max()-bjd.min())
-            transit_condition_ephemeris_fits_in_WF[i] = cond7
+            transit_condition_ephemeris_fits_in_WF[i] = cond6
             paramsout[i] = P, T0, depth, duration
-            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6 and \
-               cond7:
+            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
 	        j += 2
 	        pass
             else:
@@ -753,7 +751,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_no_bimodal_val, \
                           transit_condition_timesym_val, \
                           transit_condition_ephemeris_fits_in_WF, \
-                          transit_condition_indiv_transit_frac_val, \
+                          #transit_condition_indiv_transit_frac_val, \
                           transit_condition_autocorr_val]).T
     
     cond_bool = np.array([transit_condition_scatterin_gtr_scatterout, \
@@ -761,7 +759,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_no_bimodal_flux_intransit, \
                           transit_condition_timesym, \
                           transit_condition_ephemeris_fits_in_WF, \
-                          transit_condition_indiv_transit_frac_gt_min, \
+                          #transit_condition_indiv_transit_frac_gt_min, \
                           transit_condition_autocorr_leq_max]).T
 
     return paramsout, Ntransits, lnLsout, cond_vals, cond_bool

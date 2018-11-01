@@ -18,12 +18,14 @@ def get_TESS_alerts():
 
 def get_star(hdr):
     '''reader header info on the star'''
-    logg, Rs = hdr['LOGG'], hdr['RADIUS']
+    Teff, logg, Rs = hdr['TEFF'], hdr['LOGG'], hdr['RADIUS']
     Ms = rvs.kg2Msun(10**(logg) * 1e-2 * rvs.Rsun2m(Rs)**2 / 6.67e-11)
     star_dict = {'ra':hdr['RA_OBJ'], 'dec':hdr['DEC_OBJ'],
-                 'Tmag':hdr['TESSMAG'], 'Teff':hdr['TEFF'],
-                 'logg':logg, 'M_H':hdr['MH'], 'Rs':Rs, 'Ms':Ms}
+                 'Tmag':hdr['TESSMAG'], 'Teff':Teff, 'logg':logg,
+                 'M_H':hdr['MH'], 'Rs':Rs, 'Ms':Ms}
     return star_dict
+
+
 
 
 def get_TESS_alert_LC(TICid, sectors=range(1,3)):
