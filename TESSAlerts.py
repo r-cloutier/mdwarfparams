@@ -18,10 +18,11 @@ def get_TESS_alerts():
 
 def get_star(hdr):
     '''reader header info on the star'''
+    logg, Rs = hdr['LOGG'], hdr['RADIUS']
+    Ms = rvs.kg2Msun(10**(logg) * 1e-2 * rvs.Rsun2m(Rs)**2 / 6.67e-11)
     star_dict = {'ra':hdr['RA_OBJ'], 'dec':hdr['DEC_OBJ'],
                  'Tmag':hdr['TESSMAG'], 'Teff':hdr['TEFF'],
-                 'logg':hdr['LOGG'], 'M_H':hdr['MH'], 
-                 'Rs':hdr['RADIUS']}
+                 'logg':logg, 'M_H':hdr['MH'], 'Rs':Rs, 'Ms':Ms}
     return star_dict
 
 
@@ -60,7 +61,7 @@ def get_TESS_alert_LC(TICid, sectors=range(1,3)):
     ef  = hdu[1].data['PDCSAP_FLUX_ERR']
 
     # clean: remove bad points and normalize
-    g = f != 0
+    g = (f != 0) & np.isfinite(bjd) & np.isfinite(f) & np.isfinite(ef)
     bjd, f, ef = bjd[g], f[g], ef[g]
     ef /= np.nanmedian(f) 
     f /= np.nanmedian(f)
@@ -109,6 +110,14 @@ def run_TESSalert_planetsearch(TICid, P, T0):
     self._pickleobject()
 
 
+def do_i_run_this_star(TICid):
+    # check if star is already done
+    fname = 'PipelineResults/TIC_%i/TESSLC_-00099'%TICid
+    if os.path.exists(fname):
+        return not loadpickle(fname).DONE
+    else:
+        return True
+
 
 if __name__ == '__main__':
     index = int(sys.argv[1])
@@ -116,4 +125,5 @@ if __name__ == '__main__':
     TICid = tess_dict['TICids'][index]
     P     = tess_dict['Ps'][index]
     T0    = tess_dict['T0s'][index]
-    run_TESSalert_planetsearch(TICid, P, T0)
+    if do_i_run_this_star(TICid):
+        run_TESSalert_planetsearch(TICid, P, T0)
