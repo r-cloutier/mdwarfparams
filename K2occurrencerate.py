@@ -11,21 +11,21 @@ class K2occurrencerate:
                  compute_sens=False, comupute_occurrence_rate=False,
                  Plims=(.5,80), rplims=(.5,10)):
         self.folder = folder
+	self.fname_out = '%s/EPIC_K2results'%self.folder
         self._xlen, self._ylen = int(xlen), int(ylen)
         self.Plims, self.rplims = Plims, rplims
         
         if compute_detections:
             self.get_planetsearch_results()
-            self.fname_planetsearch_results = '%s/EPIC_K2results'%self.folder
-            self._pickleobject(self.fname_planetsearch_results)
+            self._pickleobject()
             
         if compute_sens:
             self.get_simulation_results()
-            self.fname_sens_results = '%s/EPIC_K2sens'%self.folder
-            self._pickleobject(self.fname_sens_results)
+            self._pickleobject()
 
         if comupute_occurrence_rate:
             self.compute_occurrence_rate()
+	    self._pickleobject()
 
 
     def get_planetsearch_results(self):
@@ -364,8 +364,8 @@ class K2occurrencerate:
             
 
 
-    def _pickleobject(self, fname):
-        fObj = open(fname, 'wb')
+    def _pickleobject(self):
+        fObj = open(self.fname_out, 'wb')
         pickle.dump(self, fObj)
         fObj.close()
 
@@ -429,3 +429,9 @@ def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
     if pltt:
 	plt.show()
     plt.close('all')
+
+
+
+if __name__ == '__main__':
+    folder = sys.argv[1]
+    self = K2occurrencerate(folder, compute_detections=True)

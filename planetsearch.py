@@ -135,7 +135,7 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
     self.fmodels = np.zeros((self.Ndet, self.bjd.size))
     nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
     self.params_lnprobs = np.zeros((self.Ndet, 2, nwalkers*nsteps))
-    self.params_samples = np.zeros((self.Ndet, 2, nwalkers*nsteps, 5))
+    #self.params_samples = np.zeros((self.Ndet, 2, nwalkers*nsteps, 5))
     self.params_results = np.zeros((self.Ndet, 3, 5))
 
     for i in range(self.Ndet):
@@ -160,7 +160,7 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
                                         a=2, nwalkers=nwalkers, burnin=burnin,
                                         nsteps=nsteps,
                                         zeroplanetmodel=zeroplanetmodel)
-            self.params_samples[i,j] = samples
+            #self.params_samples[i,j] = samples
             self.params_lnprobs[i,j] = sampler.lnprobability.flatten()
             if j == 1:
                 results = get_results(samples)
