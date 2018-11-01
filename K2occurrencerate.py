@@ -196,27 +196,28 @@ class K2occurrencerate:
                                         delimiter=',')
         self.Nstars_wdet = self.epicnums_wdet.size
         self.Nsims = np.zeros(self.Nstars_wdet)
-        Nmax = 20
-        self.Nplanets_inj = np.zeros(self.Nstars_wdet, 0)
-        self.Nplanets_rec = np.zeros(self.Nstars_wdet, 0)
-        self.Ps_inj = np.zeros((self.Nstars_wdet, 0, Nmax))
-        self.rps_inj = np.zeros((self.Nstars_wdet, 0, Nmax))
-        self.is_rec = np.zeros((self.Nstars_wdet, 0, Nmax))
-        self.Ps_rec = np.zeros((self.Nstars_wdet, 0, Nmax))
-        self.rps_rec = np.zeros((self.Nstars_wdet, 0, Nmax))
-        self.is_FP = np.zeros((self.Nstars_wdet, 0, Nmax))
+        Nmaxfs, NmaxPs = 700, 20
+        self.Nplanets_inj = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
+        self.Nplanets_rec = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
+        self.Ps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.rps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.is_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.Ps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.rps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.is_FP = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         
         for i in range(self.Nstars_wdet):
 
             epicnum = self.epicnums_wdet[i]
-            fs = np.array(glob.glob('PipelineResults/EPIC_%i/K2LC*'%epicnum))
+            print i, epicnum
+            fs = np.array(glob.glob('%s/EPIC_%i/K2LC*'%(self.folder, epicnum)))
 
 	    # remove planet search result (i.e. with index -99)
-            g = np.in1d(self.fs, '%s/EPIC_%i/K2LC_-00099'%(self.folder,epicnum))
+            g = np.in1d(fs, '%s/EPIC_%i/K2LC_-00099'%(self.folder,epicnum))
 	    if np.any(g):
 	        fs = np.delete(fs, np.where(g)[0][0])
-            if self.fs.size == 0:
-	        return None
+            if fs.size == 0:
+	        pass
 
             # get params of injected and recovered planets for this star
             for j in range(fs.size):
@@ -225,34 +226,20 @@ class K2occurrencerate:
                 d = loadpickle(fs[j])
                 if d.DONE:
                     self.Nsims[i] += 1
-                    self.Nplanets_inj[i] = np.append(self.Nplanets_inj[i],
-                                                     d.Ptrue.size)
-                    filler = np.repeat(np.nan, Nmax-self.Nplanets_inj[i,-1])
-	            Pin = np.append(d.Ptrue, filler)
-            	    rpin = np.append(d.rptrue, filler)
-            	    isrecin = np.append(d.is_detected, filler)
-            	    self.Ps_inj[i] = np.append(self.Ps_inj[i],
-                                               Pin.reshape(1,Nmax), axis=0)
-            	    self.rps_inj[i] = np.append(self.rps_inj[i],
-                                                rpin.reshape(1,Nmax), axis=0)
-            	    self.is_rec[i] = np.append(self.is_rec[i],
-                                               isrecin.reshape(1,Nmax), axis=0)
+                    self.Nplanets_inj[i,j] = d.Ptrue.size
+                    filler = np.repeat(np.nan, Nmax-self.Nplanets_inj[i,j])
+	            self.Ps_inj[i,j]  = np.append(d.Ptrue, filler)
+            	    self.rps_inj[i,j] = np.append(d.rptrue, filler)
+            	    self.is_rec[i,j]  = np.append(d.is_detected, filler)
 
                     # get false positives 
             	    params = d.params_guess
-		    self.Nplanets_rec[i] = np.append(self.Nplanets_rec[i],
-                                                     params.shape[0])
+		    self.Nplanets_rec[i,j] = params.shape[0]
 		    filler2 = np.repeat(np.nan, Nmax-self.Nplanets_rec[i,-1])
-                    Pinrec = np.append(params[:,0], filler2)
                     rp = rvs.m2Rearth(rvs.Rsun2m(np.sqrt(params[:,2])*d.Rs))
-                    rpinrec = np.append(rp, filler2)
-                    isFPin = np.append(d.is_FP, filler2)
-                    self.Ps_rec[i] = np.append(self.Ps_rec[i],
-                                               Pinrec.reshape(1,Nmax), axis=0)
-                    self.rps_rec[i] = np.append(self.rps_rec[i],
-                                                rpinrec.reshape(1,Nmax), axis=0)
-            	    self.is_FP[i] = np.append(self.is_FP[i],
-                                              isFPin.reshape(1,Nmax), axis=0)
+                    self.Ps_rec[i,j]  = np.append(params[:,0], filler2)
+                    self.rps_rec[i,j] = np.append(rp, filler2)
+            	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
 
         # trim excess planets
         end = np.where(np.all(np.isnan(self.Ps_inj[:,:,])))[0][0] #TEMP
