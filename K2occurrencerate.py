@@ -176,7 +176,7 @@ class K2occurrencerate:
                          (self.rps_MC[g1] <= self.logrpgrid[k+1])
                     self.Ndet_i[i,j,k] = g2.sum() / float(Ntrials)
 
-	self.Ndet_tot = np.nansum(self.Ndet_i, axis=0)
+	self.Ndet_tot = fill_map_nans(np.nansum(self.Ndet_i, axis=0))
 
 
     def save_stars_with_detections(self):
@@ -291,14 +291,15 @@ class K2occurrencerate:
         # compute sensitivity
         self.sens_i = self.Nrec_i / self.Ninj_i.astype(float)
         self.e_sens_i = np.sqrt(self.Nrec_i) / self.Ninj_i.astype(float)
-	self.sens_avg = np.nanmean(self.sens_i, axis=0)
+	self.sens_avg = fill_map_nans(np.nanmean(self.sens_i, axis=0))
 
         # compute yield correction to multiply Ndet by
         self.yield_corr_i = 1 - self.NFP_i / \
                             (self.Nrec_i + self.NFP_i.astype(float))
         self.e_yield_corr_i = np.sqrt(self.NFP_i) / \
                             (self.Nrec_i + self.NFP_i.astype(float))
-	self.yield_corr_avg = np.nanmean(self.yield_corr_i, axis=0)
+	self.yield_corr_avg = fill_map_nans(np.nanmean(self.yield_corr_i,
+                                                       axis=0))
 
         
 
@@ -330,7 +331,8 @@ class K2occurrencerate:
 	self.transit_prob_factor = 1.08
 	self.transit_prob_i *= self.transit_prob_factor
 	self.e_transit_prob_i *= self.transit_prob_factor
-	self.transit_prob_avg = np.nanmean(self.transit_prob_i, axis=0)
+	self.transit_prob_avg = fill_map_nans(np.nanmean(self.transit_prob_i,
+                                                         axis=0))
 
 
         
@@ -382,6 +384,42 @@ def sample_planets(P, eP, rp, erp, N):
     rpsout = np.random.normal(rp, erp, int(N))
     return Psout, rpsout
 
+
+def fill_map_nans(arr):
+    '''Fill nan cells by averging nearby finite cells.'''
+    assert len(arr.shape) == 2
+    xlen, ylen = arr.shape
+    arrv2 = np.copy(arr)
+
+    if np.any(np.isnan(arrv2)):
+        # find number of finite cells surrounding nan cells
+        while np.any(np.isnan(arrv2)):
+            for i in range(xlen):
+                for j in range(ylen):
+                
+                    # index surrounding pixels without going outside the grid
+                    surrounding_x_inds_tmp = i+np.delete(range(-1,2)*3, 4)
+                    surrounding_y_inds_tmp = j+np.delete(np.append(np.append( \
+                                                                np.zeros(3)-1,
+                                                                np.zeros(3)),
+                                                                np.ones(3)), 4)
+                    bad = (surrounding_x_inds_tmp < 0) | \
+                          (surrounding_x_inds_tmp >= xlen) | \
+                          (surrounding_y_inds_tmp < 0) | \
+                          (surrounding_y_inds_tmp >= ylen)
+                    surrounding_x_inds = np.delete(surrounding_x_inds_tmp,
+                                                   np.where(bad)[0]).astype(int)
+                    surrounding_y_inds = np.delete(surrounding_y_inds_tmp,
+                                                   np.where(bad)[0]).astype(int)
+
+                    # update the nan cells
+                    if np.isnan(arrv2[i,j]):
+                        arrv2[i,j] = np.nanmean(arrv2[surrounding_x_inds,
+                                                      surrounding_y_inds])
+
+    return arrv2
+                        
+        
 
 def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
              sumtitle=False, issens=False, pltt=True, label=''):
