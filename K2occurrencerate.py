@@ -8,7 +8,7 @@ from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 class K2occurrencerate:
 
     def __init__(self, folder, xlen=20, ylen=12, compute_detections=False,
-                 compute_sens=False, comupute_occurrence_rate=False,
+                 compute_sens=False, compute_occurrence_rate=False,
                  Plims=(.5,80), rplims=(.5,10)):
         self.folder = folder
 	self.fname_out = '%s/EPIC_K2results'%self.folder
@@ -23,7 +23,7 @@ class K2occurrencerate:
             self.get_simulation_results()
             self._pickleobject()
 
-        if comupute_occurrence_rate:
+        if compute_occurrence_rate:
             self.compute_occurrence_rate()
 	    self._pickleobject()
 
@@ -176,6 +176,7 @@ class K2occurrencerate:
                          (self.rps_MC[g1] <= self.logrpgrid[k+1])
                     self.Ndet_i[i,j,k] = g2.sum() / float(Ntrials)
 
+	self.Ndet_tot = np.nansum(self.Ndet_i, axis=0)
 
 
     def save_stars_with_detections(self):
@@ -290,12 +291,14 @@ class K2occurrencerate:
         # compute sensitivity
         self.sens_i = self.Nrec_i / self.Ninj_i.astype(float)
         self.e_sens_i = np.sqrt(self.Nrec_i) / self.Ninj_i.astype(float)
+	self.sens_avg = np.nanmean(self.sens_i, axis=0)
 
         # compute yield correction to multiply Ndet by
         self.yield_corr_i = 1 - self.NFP_i / \
                             (self.Nrec_i + self.NFP_i.astype(float))
         self.e_yield_corr_i = np.sqrt(self.NFP_i) / \
                             (self.Nrec_i + self.NFP_i.astype(float))
+	self.yield_corr_avg = np.nanmean(self.yield_corr_i, axis=0)
 
         
 
@@ -327,10 +330,11 @@ class K2occurrencerate:
 	self.transit_prob_factor = 1.08
 	self.transit_prob_i *= self.transit_prob_factor
 	self.e_transit_prob_i *= self.transit_prob_factor
+	self.transit_prob_avg = np.nanmean(self.transit_prob_i, axis=0)
 
 
         
-    def compute_occurrence_rate():
+    def compute_occurrence_rate(self):
         '''Use the maps of Ndet, yield_corr, sensitivity, and transit 
         probability to compute the occurrence rate over P and rp.'''
         assert self.Ndet_i.shape[0] == self.Nstars
@@ -340,17 +344,18 @@ class K2occurrencerate:
         self.occurrence_rate_i = np.zeros_like(self.sens_i)
         for i in range(self.Nstars_wdet):
 
+	    print float(i) / self.Nstars_wdet
             g = self.epicnums_planetsearch[self.unique_inds] == \
                 self.epicnums_wdet[i] 
-            Ndet_i = self.Ndet_i[g]
+            Ndet_i = self.Ndet_i[g].reshape(self._xlen, self._ylen)
             S_i = self.sens_i[i]
             C_i = self.yield_corr_i[i]
             t_i = self.transit_prob_i[i]
             
-            self.occurrence_rate_i[i] = Ndet_i * C_i / (S_i * t_i)
+            self.occurrence_rate_i[i] = Ndet_i * C_i / (S_i * t_i) / self.Nstars
 
         # compute occurrence rate over P,rp
-        self.occurrence_rate = np.nansum(self.occurrence_rate_i, axis=0)
+        self.occurrence_rate = np.nanmean(self.occurrence_rate_i, axis=0)
             
 
 
@@ -427,7 +432,6 @@ if __name__ == '__main__':
     #self = K2occurrencerate(folder, compute_detections=True)
     fname = sys.argv[1]
     self = loadpickle(fname)
-    self.fname_out = '%s/EPIC_K2results'%self.folder
-    self.get_simulation_results()
+    self.compute_occurrence_rate()
     self._pickleobject()
     
