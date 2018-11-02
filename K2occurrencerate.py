@@ -491,7 +491,7 @@ def sample_planets(P, eP, rp, erp, Ms, eMs, Ls, eLs, N):
     Psout = np.random.normal(P, eP, int(N))
     Ps = unp.uarray(Psout, np.repeat(eP, int(N)))
     smas = rvs.semimajoraxis(Ps, unp.uarray(Ms,eMs), 0)
-    Fsout = compute_F(unp.uarray(Ls,eLs), smas)
+    Fsout = unp.nominal_values(compute_F(unp.uarray(Ls,eLs), smas))
     rpsout = np.random.normal(rp, erp, int(N))
     return Psout, Fsout, rpsout
 
@@ -577,10 +577,5 @@ def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
 
 
 if __name__ == '__main__':
-    #folder = sys.argv[1]
-    #self = K2occurrencerate(folder, compute_detections=True)
-    fname = sys.argv[1]
-    self = loadpickle(fname)
-    self.compute_occurrence_rate()
-    self._pickleobject()
-    
+    folder = sys.argv[1]
+    self = K2occurrencerate(folder, compute_detections=True, compute_sens=True, compute_occurrence_rate=True)
