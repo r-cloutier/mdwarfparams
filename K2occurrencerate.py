@@ -9,11 +9,11 @@ class K2occurrencerate:
 
     def __init__(self, folder, xlen=20, ylen=12, compute_detections=False,
                  compute_sens=False, compute_occurrence_rate=False,
-                 Plims=(.5,80), rplims=(.5,10)):
+                 Plims=(.5,80), Flims=(.1,4e2), rplims=(.5,10)):
         self.folder = folder
 	self.fname_out = '%s/EPIC_K2results'%self.folder
         self._xlen, self._ylen = int(xlen), int(ylen)
-        self.Plims, self.rplims = Plims, rplims
+        self.Plims, self.Flims, self.rplims = Plims, Flims, rplims
         
         if compute_detections:
             self.get_planetsearch_results()
@@ -119,6 +119,18 @@ class K2occurrencerate:
                     self.rps = np.append(self.rps, rp)
                     self.e_rps = np.append(self.e_rps, e_rp)
 
+        # save stellar luminosities and planet sma and F
+        Rss   = unp.uarray(self.Rss, self.e_Rss)
+        Teffs = unp.uarray(self.Teffs, self.e_Teffs)
+        Lss = compute_Ls(Rss, Teffs)
+        self.Lss, self.e_Lss = unp.nominal_values(Lss), unp.std_devs(Lss)
+        Ps = unp.uarray(self.Ps, self.e_Ps)
+        Mss   = unp.uarray(self.Mss, self.e_Mss)
+        smas = rvs.semimajoraxis(Ps, Mss, 0)
+        self.smas, self.e_smas = unp.nominal_values(smas), unp.std_devs(smas)
+        Fs = compute_F(Lss, smas)
+        self.Fs, self.e_Fs = unp.nominal_values(Fs), unp.std_devs(Fs)
+        
         # save stuff
         _, self.unique_inds = np.unique(self.epicnums_planetsearch,
                                         return_index=True)
@@ -137,8 +149,9 @@ class K2occurrencerate:
             return None
         N, Ntrials = self.fs_planetsearch.size, int(Ntrials)
         self.Ps_MC = np.zeros((N, Ntrials))
-        self.rps_MC = np.zeros((N, Ntrials))
-
+        self.Fs_MC = np.zeros((N, Ntrials))
+        self.rps_MC = np.zeros((N, Ntrials))        
+        
         # for each detected planet around each star, compute realizations
         # over the uncertainties
         for i in range(N):
@@ -148,19 +161,28 @@ class K2occurrencerate:
                 # compute MC realizations of this planet
                 P, eP = self.Ps[i], self.e_Ps[i]
                 rp, erp = self.rps[i], self.e_rps[i]
-                self.Ps_MC[i], self.rps_MC[i] = sample_planets(P, eP,
-                                                               rp, erp,
-                                                               Ntrials)
+                Ms, eMs = self.Mss[i], self.e_Mss[i]
+                Ls, eLs = self.Lss[i], self.e_Lss[i]
+                self.Ps_MC[i],self.Fs_MC[i],self.rps_MC[i] = \
+                                                    sample_planets(P, eP,
+                                                                   rp, erp,
+                                                                   Ms, eMs,
+                                                                   Ls, eLs,
+                                                                   Ntrials)
             else:
-                self.Ps_MC[i], self.rps_MC[i] = np.repeat(np.nan, Ntrials), \
-                                                np.repeat(np.nan, Ntrials)
+                self.Ps_MC[i]  = np.repeat(np.nan, Ntrials)
+                self.Fs_MC[i]  = np.repeat(np.nan, Ntrials)
+                self.rps_MC[i] = np.repeat(np.nan, Ntrials)
 
         # compute Ndet map over P and rp for each star
         self.logPgrid = np.logspace(np.log10(self.Plims[0]),
                                     np.log10(self.Plims[1]), self._xlen+1)
+        self.logFgrid = np.logspace(np.log10(self.Flims[0]),
+                                    np.log10(self.Flims[1]), self._xlen+1)
         self.logrpgrid = np.logspace(np.log10(self.rplims[0]),
                                      np.log10(self.rplims[1]), self._ylen+1)
-        self.Ndet_i = np.zeros((self.Nstars, self._xlen, self._ylen))
+        self.NdetP_i = np.zeros((self.Nstars, self._xlen, self._ylen))
+        self.NdetF_i = np.zeros((self.Nstars, self._xlen, self._ylen))
         for i in range(self.Nstars):
 
             epicnum =  self.epicnums_planetsearch[self.unique_inds[i]]
@@ -174,9 +196,16 @@ class K2occurrencerate:
                          (self.Ps_MC[g1] <= self.logPgrid[j+1]) & \
                          (self.rps_MC[g1] >= self.logrpgrid[k]) & \
                          (self.rps_MC[g1] <= self.logrpgrid[k+1])
-                    self.Ndet_i[i,j,k] = g2.sum() / float(Ntrials)
+                    self.NdetP_i[i,j,k] = g2.sum() / float(Ntrials)
 
-	self.Ndet_tot = fill_map_nans(np.nansum(self.Ndet_i, axis=0))
+                    g3 = (self.Fs_MC[g1] >= self.logFgrid[j]) & \
+                         (self.Fs_MC[g1] <= self.logFgrid[j+1]) & \
+                         (self.rps_MC[g1] >= self.logrpgrid[k]) & \
+                         (self.rps_MC[g1] <= self.logrpgrid[k+1])
+                    self.NdetF_i[i,j,k] = g3.sum() / float(Ntrials)
+                    
+	self.NdetP_tot = fill_map_nans(np.nansum(self.NdetP_i, axis=0))
+	self.NdetF_tot = fill_map_nans(np.nansum(self.NdetF_i, axis=0))
 
 
     def save_stars_with_detections(self):
@@ -201,9 +230,11 @@ class K2occurrencerate:
         self.Nplanets_inj = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
         self.Ps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.Fs_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         self.rps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         self.is_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         self.Ps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.Fs_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         self.rps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         self.is_FP = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
         
@@ -230,6 +261,9 @@ class K2occurrencerate:
                     self.Nplanets_inj[i,j] = d.Ptrue.size
                     filler = np.repeat(np.nan, NmaxPs-self.Nplanets_inj[i,j])
 	            self.Ps_inj[i,j]  = np.append(d.Ptrue, filler)
+                    F = compute_F(compute_Ls(d.Rs, d.Teff),
+                                  rvs.semimajoraxis(d.Ptrue, d.Ms, 0))
+                    self.Fs_inj[i,j]  = np.append(F, filler) 
             	    self.rps_inj[i,j] = np.append(d.rptrue, filler)
             	    self.is_rec[i,j]  = np.append(d.is_detected, filler)
 
@@ -239,6 +273,9 @@ class K2occurrencerate:
 		    filler2 = np.repeat(np.nan, NmaxPs-self.Nplanets_rec[i,j])
                     rp = rvs.m2Rearth(rvs.Rsun2m(np.sqrt(params[:,2])*d.Rs))
                     self.Ps_rec[i,j]  = np.append(params[:,0], filler2)
+                    F = compute_F(compute_Ls(d.Rs, d.Teff),
+                                  rvs.semimajoraxis(params[:,0], d.Ms, 0))
+                    self.Fs_rec[i,j]  = np.append(F, filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
 
@@ -246,11 +283,13 @@ class K2occurrencerate:
         endfs = int(np.nanmax(self.Nsims))
         endPs = int(np.nanmax(self.Nplanets_inj))
         self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
+        self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
         self.rps_inj = self.rps_inj[:,:endfs,:endPs]
         self.is_rec = self.is_rec[:,:endfs,:endPs]
 
         endPs = int(np.nanmax(self.Nplanets_rec))
         self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
+        self.Fs_rec = self.Fs_rec[:,:endfs,:endPs]
         self.rps_rec = self.rps_rec[:,:endfs,:endPs]
         self.is_FP = self.is_FP[:,:endfs,:endPs]
 
@@ -265,11 +304,17 @@ class K2occurrencerate:
         sensitivity and the number of FPs as functions of P and rp.'''
         self.logPgrid = np.logspace(np.log10(self.Plims[0]),
                                     np.log10(self.Plims[1]), self._xlen+1)
+        self.logFgrid = np.logspace(np.log10(self.Flims[0]),
+                                    np.log10(self.Flims[1]), self._xlen+1)
         self.logrpgrid = np.logspace(np.log10(self.rplims[0]),
                                      np.log10(self.rplims[1]), self._ylen+1)
-        self.Nrec_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.Ninj_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NFP_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NrecP_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NinjP_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NFPP_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+
+        self.NrecF_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NinjF_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NFPF_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
 
         for i in range(self.Nstars_wdet):
             for j in range(self._xlen):
@@ -279,85 +324,136 @@ class K2occurrencerate:
                         (self.Ps_inj[i] <= self.logPgrid[j+1]) & \
                         (self.rps_inj[i] >= self.logrpgrid[k]) & \
                         (self.rps_inj[i] <= self.logrpgrid[k+1])
-                    self.Nrec_i[i,j,k] = self.is_rec[i,g].sum()
-                    self.Ninj_i[i,j,k] = self.is_rec[i,g].size
+                    self.NrecP_i[i,j,k] = self.is_rec[i,g].sum()
+                    self.NinjP_i[i,j,k] = self.is_rec[i,g].size
 
 		    g = (self.Ps_rec[i] >= self.logPgrid[j]) & \
                         (self.Ps_rec[i] <= self.logPgrid[j+1]) & \
                         (self.rps_rec[i] >= self.logrpgrid[k]) & \
                         (self.rps_rec[i] <= self.logrpgrid[k+1])
-                    self.NFP_i[i,j,k] = self.is_FP[i,g].sum()
+                    self.NFPP_i[i,j,k] = self.is_FP[i,g].sum()
+
+                    g = (self.Fs_inj[i] >= self.logFgrid[j]) & \
+                        (self.Fs_inj[i] <= self.logFgrid[j+1]) & \
+                        (self.rps_inj[i] >= self.logrpgrid[k]) & \
+                        (self.rps_inj[i] <= self.logrpgrid[k+1])
+                    self.NrecF_i[i,j,k] = self.is_rec[i,g].sum()
+                    self.NinjF_i[i,j,k] = self.is_rec[i,g].size
+
+		    g = (self.Fs_rec[i] >= self.logFgrid[j]) & \
+                        (self.Fs_rec[i] <= self.logFgrid[j+1]) & \
+                        (self.rps_rec[i] >= self.logrpgrid[k]) & \
+                        (self.rps_rec[i] <= self.logrpgrid[k+1])
+                    self.NFPF_i[i,j,k] = self.is_FP[i,g].sum()
 
         # compute sensitivity
-        self.sens_i = self.Nrec_i / self.Ninj_i.astype(float)
-        self.e_sens_i = np.sqrt(self.Nrec_i) / self.Ninj_i.astype(float)
-	self.sens_avg = fill_map_nans(np.nanmean(self.sens_i, axis=0))
+        self.sensP_i = self.NrecP_i / self.NinjP_i.astype(float)
+        self.e_sensP_i = np.sqrt(self.NrecP_i) / self.NinjP_i.astype(float)
+	self.sensP_avg = fill_map_nans(np.nanmean(self.sensP_i, axis=0))
+        self.sensF_i = self.NrecF_i / self.NinjF_i.astype(float)
+        self.e_sensF_i = np.sqrt(self.NrecF_i) / self.NinjF_i.astype(float)
+	self.sensF_avg = fill_map_nans(np.nanmean(self.sensF_i, axis=0))
 
         # compute yield correction to multiply Ndet by
-        self.yield_corr_i = 1 - self.NFP_i / \
-                            (self.Nrec_i + self.NFP_i.astype(float))
-        self.e_yield_corr_i = np.sqrt(self.NFP_i) / \
-                            (self.Nrec_i + self.NFP_i.astype(float))
-	self.yield_corr_avg = fill_map_nans(np.nanmean(self.yield_corr_i,
-                                                       axis=0))
+        self.yield_corrP_i = 1 - self.NFPP_i / \
+                             (self.NrecP_i + self.NFPP_i.astype(float))
+        self.e_yield_corrP_i = np.sqrt(self.NFPP_i) / \
+                               (self.NrecP_i + self.NFPP_i.astype(float))
+	self.yield_corrP_avg = fill_map_nans(np.nanmean(self.yield_corrP_i,
+                                                        axis=0))
+        self.yield_corrF_i = 1 - self.NFPF_i / \
+                             (self.NrecF_i + self.NFPF_i.astype(float))
+        self.e_yield_corrF_i = np.sqrt(self.NFPF_i) / \
+                               (self.NrecF_i + self.NFPF_i.astype(float))
+	self.yield_corrF_avg = fill_map_nans(np.nanmean(self.yield_corrF_i,
+                                                        axis=0))
 
         
 
     def compute_transitprob_maps(self):
         '''Compute the transiting probability maps for each star with a
         detected planet candidate.'''
-        self.transit_prob_i = np.zeros_like(self.sens_i)
-        self.e_transit_prob_i = np.zeros_like(self.sens_i)
+        self.transit_probP_i = np.zeros_like(self.sens_i)
+        self.e_transit_probP_i = np.zeros_like(self.sens_i)
+        self.transit_probF_i = np.zeros_like(self.sens_i)
+        self.e_transit_probF_i = np.zeros_like(self.sens_i)
+
         for i in range(self.Nstars_wdet):
             for j in range(self._xlen):
                 for k in range(self._ylen):
                     
                     Pmid = 10**(np.log10(self.logPgrid[j]) + \
                                 np.diff(np.log10(self.logPgrid[:2])/2))
+                    Fmid = 10**(np.log10(self.logFgrid[j]) + \
+                                np.diff(np.log10(self.logFgrid[:2])/2))
                     rpmid = 10**(np.log10(self.logrpgrid[k]) + \
                                  np.diff(np.log10(self.logrpgrid[:2])/2))
                     
                     epicnum = self.epicnums_wdet[i]
                     g = np.where(self.epicnums_planetsearch == epicnum)[0][0]
                     Ms = unp.uarray(self.Mss[g], self.e_Mss[g])
-                    sma = rvs.AU2m(rvs.semimajoraxis(Pmid, Ms, 0))
-                    
+                    smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, Ms, 0))
+                    Ls = unp.uarray(self.Lss[g], self.e_Lss[g])
+                    smaF = sma_from_F(Fmid, Ls)
                     Rs = unp.uarray(self.Rss[g], self.e_Rss[g])
-                    prob = (rvs.Rsun2m(Rs) + rvs.Rearth2m(rpmid)) / sma
-                    self.transit_prob_i[i,j,k] = unp.nominal_values(prob)
-                    self.e_transit_prob_i[i,j,k] = unp.std_devs(prob)
+
+                    probP = (rvs.Rsun2m(Rs) + rvs.Rearth2m(rpmid)) / smaP
+                    self.transit_probP_i[i,j,k] = unp.nominal_values(probP)
+                    self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
+
+                    probF = (rvs.Rsun2m(Rs) + rvs.Rearth2m(rpmid)) / smaF
+                    self.transit_probF_i[i,j,k] = unp.nominal_values(probF)
+                    self.e_transit_probF_i[i,j,k] = unp.std_devs(probF)
+                    
 
 	# correction from beta distribution fit (Kipping 2013)
 	self.transit_prob_factor = 1.08
-	self.transit_prob_i *= self.transit_prob_factor
-	self.e_transit_prob_i *= self.transit_prob_factor
-	self.transit_prob_avg = fill_map_nans(np.nanmean(self.transit_prob_i,
-                                                         axis=0))
+	self.transit_probP_i *= self.transit_prob_factor
+	self.e_transit_probP_i *= self.transit_prob_factor
+	self.transit_probP_avg = fill_map_nans(np.nanmean(self.transit_probP_i,
+                                                          axis=0))
+	self.transit_probF_i *= self.transit_prob_factor
+	self.e_transit_probF_i *= self.transit_prob_factor
+	self.transit_probF_avg = fill_map_nans(np.nanmean(self.transit_probF_i,
+                                                          axis=0))
 
 
         
     def compute_occurrence_rate(self):
         '''Use the maps of Ndet, yield_corr, sensitivity, and transit 
         probability to compute the occurrence rate over P and rp.'''
-        assert self.Ndet_i.shape[0] == self.Nstars
-        assert self.sens_i.shape[0] == self.Nstars_wdet
-        assert self.Ndet_i.shape[1:] == self.sens_i.shape[1:]
+        assert self.NdetP_i.shape[0] == self.Nstars
+        assert self.sensP_i.shape[0] == self.Nstars_wdet
+        assert self.NdetP_i.shape[1:] == self.sensP_i.shape[1:]
+        assert self.NdetF_i.shape[0] == self.Nstars
+        assert self.sensF_i.shape[0] == self.Nstars_wdet
+        assert self.NdetF_i.shape[1:] == self.sensF_i.shape[1:]
         
-        self.occurrence_rate_i = np.zeros_like(self.sens_i)
+        self.occurrence_rateP_i = np.zeros_like(self.sens_i)
+        self.occurrence_rateF_i = np.zeros_like(self.sens_i)
         for i in range(self.Nstars_wdet):
 
 	    print float(i) / self.Nstars_wdet
             g = self.epicnums_planetsearch[self.unique_inds] == \
-                self.epicnums_wdet[i] 
-            Ndet_i = self.Ndet_i[g].reshape(self._xlen, self._ylen)
-            S_i = self.sens_i[i]
-            C_i = self.yield_corr_i[i]
-            t_i = self.transit_prob_i[i]
+                self.epicnums_wdet[i]
             
-            self.occurrence_rate_i[i] = Ndet_i * C_i / (S_i * t_i) / self.Nstars
+            NdetP_i = self.NdetP_i[g].reshape(self._xlen, self._ylen)
+            SP_i = self.sensP_i[i]
+            CP_i = self.yield_corrP_i[i]
+            tP_i = self.transit_probP_i[i]
+            self.occurrence_rateP_i[i] = NdetP_i * CP_i / \
+                                         (SP_i * tP_i) / self.Nstars
 
-        # compute occurrence rate over P,rp
-        self.occurrence_rate = np.nanmean(self.occurrence_rate_i, axis=0)
+            NdetF_i = self.NdetF_i[g].reshape(self._xlen, self._ylen)
+            SF_i = self.sensF_i[i]
+            CF_i = self.yield_corrF_i[i]
+            tF_i = self.transit_probF_i[i]
+            self.occurrence_rateF_i[i] = NdetF_i * CF_i / \
+                                         (SF_i * tF_i) / self.Nstars
+            
+        # compute occurrence rate over P,rp and F,rp
+        self.occurrence_rateP = np.nanmean(self.occurrence_rateP_i, axis=0)
+        self.occurrence_rateF = np.nanmean(self.occurrence_rateF_i, axis=0)
             
 
 
@@ -366,7 +462,19 @@ class K2occurrencerate:
         pickle.dump(self, fObj)
         fObj.close()
 
-                    
+
+
+def compute_Ls(Rs_Sun, Teff_K):
+    return Rs_Sun**2 * (Teff_K / 5772.)**4
+
+
+def compute_F(Ls_Sun, smas_AU):
+    return Ls_Sun / smas_AU**2
+
+
+def sma_from_F(F_Sun, Ls_Sun):
+    return unp.sqrt(Ls_Sun / F_sun)
+    
 
 def get_1sigma(results):
     '''results = med, plus_1sig, minus_1sig'''
@@ -379,10 +487,13 @@ def rpRs2rp(rpRs, Rs):
     return unp.nominal_values(rp), unp.std_devs(rp)
 
 
-def sample_planets(P, eP, rp, erp, N):
+def sample_planets(P, eP, rp, erp, Ms, eMs, Ls, eLs, N):
     Psout = np.random.normal(P, eP, int(N))
+    Ps = unp.uarray(Psout, np.repeat(eP, int(N)))
+    smas = rvs.semimajoraxis(Ps, unp.uarray(Ms,eMs), 0)
+    Fsout = compute_F(unp.uarray(Ls,eLs), smas)
     rpsout = np.random.normal(rp, erp, int(N))
-    return Psout, rpsout
+    return Psout, Fsout, rpsout
 
 
 def fill_map_nans(arr):
