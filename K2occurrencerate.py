@@ -3,6 +3,7 @@ from K2sensclass import *
 from uncertainties import unumpy as unp
 import rvs
 from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
+from scipy.interpolate import LinearNDInterpolator as lint
 
 
 class K2occurrencerate:
@@ -207,6 +208,26 @@ class K2occurrencerate:
 	self.NdetP_tot = fill_map_nans(np.nansum(self.NdetP_i, axis=0))
 	self.NdetF_tot = fill_map_nans(np.nansum(self.NdetF_i, axis=0))
 
+        # interpolate onto a fine grid
+        xlen, ylen = self._xlen*6, self._ylen*6
+        self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
+                                         np.log10(self.Plims[1]), xlen)
+        self.logFgrid_fine = np.logspace(np.log10(self.Flims[0]),
+                                         np.log10(self.Flims[1]), xlen)
+        self.logrpgrid_fine = np.logspace(np.log10(self.rplims[0]),
+                                          np.log10(self.rplims[1]), ylen)
+        Pgrid  = np.repeat(self.logPgrid_fine, ylen)
+        Fgrid  = np.repeat(self.logFgrid_fine, ylen)
+        rpgrid = np.array(list(self.logrpgrid_fine)*xlen)
+        self.NdetP_tot_fine_grid = \
+                    interpolate_grid(self.logPgrid,self.logrpgrid,
+                                     gaussian_filter(self.NdetP_tot,0),
+                                     Pgrid,rpgrid).reshape(xlen,ylen)
+        self.NdetF_tot_fine_grid = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.NdetF_tot,0),
+                                     Fgrid, rpgrid).reshape(xlen,ylen)
+                                                    
 
     def save_stars_with_detections(self):
         epic_tmp = self.epicnums_planetsearch[self.unique_inds]
@@ -368,15 +389,38 @@ class K2occurrencerate:
 	self.yield_corrF_avg = fill_map_nans(np.nanmean(self.yield_corrF_i,
                                                         axis=0))
 
+        # interpolate onto a fine grid
+        xlen, ylen = self.logPgrid_fine.size, self.logrpgrid_fine.size
+        Pgrid  = np.repeat(self.logPgrid_fine, ylen)
+        Fgrid  = np.repeat(self.logFgrid_fine, ylen)
+        rpgrid = np.array(list(self.logrpgrid_fine)*xlen)
+        self.sensP_avg_fine_grid = \
+                    interpolate_grid(self.logPgrid, self.logrpgrid,
+                                     gaussian_filter(self.sensP_avg,.1),
+                                     Pgrid, rpgrid).reshape(xlen,ylen)
+        self.sensF_avg_fine_grid = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.sensF_avg,.1),
+                                     Fgrid, rpgrid).reshape(xlen,ylen)
+
+        self.yield_corrP_avg_fine_grid = \
+                    interpolate_grid(self.logPgrid, self.logrpgrid,
+                                     gaussian_filter(self.yield_corrP_avg,.1),
+                                     Pgrid, rpgrid).reshape(xlen,ylen)
+        self.yield_corrF_avg_fine_grid = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.yield_corrF_avg,.1),
+                                     Fgrid, rpgrid).reshape(xlen,ylen)
+
         
 
     def compute_transitprob_maps(self):
         '''Compute the transiting probability maps for each star with a
         detected planet candidate.'''
-        self.transit_probP_i = np.zeros_like(self.sens_i)
-        self.e_transit_probP_i = np.zeros_like(self.sens_i)
-        self.transit_probF_i = np.zeros_like(self.sens_i)
-        self.e_transit_probF_i = np.zeros_like(self.sens_i)
+        self.transit_probP_i = np.zeros_like(self.sensP_i)
+        self.e_transit_probP_i = np.zeros_like(self.sensP_i)
+        self.transit_probF_i = np.zeros_like(self.sensP_i)
+        self.e_transit_probF_i = np.zeros_like(self.sensP_i)
 
         for i in range(self.Nstars_wdet):
             for j in range(self._xlen):
@@ -417,11 +461,25 @@ class K2occurrencerate:
 	self.transit_probF_avg = fill_map_nans(np.nanmean(self.transit_probF_i,
                                                           axis=0))
 
+        # interpolate onto a fine grid
+        xlen, ylen = self.logPgrid_fine.size, self.logrpgrid_fine.size
+        Pgrid  = np.repeat(self.logPgrid_fine, ylen)
+        Fgrid  = np.repeat(self.logFgrid_fine, ylen)
+        rpgrid = np.array(list(self.logrpgrid_fine)*xlen)
+        self.transit_probP_avg_fine_grid = \
+                    interpolate_grid(self.logPgrid, self.logrpgrid,
+                                     gaussian_filter(self.transit_probP_avg,0),
+                                     Pgrid, rpgrid).reshape(xlen,ylen)
+        self.transit_probF_avg_fine_grid = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.transit_probF_avg,0),
+                                     Fgrid, rpgrid).reshape(xlen,ylen)
 
+        
         
     def compute_occurrence_rate(self):
         '''Use the maps of Ndet, yield_corr, sensitivity, and transit 
-        probability to compute the occurrence rate over P and rp.'''
+        probability to compute the occurrence rate over P/F and rp.'''
         assert self.NdetP_i.shape[0] == self.Nstars
         assert self.sensP_i.shape[0] == self.Nstars_wdet
         assert self.NdetP_i.shape[1:] == self.sensP_i.shape[1:]
@@ -438,23 +496,56 @@ class K2occurrencerate:
                 self.epicnums_wdet[i]
             
             NdetP_i = self.NdetP_i[g].reshape(self._xlen, self._ylen)
-            SP_i = self.sensP_i[i]
-            CP_i = self.yield_corrP_i[i]
+            SP_i = fill_map_nans(self.sensP_i[i])
+            CP_i = fill_map_nans(self.yield_corrP_i[i])
             tP_i = self.transit_probP_i[i]
             self.occurrence_rateP_i[i] = NdetP_i * CP_i / \
                                          (SP_i * tP_i) / self.Nstars
 
             NdetF_i = self.NdetF_i[g].reshape(self._xlen, self._ylen)
-            SF_i = self.sensF_i[i]
-            CF_i = self.yield_corrF_i[i]
+            SF_i = fill_map_nans(self.sensF_i[i])
+            CF_i = fill_map_nans(self.yield_corrF_i[i])
             tF_i = self.transit_probF_i[i]
             self.occurrence_rateF_i[i] = NdetF_i * CF_i / \
                                          (SF_i * tF_i) / self.Nstars
             
-        # compute occurrence rate over P,rp and F,rp
-        self.occurrence_rateP = np.nanmean(self.occurrence_rateP_i, axis=0)
-        self.occurrence_rateF = np.nanmean(self.occurrence_rateF_i, axis=0)
-            
+        # compute two verions of the occurrence rate 
+        self.occurrence_rateP_v1 = np.nanmean(self.occurrence_rateP_i, axis=0)
+        self.occurrence_rateF_v1 = np.nanmean(self.occurrence_rateF_i, axis=0)
+        self.occurrence_rateP_v2 = self.NdetP_tot * self.yield_corrP_avg / \
+                                   (self.sensP_avg * self.transit_probP_avg) / \
+                                   self.Nstars
+        self.occurrence_rateF_v2 = self.NdetF_tot * self.yield_corrF_avg / \
+                                   (self.sensF_avg * self.transit_probF_avg) / \
+                                   self.Nstars
+
+        # interpolate onto a fine grid
+        xlen, ylen = self.logPgrid_fine.size, self.logrpgrid_fine.size
+        Pgrid  = np.repeat(self.logPgrid_fine, ylen)
+        Fgrid  = np.repeat(self.logFgrid_fine, ylen)
+        rpgrid = np.array(list(self.logrpgrid_fine)*xlen)
+        self.occurrence_rateP_fine_grid_v1 = \
+                    interpolate_grid(self.logPgrid, self.logrpgrid,
+                                     gaussian_filter(self.occurrence_rateP_v1,
+                                                     .1), Pgrid,
+                                     rpgrid).reshape(xlen,ylen)
+        self.transit_probF_fine_grid_v1 = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.occurrence_rateF_v1,
+                                                     .1), Fgrid,
+                                     rpgrid).reshape(xlen,ylen)
+        self.occurrence_rateP_fine_grid_v2 = \
+                    interpolate_grid(self.logPgrid, self.logrpgrid,
+                                     gaussian_filter(self.occurrence_rateP_v2,
+                                                     .05), Pgrid,
+                                     rpgrid).reshape(xlen,ylen)
+        self.transit_probF_fine_grid_v2 = \
+                    interpolate_grid(self.logFgrid, self.logrpgrid,
+                                     gaussian_filter(self.occurrence_rateF_v2,
+                                                     .05), Fgrid,
+                                     rpgrid).reshape(xlen,ylen)
+
+        
 
 
     def _pickleobject(self):
@@ -573,6 +664,25 @@ def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
     if pltt:
 	plt.show()
     plt.close('all')
+
+
+def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
+    '''Interpolate over x and y to get the value at the 2d grid z.'''
+    assert len(zarr.shape) == 2
+    assert logxarr.size == zarr.shape[0]+1
+    assert logyarr.size == zarr.shape[1]+1
+    
+    # create new arrays for interpolation
+    logxarrv2 = 10**(np.log10(logxarr[1:]) - np.diff(np.log10(logxarr))[0]/2)
+    logxarrv3 = np.repeat(logxarrv2, logyarr.size-1)
+    logyarrv2 = 10**(np.log10(logyarr[1:]) - np.diff(np.log10(logyarr))[0]/2)
+    logyarrv3 = np.array(list(logyarrv2)*(logxarr.size-1))
+
+    # interpolate
+    zarrv2 = zarr.reshape(logxarrv2.size * logyarrv2.size)
+    lintz = lint(np.array([logxarrv3, logyarrv3]).T, zarrv2)
+    zarrout = lintz(xval, yval)
+    return float(zarrout) if zarrout.size == 1 else zarrout
 
 
 
