@@ -1,4 +1,4 @@
-from K2LCclass import *
+from LCclass import *
 from TESS_search import *
 import linear_lnlike as llnl
 import batman, sys
@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
+KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv2.csv'
 threshBayesfactor = 1e2
 
 
@@ -290,7 +291,7 @@ def planet_search(epicnum, K2=False, Kepler=False):
         return None
         
     # save stellar data and time-series
-    self = K2LC(name, -99)  # -99 is unique to planet_search
+    self = LCclass(name, -99)  # -99 is unique to planet_search
     self.bjd, self.f, self.ef, self.quarters = bjd, f, ef, quarters
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -329,16 +330,26 @@ def planet_search(epicnum, K2=False, Kepler=False):
     
 
 
-def do_i_run_this_star(epicnum):
+def do_i_run_this_star(ID, K2=False, Kep=False):
     # first check that the star is available
-    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    g = epics == epicnum
+    if K2:
+        epics = np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+        g = epics == ID
+        prefix = 'EPIC'
+        Kep = False
+    elif Kep:
+        kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
+        prefix = 'KICid'
+        g = kicids == ID
+    else:
+        return None
+
     if g.sum() != 1:
 	return False
     # check if star is already done
-    fname = 'PipelineResults/EPIC_%i/K2LC_-00099'%epicnum
-    if os.path.exists(fname):
-        return not loadpickle(fname).DONE
+    fname = glob.glob('PipelineResults/%s_%i/*LC_-00099'%(prefix, ID))
+    if len(fname) == 1:
+        return not loadpickle(fname[0]).DONE
     else:
         return True
 
@@ -346,8 +357,9 @@ def do_i_run_this_star(epicnum):
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
-    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+    #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+    kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
     for i in range(startind, endind):
-	print epics[i]
-	if do_i_run_this_star(epics[i]):
-            planet_search(epics[i], K2=True)
+	print kicids[i] #epics[i]
+	if do_i_run_this_star(kicids[i], Kep=True):
+            planet_search(kicids[i], Kep=True)

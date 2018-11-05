@@ -1,4 +1,4 @@
-from K2LCclass import *
+from LCclass import *
 from K2sensclass import *
 from uncertainties import unumpy as unp
 import rvs
@@ -6,13 +6,15 @@ from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
 
 
-class K2occurrencerate:
+class OccurrenceRateclass:
 
-    def __init__(self, folder, xlen=20, ylen=12, compute_detections=False,
-                 compute_sens=False, compute_occurrence_rate=False,
+    def __init__(self, folder, prefix, xlen=20, ylen=12, 
+		 compute_detections=False, compute_sens=False, 
+		 compute_occurrence_rate=False,
                  Plims=(.5,80), Flims=(.1,4e2), rplims=(.5,10)):
-        self.folder = folder
-	self.fname_out = '%s/EPIC_K2results'%self.folder
+        self.folder, self.prefix = folder, prefix
+	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+	self.fname_out = '%s/%s_K2results'%(self.folder, self.prefix2)
         self._xlen, self._ylen = int(xlen), int(ylen)
         self.Plims, self.Flims, self.rplims = Plims, Flims, rplims
         
@@ -32,7 +34,7 @@ class K2occurrencerate:
     def get_planetsearch_results(self):
         '''Get the results from the planetsearch, i.e. the detected planets 
         and stellar properties.'''
-        fs = np.array(glob.glob('%s/EPIC_*/K2LC_-00099'%self.folder))
+        fs = np.array(glob.glob('%s/%s_*/*LC_-00099'%(self.folder, self.prefix2))
         if fs.size == 0:
             return None
 	self.fs_planetsearch, self.epicnums_planetsearch = [], np.zeros(0)
@@ -263,10 +265,11 @@ class K2occurrencerate:
 
             epicnum = self.epicnums_wdet[i]
             print i, epicnum
-            fs = np.array(glob.glob('%s/EPIC_%i/K2LC*'%(self.folder, epicnum)))
+            fs = np.array(glob.glob('%s/%s_%i/*LC*'%(self.folder, self.prefix2, epicnum)))
 
 	    # remove planet search result (i.e. with index -99)
-            g = np.in1d(fs, '%s/EPIC_%i/K2LC_-00099'%(self.folder,epicnum))
+            g = np.in1d(fs, '%s/%s_%i/%sLC_-00099'%(self.folder, self.prefix2,
+						    epicnum, self.prefix))
 	    if np.any(g):
 	        fs = np.delete(fs, np.where(g)[0][0])
             if fs.size == 0:
@@ -688,4 +691,4 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 
 if __name__ == '__main__':
     folder = sys.argv[1]
-    self = K2occurrencerate(folder, compute_detections=True, compute_sens=True, compute_occurrence_rate=True)
+    self = OccurrenceRateclass(folder, compute_detections=True, compute_sens=True, compute_occurrence_rate=True)

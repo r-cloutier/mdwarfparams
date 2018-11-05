@@ -1,4 +1,4 @@
-from K2LCclass import *
+from LCclass import *
 from uncertainties import unumpy as unp
 import rvs
 

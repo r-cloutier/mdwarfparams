@@ -4,7 +4,7 @@ import GPmcmc0 as mcmc0
 import GPmcmcN as mcmcN
 import linear_lnlike as llnl
 import rvs
-from K2LCclass import *
+from LCclass import *
 from scipy.stats import normaltest
 from scipy.signal import medfilt
 
@@ -225,7 +225,8 @@ def _get_GP(thetaGP, x, res, ey):
 
 
 def find_transits(self, bjd, f, ef, quarters, thetaGPs,
-                  Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3):
+                  Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3,
+		  Plims=(.5,1e2):
     '''Search for periodic transit-like events.'''
     # "detrend" the lc
     detrend_LC(bjd, f, ef, quarters, thetaGPs)
@@ -244,6 +245,11 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                                                              transit_times,
                                                              durations, lnLs,
                                                              depths, SNRthresh)
+    # set period limit 
+    Pmin, Pmax = Plims
+    g = (Ps >= Pmin) & (Ps <= Pmax)
+    Ps, T0s, Ds, Zs, lnLs_transit = Ps[g], T0s[g], Ds[g], Zs[g], lnLs_transit[g]
+
     # save here for debugging
     self.POIsorig, self.T0OIsorig, self.DOIsorig = Ps, T0s, Ds
     self.ZOIsorig, self.lnLOIsorig = Zs, lnLs_transit

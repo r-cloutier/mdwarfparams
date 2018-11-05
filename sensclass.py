@@ -1,13 +1,16 @@
-from K2LCclass import *
+from LCclass import *
 import rvs
 from uncertainties import unumpy as unp
 
-class K2sensitivity:
+class Sensitivityclass:
 
-    def __init__(self, epicnum):
-        self.epicnum = epicnum
-        self.fname_full = 'PipelineResults/EPIC_%i/EPIC_%i_sens'%(self.epicnum,
-                                                                  self.epicnum)
+    def __init__(self, epicnum, prefix):
+        self.epicnum, self.prefix = epicnum, prefix
+	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+        self.fname_full = 'PipelineResults/%s_%i/%s_%i_sens'%(self.prefix2,
+							      self.epicnum,
+							      self.prefix2,
+                                                              self.epicnum)
         self.get_data()
 	if self.fs.size > 0:
             #self.get_probable_detections()
@@ -17,10 +20,12 @@ class K2sensitivity:
 
 
     def get_data(self):
-        self.fs = np.array(glob.glob('PipelineResults/EPIC_%i/K2LC*'%self.epicnum))
+        self.fs = np.array(glob.glob('PipelineResults/%s_%i/*LC*'%(self.prefix2,self.epicnum)))
 	# remove planet search result (i.e. with index -99)
-	if np.any(np.in1d(self.fs, 'PipelineResults/EPIC_%i/K2LC_-00099'%self.epicnum)):
-	    g = np.where(np.in1d(self.fs, 'PipelineResults/EPIC_%i/K2LC_-00099'%self.epicnum))[0][0]
+	if np.any(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix2,
+									self.epicnum,self.prefix))):
+	    g = np.where(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix2,self.epicnum,
+									       self.prefix))[0][0]
 	    self.fs = np.delete(self.fs, g)
         if self.fs.size == 0:
 	    return None
@@ -253,14 +258,17 @@ class K2sensitivity:
 
 
         
-class K2sensitivityFULL:
+class SensitivityFULL:
 
-    def __init__(self, folder, xlen=120, ylen=60):
-        self.folder = folder
+    def __init__(self, folder, prefix, xlen=120, ylen=60):
+        self.folder, self.prefix = folder, prefix
+	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
         self._xlen, self._ylen = int(xlen), int(ylen)
-	self.fs = np.array(glob.glob('%s/EPIC_*/EPIC_*_sens'%self.folder))
+	self.fs = np.array(glob.glob('%s/%s_*/%s_*_sens'%(self.folder,
+							  self.prefix2,
+							  self.prefix2)))
 	self.Nstars = self.fs.size
-        self.fname_full = '%s/EPIC_K2sens'%self.folder
+        self.fname_full = '%s/%s_%ssens'%(self.folder,self.prefix2,self.prefix)
         self.get_full_maps()
         self._pickleobject()
 
@@ -318,8 +326,8 @@ if __name__ == '__main__':
 			  delimiter=',')
     for i in range(epicnums.size):
 	print epicnums[i]
-    	self = K2sensitivity(epicnums[i])
+    	self = Sensitivityclass(epicnums[i])
 
     xlen, ylen = 14, 8
-    self = K2sensitivityFULL('PipelineResults', xlen=xlen,
-                             ylen=ylen)
+    self = SensitivityFULLclass('PipelineResults', xlen=xlen,
+                             	ylen=ylen)

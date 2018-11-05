@@ -1,4 +1,4 @@
-from K2LCclass import *
+from LCclass import *
 from planetsearch import *
 import linear_lnlike as llnl
 
@@ -14,12 +14,13 @@ def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
     return f
 
 
-def remove_detected_planets(epicnum, bjd, f):
+def remove_detected_planets(epicnum, prefix, bjd, f):
     '''Remove planet detections using their optimized parameters to clean the 
     light curve before searching for injected planets.'''
     # get planet search results
     try:
-        d = loadpickle('PipelineResults/EPIC_%i/K2LC_-00099'%epicnum)
+	prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+        d = loadpickle('PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix))
     except IOError:
         raise ValueError('initial planet search has not been run.')
 
@@ -82,7 +83,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
     
 
-def injected_planet_search(epicnum, index):
+def injected_planet_search(epicnum, index, K2=False, Kep=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
@@ -90,8 +91,15 @@ def injected_planet_search(epicnum, index):
     if not is_star_of_interest(epicnum):
         return None
 
-    name, star_dict, bjd, f, ef = read_K2_data(epicnum)
-    self = K2LC(name, index)
+    if K2:
+        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
+	prefix, Kep = 'K2', False
+    elif Kep:
+	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(epicnum)
+	prefix = 'Kep'
+    else:
+	return None
+    self = LCclass(name, index)
     self.bjd, self.f_orig, self.ef = bjd, np.copy(f), ef
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -100,7 +108,7 @@ def injected_planet_search(epicnum, index):
 
     # remove planets detected by the planet search which should already
     # have been run
-    self.f_noplanets = remove_detected_planets(epicnum, self.bjd, self.f_orig)
+    self.f_noplanets = remove_detected_planets(epicnum, self.prefix, self.bjd, self.f_orig)
     
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
@@ -142,13 +150,14 @@ def injected_planet_search(epicnum, index):
 
 
 
-def do_i_run_this_sim(epicnum, index):
+def do_i_run_this_sim(epicnum, prefix, index):
     # check if planet search has already been run
-    fname = 'PipelineResults/EPIC_%i/K2LC_-00099'%epicnum
+    prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+    fname = 'PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix)
     if os.path.exists(fname) and loadpickle(fname).DONE:
         
         # check if star is already done
-        fname = 'PipelineResults/EPIC_%i/K2LC_%.5d'%(epicnum, index)
+        fname = 'PipelineResults/%s_%i/%sLC_%.5d'%(prefix2,epicnum,prefix,index)
         if os.path.exists(fname):
             return not loadpickle(fname).DONE
         else:
@@ -170,5 +179,5 @@ if __name__ == '__main__':
         print epics[i]
         for j in range(Nsystems):
             index = j + starting_index
-            if do_i_run_this_sim(epics[i], index):
-                injected_planet_search(epics[i], index)
+            if do_i_run_this_sim(epics[i], 'K2', index):
+                injected_planet_search(epics[i], index, K2=True)
