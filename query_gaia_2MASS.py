@@ -189,7 +189,7 @@ def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
     # get 2MASS data
     r2 = Vizier.query_region(coord, radius=rad, catalog='II/246')
     # return NaN if no 2MASS star is found
-    if len(r2) == 0:
+    if (r2 == None) or (len(r2) == 0):
         return np.repeat(np.nan, 18).reshape(9,2)
 
     # step through possible matches
@@ -399,8 +399,8 @@ if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv1.csv'
     KICids = np.loadtxt(fname, delimiter=',', usecols=range(1))
 
-    KICids = KICids[:1000]
+    KICids = KICids[1001:10000]
     t0 = time.time()
-    get_stellar_data_Kep(KICids, fout, overwrite=True)
+    get_stellar_data_Kep(KICids, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
