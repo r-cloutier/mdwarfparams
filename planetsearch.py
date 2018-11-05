@@ -50,7 +50,7 @@ def read_Kepler_data(KICid):
 
     # get data from fits files
     fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
-    bjd, f, ef, quarter = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
+    bjd, f, ef, quarters = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
     for i in range(fnames.size):
         hdu = fits.open(fnames[i])[1]
         bjd = np.append(bjd, hdu.data['TIME']+2454833)
@@ -60,11 +60,11 @@ def read_Kepler_data(KICid):
         ftmp /= np.nanmedian(ftmp)
         f = np.append(f, ftmp)
         ef = np.append(ef, eftmp)
-        quarter = np.append(quarter, np.zeros(ftmp.size)+i)
+        quarters = np.append(quarters, np.zeros(ftmp.size)+i)
 
     star_dict = get_Kepler_star(KICid)
     s = np.argsort(bjd)
-    return KICid, star_dict, bjd[s], f[s], ef[s]
+    return KICid, star_dict, bjd[s], f[s], ef[s], quarters[s]
 
 
 def listFD(url, ext=''):
@@ -131,7 +131,8 @@ def read_K2_data(epicnum):
 
     ef = np.repeat(ef_96hrs, bjd.size)
     s = np.argsort(bjd)
-    return name, star_dict, bjd[s], f[s], ef[s]
+    quarters = np.zeros(bjd.size)
+    return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
 
 
 def get_star(epicnum):
@@ -273,26 +274,31 @@ def get_planet_detections(evidence_ratios, params_guess):
     return params_guess_out[s]
         
 
-def planet_search(epicnum):
+def planet_search(epicnum, K2=False, Kepler=False):
     '''Run a planet search on an input Kepler or K2 light curve using the 
     pipeline defined in compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
     if not is_star_of_interest(epicnum):
         return None
-    name, star_dict, bjd, f, ef = read_K2_data(epicnum)
-
+    if K2:
+        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
+        Kepler = False
+    elif Kepler:
+        name, star_dict, bjd, f, ef, quarters = read_Kepler_data(epicnum)
+    else:
+        return None
+        
     # save stellar data and time-series
     self = K2LC(name, -99)  # -99 is unique to planet_search
-    self.bjd, self.f, self.ef = bjd, f, ef
+    self.bjd, self.f, self.ef, self.quarters = bjd, f, ef, quarters
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
     self.DONE = False
     self._pickleobject()
 
-    # fit initial GP
-    thetaGPall, resultsGPall, thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef)
-    self.thetaGPall, self.resultsGPall = thetaGPall, resultsGPall
+    # fit initial GP hyperparams for each quarter
+    thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters)
     self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
     self._pickleobject()
  
@@ -344,4 +350,4 @@ if __name__ == '__main__':
     for i in range(startind, endind):
 	print epics[i]
 	if do_i_run_this_star(epics[i]):
-            planet_search(epics[i])
+            planet_search(epics[i], K2=True)

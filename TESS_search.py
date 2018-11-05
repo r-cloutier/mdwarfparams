@@ -86,49 +86,58 @@ def initialize_GP_hyperparameters(bjd, f, ef, Pindex=0,
     return lna, lnl, lnG, lnP#, s
 
 
-def do_optimize_0(bjd, f, ef, N=10,
+def do_optimize_0(bjd, f, ef, quarters, N=10,
                   Npntsmin=5e2, Npntsmax=1e3, Nsig=3, medkernel=99):
     '''First fit the PDC LC with GP and a no planet model using an optimization 
     routine and tested with N different initializations.'''
+    # fit GP separately to each quarter (or K2 campaign)
+    assert bjd.size == f.size
+    assert bjd.size == ef.size
+    assert bjd.size == quarters.size
+    NGP = np.unique(quarters).size
+    
     # test various hyperparameter initializations and keep the one resulting
     # in the most gaussian-like residuals
     N = int(N)
-    pvalues, thetaGPs_in, thetaGPs_out = np.zeros(N), np.zeros((N,4)), \
-                                         np.zeros((N,4))
-    for i in range(N):
-        # get initial GP parameters (P, and l from periodogram)
-        thetaGPs_in[i] = initialize_GP_hyperparameters(bjd, f, ef, Pindex=i)
-        #Prot = np.exp(thetaGPs_in[i,3])
-        Npnts_per_timescale = 8.
-        timescale_to_resolve = np.exp(thetaGPs_in[i,np.array([1,3])]).min() / \
-                               Npnts_per_timescale
-        # bin the light curve
-        Ttot = bjd.max() - bjd.min()
-        if Ttot/timescale_to_resolve < Npntsmin:
-            dt = Ttot / Npntsmin
-        elif Ttot/timescale_to_resolve > Npntsmax:
-            dt = Ttot / Npntsmax
-        else:
-            dt = timescale_to_resolve
-	# trim outliers and median filter to avoid fitting deep transits
-        g = abs(f-np.median(f)) <= Nsig*f.std()
-        tbin, fbin, efbin =boxcar(bjd[g], medfilt(f[g],medkernel), ef[g], dt=dt)
-        gp,mu,sig,thetaGPs_out[i] = fit_GP_0(thetaGPs_in[i],
-                                             tbin, fbin, efbin)
-        # compute residuals and the normality test p-value
-        _,pvalues[i] = normaltest(fbin-mu)
-    # select the most gaussian-like residuals
-    g = pvalues == pvalues.max()
-    if g.sum() == 1:
-        thetaGPin = thetaGPs_in[g]
-        thetaGPout = thetaGPs_out[g]
-    elif g.sum() == 0:
-        thetaGPin = thetaGPs_in[0]
-        thetaGPout = thetaGPs_out[0]
-    else:
-	thetaGPin = thetaGPs_in[g][0]
-        thetaGPout = thetaGPs_out[g][0]
-    return thetaGPs_in, thetaGPs_out, thetaGPin.reshape(4), thetaGPout.reshape(4)
+    pvalues, thetaGPs_in_tmp, thetaGPs_out_tmp = np.zeros((NGP,N)), \
+                                                 np.zeros((NGP,N,4)), \
+                                                 np.zeros((NGP,N,4))
+    thetaGPs_in, thetaGPs_out = np.zeros((NGP,4)), np.zeros((NGP,4))
+    for i in range(NGP):
+        g1 = quarters == quarters[i]
+        
+        for j in range(N):
+            # get initial GP parameters (P, and l from periodogram)
+            thetaGPs_in_tmp[i,j] = initialize_GP_hyperparameters(bjd[g1], f[g1],
+                                                                 ef[g1],
+                                                                 Pindex=j)
+            Npnts_per_timescale = 8.
+            inds = np.array([1,3])
+            timescale_to_resolve = np.exp(thetaGPs_in_tmp[i,j,inds]).min() / \
+                                   Npnts_per_timescale
+            # bin the light curve
+            Ttot = bjd[g1].max() - bjd[g1].min()
+            if Ttot/timescale_to_resolve < Npntsmin:
+                dt = Ttot / Npntsmin
+            elif Ttot/timescale_to_resolve > Npntsmax:
+                dt = Ttot / Npntsmax
+            else:
+                dt = timescale_to_resolve
+	    # trim outliers and median filter to avoid fitting deep transits
+            g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
+            tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                      ef[g1][g], dt=dt)
+            gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
+                                                       tbin, fbin, efbin)
+            # compute residuals and the normality test p-value
+            _,pvalues[i,j] = normaltest(fbin-mu)
+            
+        # select the most gaussian-like residuals
+        g = np.argsort(pvalues[i])[::-1][0]
+        thetaGPs_in[i]  = thetaGPs_in_tmp[i,g]
+        thetaGPs_out[i] = thetaGPs_out_tmp[i,g]
+
+    return thetaGPs_in, thetaGPs_out
 
 
 def fit_GP_0(thetaGP, tbin, fbin, efbin):
@@ -148,33 +157,6 @@ def fit_GP_0(thetaGP, tbin, fbin, efbin):
     sig = np.sqrt(np.diag(cov))
     return gp, mu, sig, results[0]
     
-
-def OLDdo_mcmc_0(self, bjd, f, ef, fname, Nmcmc_pnts=3e2, 
-	         nwalkers=100, burnin=200, nsteps=400, a=2):
-    '''First fit the PDC LC with a GP and no planet model.'''
-    # get initial GP parameters (P, and l from periodogram)
-    thetaGP = initialize_GP_hyperparameters(bjd, f, ef)
-    self.thetaGP = thetaGP
-    initialize = np.array([.1,.1,.01,.1,thetaGP[4]*.1])
-    assert 0 not in initialize
-    Prot = np.exp(thetaGP[3])
-    # bin the light curve
-    if (Prot/4. > (bjd.max()-bjd.min())/1e2) or \
-       (np.arange(bjd.min(), bjd.max(), Prot/4.).size > Nmcmc_pnts):
-        dt = (bjd.max()-bjd.min())/Nmcmc_pnts 
-    else: 
-        dt = Prot/4.
-    tbin, fbin, efbin = boxcar(bjd,f,ef,dt=dt)
-    sampler, samples = mcmc0.run_emcee(thetaGP, tbin, fbin, efbin, initialize,
-				       nwalkers=nwalkers, burnin=burnin,
-				       nsteps=nsteps, a=a)
-    if samples.shape[0] > 1e4:
-    	inds = np.arange(samples.shape[0])
-    	np.random.shuffle(inds)
-    	results = mcmc0.get_results(samples[inds][:int(1e4)])
-    else:
-	results = mcmc0.get_results(samples)
-    return sampler, samples, results
 
 
 def do_mcmc_N(thetaGP, params, bjd, f, ef, Nmcmc_pnts=3e2,
@@ -304,6 +286,10 @@ def find_transits(self, bjd, f, ef, thetaGP,
     # return the parameters (P,T0,D,Z=depth) of the confirmed transit candidates
     return params, EBparams, maybeEBparams
  
+
+def detrend_LC(bjd, f, ef, quarters):
+    return None
+
 
 def estimate_box_transit_model(P, T0, Rs, t, f, ef):
     '''Estimate the transit depth and duration given P and T0. Return 
