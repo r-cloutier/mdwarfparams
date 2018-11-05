@@ -7,35 +7,74 @@ from priors import get_results
 from massradius import radF2mass
 from truncate_cmap import *
 from perrakisFML import *
+import requests
+from bs4 import BeautifulSoup
+
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
 threshBayesfactor = 1e2
 
 
-def read_Kepler_data(fits_dir, maxdays=2e2):
-    '''Combine the LCs from each Kepler quarter into a single LC.'''
-    fs = np.array(glob.glob('%s/kplr*llc.fits'%fits_dir))
-    assert fs.size > 1
-    name = fits.open(fs[0])[0].header['OBJECT']
-    bjd, f, ef = np.zeros(0), np.zeros(0), np.zeros(0)
-    for i in range(fs.size):
-  	hdu = fits.open(fs[i])
-   	assert len(hdu) == 3
- 	bjd = np.append(bjd, hdu[1].data['TIME']+hdu[1].header['BJDREFI'])
-	ftmp = hdu[1].data['PDCSAP_FLUX']
-	f = np.append(f, ftmp-np.nanmedian(ftmp))
-	ef = np.append(ef, hdu[1].data['PDCSAP_FLUX_ERR'])
-    # remove bad values
-    g = np.isfinite(f) & np.isfinite(ef)
-    bjd, f, ef = bjd[g], f[g], ef[g]
-    # sort chronologically
-    s = np.argsort(bjd)
-    bjd, f, ef = bjd[s], f[s], ef[s]
-    # resistrict to a certain time period
-    g = bjd-bjd.min() <= maxdays
-    return name, Rs, bjd[g], f[g], ef[g]
+def read_Kepler_data(KICid):
+    # make directories
+    try:
+	os.mkdir('MAST')
+    except OSError:
+	pass
+    try:
+	os.mkdir('MAST/Kepler')
+    except OSError:
+	pass
+    folder2 = 'MAST/Kepler/KIC%.9d'%KICid
+    try:
+       	os.mkdir(folder2)
+    except OSError:
+       	pass
 
+    # download LC files if not already
+    fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
+    if fnames.size == 0:
+        dir2 = '%.9d'%KICid
+        dir1 = dir2[:4]
+        url = 'https://archive.stsci.edu/pub/kepler/lightcurves/'
+        url += '%s/%s'%(dir1,dir2)
+
+        # get fits files in the directory and download the LCs
+        fs = listFD(url, ext='.fits')
+        for i in range(fs.size):
+            os.system('wget %s'%fs[i])
+            fname = str(fs[i]).split('/')[-1]
+            if os.path.exists(fname):
+                os.system('mv %s %s'%(fname, folder2))
+
+    # get data from fits files
+    fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
+    bjd, f, ef, quarter = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
+    for i in range(fnames.size):
+        hdu = fits.open(fnames[i])[1]
+        bjd = np.append(bjd, hdu.data['TIME']+2454833)
+        ftmp = hdu.data['PDCSAP_FLUX']
+        eftmp = hdu.data['PDCSAP_FLUX_ERR']
+        eftmp /= np.nanmedian(ftmp)
+        ftmp /= np.nanmedian(ftmp)
+        f = np.append(f, ftmp)
+        ef = np.append(ef, eftmp)
+        quarter = np.append(quarter, np.zeros(ftmp.size)+i)
+
+    star_dict = get_Kepler_star(KICid)
+    s = np.argsort(bjd)
+    return KICid, star_dict, bjd[s], f[s], ef[s]
+
+
+def listFD(url, ext=''):
+    '''List the contents of an https directory.'''
+    page = requests.get(url).text
+    soup = BeautifulSoup(page, 'html.parser')
+    return np.array([url + '/' + node.get('href') \
+                     for node in soup.find_all('a') \
+                     if node.get('href').endswith(ext)])
+                    
 
 def read_K2_data(epicnum):
     # make directories
@@ -99,6 +138,28 @@ def get_star(epicnum):
     d = np.loadtxt(K2Mdwarffile, delimiter=',')
     epicnums = d[:,0]
     g = epicnums == epicnum
+    assert g.sum() == 1
+    star_info = d[g].reshape(25)
+    star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
+                 'dec': star_info[2], 'K2campaign': star_info[3],
+                 'Kepmag': star_info[4], 'par': star_info[5],
+                 'e_par': star_info[6], 'Kmag': star_info[7],
+                 'e_Kmag': star_info[8], 'dist': star_info[9],
+                 'e_dist': star_info[10], 'mu': star_info[11],
+                 'e_mu': star_info[12], 'AK': star_info[13],
+                 'e_AK': star_info[14], 'MK': star_info[15],
+                 'e_MK': star_info[16], 'Rs': star_info[17],
+                 'e_Rs': star_info[18], 'Teff': star_info[19],
+                 'e_Teff': star_info[20], 'Ms': star_info[21],
+                 'e_Ms': star_info[22], 'logg': star_info[23],
+                 'e_logg': star_info[24]}
+    return star_dict
+
+
+def get_Kepler_star(KICid):
+    d = np.loadtxt(KepMdwarffile, delimiter=',')
+    KICids = d[:,0]
+    g = KICids == KICid
     assert g.sum() == 1
     star_info = d[g].reshape(25)
     star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
