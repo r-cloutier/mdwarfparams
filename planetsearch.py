@@ -306,7 +306,7 @@ def planet_search(epicnum, K2=False, Kepler=False):
     # guesses
     print 'Searching for transit-like events...\n'
     params, EBparams, maybeEBparams = find_transits(self, bjd, f, ef,
-                                                    thetaGPout)
+                                                    quarters, thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])

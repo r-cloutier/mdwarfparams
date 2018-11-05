@@ -224,39 +224,15 @@ def _get_GP(thetaGP, x, res, ey):
     return gp, results, mu, sig
 
 
-def find_transits(self, bjd, f, ef, thetaGP,
+def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                   Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3):
     '''Search for periodic transit-like events.'''
     # "detrend" the lc
-    assert len(thetaGP) == 4
-    Prot = np.exp(thetaGP[3])
-    Npnts_per_timescale = 8.
-    timescale_to_resolve = np.exp(thetaGP[np.array([1,3])]).min() / \
-                           Npnts_per_timescale
-    # bin the light curve
-    Ttot = bjd.max() - bjd.min()
-    if Ttot/timescale_to_resolve < Npntsmin:
-        dt = Ttot / Npntsmin
-    elif Ttot/timescale_to_resolve > Npntsmax:
-        dt = Ttot / Npntsmax
-    else:
-        dt = timescale_to_resolve
-    # trim outliers and median filter to avoid fitting deep transits
-    g = abs(f-np.median(f)) <= Nsig*f.std()
-    tbin, fbin, efbin = boxcar(bjd[g], medfilt(f[g],medkernel), ef[g], dt=dt, include_edges=True, tfull=bjd)
-    self.tbin, self.fbin, self.efbin = tbin, fbin, efbin
-    #_, mubin, sigbin = mcmc0.get_model0(thetaGP, tbin, fbin, efbin)
-    _, resultsGP, mubin, sigbin = _get_GP(thetaGP, tbin, fbin, efbin) 
-    fintmu, fintsig = interp1d(tbin, mubin), interp1d(tbin, sigbin)
-    mu, sig = fintmu(bjd), fintsig(bjd)
-    fcorr = f - mu + 1 if mu.sum() > 0 else f - mu
-    ef = np.repeat(llnl.MAD1d(fcorr), fcorr.size)
-    self.bjd, self.f, self.ef = bjd, f, ef
-    self.mu, self.sig, self.fcorr = mu, sig, fcorr
-    self.resultsGP_detrend = thetaGP
+    detrend_LC(bjd, f, ef, quarters, thetaGPs)
 
     # do linear search first
     print 'Computing lnL over transit times and durations...\n'
+    bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
     transit_times, durations, lnLs, depths = llnl.linear_search(bjd, fcorr, ef)
     self.transit_times, self.durations = transit_times, durations
     self.lnLs_linearsearch, self.depths_linearsearch = lnLs, depths
@@ -287,8 +263,47 @@ def find_transits(self, bjd, f, ef, thetaGP,
     return params, EBparams, maybeEBparams
  
 
-def detrend_LC(bjd, f, ef, quarters):
-    return None
+
+def detrend_LC(bjd, f, ef, quarters, thetaGPs):
+    assert thetaGPs.shape[1] == 4
+    NGP = thetaGPs.shape[0]
+
+    mu, sig = np.zeros(bjd.size), np.zeros(bjd.size)
+    fcorr, ef = np.zeros(bjd.size), np.zeros(bjd.size)
+    for i in range(NGP):
+        
+        Prot = np.exp(thetaGPs[i,3])
+        Npnts_per_timescale, inds = 8., np.array([1,3])
+        timescale_to_resolve = np.exp(thetaGPs[i,inds]).min() / \
+                               Npnts_per_timescale
+
+        # bin the light curve
+        g1 = quarters == quarters[i]
+        Ttot = bjd[g1].max() - bjd[g1].min()
+        if Ttot/timescale_to_resolve < Npntsmin:
+            dt = Ttot / Npntsmin
+        elif Ttot/timescale_to_resolve > Npntsmax:
+            dt = Ttot / Npntsmax
+        else:
+            dt = timescale_to_resolve
+            
+        # trim outliers and median filter to avoid fitting deep transits
+        g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
+        tbin, fbin, efbin = boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                   ef[g1][g], dt=dt, include_edges=True,
+                                   tfull=bjd[g1])
+        self.tbin, self.fbin, self.efbin = tbin, fbin, efbin
+        _, resultsGP, mubin, sigbin = _get_GP(thetaGPs[i], tbin, fbin, efbin) 
+        fintmu, fintsig = interp1d(tbin, mubin), interp1d(tbin, sigbin)
+        mu[g1], sig[g1] = fintmu(bjd[g1]), fintsig(bjd[g1])
+        fcorr[g1] = f[g1] - mu[g1] + 1 if mu[g1].sum() > 0 else f[g1] - mu[g1]
+        ef[g1] = np.repeat(llnl.MAD1d(fcorr[g1]), fcorr[g1].size)
+
+    # save
+    self.bjd, self.f, self.ef = bjd, f, ef
+    self.mu, self.sig, self.fcorr = mu, sig, fcorr
+    self.resultsGP_detrend = thetaGPs
+
 
 
 def estimate_box_transit_model(P, T0, Rs, t, f, ef):
