@@ -6,10 +6,9 @@ class Sensitivityclass:
 
     def __init__(self, epicnum, prefix):
         self.epicnum, self.prefix = epicnum, prefix
-	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
-        self.fname_full = 'PipelineResults/%s_%i/%s_%i_sens'%(self.prefix2,
+        self.fname_full = 'PipelineResults/%s_%i/%s_%i_sens'%(self.prefix,
 							      self.epicnum,
-							      self.prefix2,
+							      self.prefix,
                                                               self.epicnum)
         self.get_data()
 	if self.fs.size > 0:
@@ -20,12 +19,12 @@ class Sensitivityclass:
 
 
     def get_data(self):
-        self.fs = np.array(glob.glob('PipelineResults/%s_%i/*LC*'%(self.prefix2,self.epicnum)))
+        self.fs = np.array(glob.glob('PipelineResults/%s_%i/*LC*'%(self.prefix,self.epicnum)))
 	# remove planet search result (i.e. with index -99)
-	if np.any(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix2,
+	if np.any(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix,
 									self.epicnum,self.prefix))):
-	    g = np.where(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix2,self.epicnum,
-									       self.prefix))[0][0]
+	    g = np.where(np.in1d(self.fs, 'PipelineResults/%s_%i/LC_-00099'%(self.prefix,
+									     self.epicnum)))[0][0]
 	    self.fs = np.delete(self.fs, g)
         if self.fs.size == 0:
 	    return None
@@ -262,13 +261,12 @@ class SensitivityFULL:
 
     def __init__(self, folder, prefix, xlen=120, ylen=60):
         self.folder, self.prefix = folder, prefix
-	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
         self._xlen, self._ylen = int(xlen), int(ylen)
 	self.fs = np.array(glob.glob('%s/%s_*/%s_*_sens'%(self.folder,
-							  self.prefix2,
-							  self.prefix2)))
+							  self.prefix,
+							  self.prefix)))
 	self.Nstars = self.fs.size
-        self.fname_full = '%s/%s_%ssens'%(self.folder,self.prefix2,self.prefix)
+        self.fname_full = '%s/%s_sens'%(self.folder,self.prefix)
         self.get_full_maps()
         self._pickleobject()
 

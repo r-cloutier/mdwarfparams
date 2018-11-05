@@ -11,14 +11,14 @@ def loadpickle(fname):
 
 class LCclass:
 
-    def __init__(self, name, index, prefix='K2'):
+    def __init__(self, name, index):
 	try:
 	    os.mkdir('PipelineResults')
 	except OSError:
 	    pass
-	self.object_name = name
+	self.object_name = str(name)
 	self.folder_full = 'PipelineResults/%s'%self.object_name.replace(' ','_')
-        self.fname_full = '%s/%sLC_%.5d'%(self.folder_full, prefix, index)
+        self.fname_full = '%s/LC_%.5d'%(self.folder_full, index)
 	try:
             os.mkdir(self.folder_full)
         except OSError:

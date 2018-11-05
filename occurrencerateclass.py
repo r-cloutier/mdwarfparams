@@ -13,8 +13,7 @@ class OccurrenceRateclass:
 		 compute_occurrence_rate=False,
                  Plims=(.5,80), Flims=(.1,4e2), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
-	self.prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
-	self.fname_out = '%s/%s_K2results'%(self.folder, self.prefix2)
+	self.fname_out = '%s/%s_K2results'%(self.folder, self.prefix)
         self._xlen, self._ylen = int(xlen), int(ylen)
         self.Plims, self.Flims, self.rplims = Plims, Flims, rplims
         
@@ -34,7 +33,7 @@ class OccurrenceRateclass:
     def get_planetsearch_results(self):
         '''Get the results from the planetsearch, i.e. the detected planets 
         and stellar properties.'''
-        fs = np.array(glob.glob('%s/%s_*/*LC_-00099'%(self.folder, self.prefix2))
+        fs = np.array(glob.glob('%s/%s_*/LC_-00099'%(self.folder, self.prefix))
         if fs.size == 0:
             return None
 	self.fs_planetsearch, self.epicnums_planetsearch = [], np.zeros(0)
@@ -265,11 +264,11 @@ class OccurrenceRateclass:
 
             epicnum = self.epicnums_wdet[i]
             print i, epicnum
-            fs = np.array(glob.glob('%s/%s_%i/*LC*'%(self.folder, self.prefix2, epicnum)))
+            fs = np.array(glob.glob('%s/%s_%i/LC*'%(self.folder, self.prefix, epicnum)))
 
 	    # remove planet search result (i.e. with index -99)
-            g = np.in1d(fs, '%s/%s_%i/%sLC_-00099'%(self.folder, self.prefix2,
-						    epicnum, self.prefix))
+            g = np.in1d(fs, '%s/%s_%i/LC_-00099'%(self.folder, self.prefix,
+						  epicnum))
 	    if np.any(g):
 	        fs = np.delete(fs, np.where(g)[0][0])
             if fs.size == 0:

@@ -63,9 +63,10 @@ def read_Kepler_data(KICid):
         ef = np.append(ef, eftmp)
         quarters = np.append(quarters, np.zeros(ftmp.size)+i)
 
-    star_dict = get_Kepler_star(KICid)
-    s = np.argsort(bjd)
-    return KICid, star_dict, bjd[s], f[s], ef[s], quarters[s]
+    star_dict = get_star(KICid, Kep=True)
+    g = (np.isfinite(bjd)) & (np.isfinite(f)) & (np.isfinite(ef))
+    s = np.argsort(bjd[g])
+    return 'KIC_%i'%KICid, star_dict, bjd[g][s], f[g][s], ef[g][s], quarters[g][s]
 
 
 def listFD(url, ext=''):
@@ -124,7 +125,7 @@ def read_K2_data(epicnum):
             bjd = hdu[i].data['T']+hdu[i].header['BJDREFI']
             f = hdu[i].data['FCOR']
             name = hdu[i].header['OBJECT'].replace(' ','_')
-            star_dict = get_star(epicnum)
+            star_dict = get_star(epicnum, K2=True)
             # estimate flux error on 96 hour timescales
 	    ef_6hrs = hdu[i].header['QCDPP6']*1e-6  # ppm to normalized flux
             ef_96hrs = ef_6hrs * np.sqrt(96./6)
@@ -136,13 +137,19 @@ def read_K2_data(epicnum):
     return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
 
 
-def get_star(epicnum):
-    d = np.loadtxt(K2Mdwarffile, delimiter=',')
-    epicnums = d[:,0]
-    g = epicnums == epicnum
+def get_star(IDnum, K2=False, Kep=False):
+    infile = K2Mdwarffile if K2 else KepMdwarffile
+    print infile
+    d = np.loadtxt(infile, delimiter=',')
+    IDnums = d[:,0]
+    g = IDnums == IDnum
     assert g.sum() == 1
+    # add fake column if Kepler (to replace K2campaign)
+    if d.shape[1] == 24:
+	d = np.insert(d, 3, np.zeros(d.shape[0]), axis=1)
     star_info = d[g].reshape(25)
-    star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
+    IDtype = 'epicnum' if K2 else 'kicid'
+    star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
                  'dec': star_info[2], 'K2campaign': star_info[3],
                  'Kepmag': star_info[4], 'par': star_info[5],
                  'e_par': star_info[6], 'Kmag': star_info[7],
@@ -158,31 +165,10 @@ def get_star(epicnum):
     return star_dict
 
 
-def get_Kepler_star(KICid):
-    d = np.loadtxt(KepMdwarffile, delimiter=',')
-    KICids = d[:,0]
-    g = KICids == KICid
-    assert g.sum() == 1
-    star_info = d[g].reshape(25)
-    star_dict = {'epicnum': int(star_info[0]), 'ra': star_info[1],
-                 'dec': star_info[2], 'K2campaign': star_info[3],
-                 'Kepmag': star_info[4], 'par': star_info[5],
-                 'e_par': star_info[6], 'Kmag': star_info[7],
-                 'e_Kmag': star_info[8], 'dist': star_info[9],
-                 'e_dist': star_info[10], 'mu': star_info[11],
-                 'e_mu': star_info[12], 'AK': star_info[13],
-                 'e_AK': star_info[14], 'MK': star_info[15],
-                 'e_MK': star_info[16], 'Rs': star_info[17],
-                 'e_Rs': star_info[18], 'Teff': star_info[19],
-                 'e_Teff': star_info[20], 'Ms': star_info[21],
-                 'e_Ms': star_info[22], 'logg': star_info[23],
-                 'e_logg': star_info[24]}
-    return star_dict
-
-
-def is_star_of_interest(epicnum):
+def is_star_of_interest(IDnum, Kep=False):
     '''Return True is star obeys the desired conditions'''
-    star_dict = get_star(epicnum)
+    K2 = not Kep
+    star_dict = get_star(IDnum, K2=K2)
     # 3083 K2 M dwarfs w/ Kepmag<15.2
     return (star_dict['Ms'] <= .75) & \
         (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
@@ -275,18 +261,20 @@ def get_planet_detections(evidence_ratios, params_guess):
     return params_guess_out[s]
         
 
-def planet_search(epicnum, K2=False, Kepler=False):
+def planet_search(IDnum, K2=False, Kep=False):
     '''Run a planet search on an input Kepler or K2 light curve using the 
     pipeline defined in compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    if not is_star_of_interest(epicnum):
+    if not is_star_of_interest(IDnum, Kep=Kep):
         return None
     if K2:
+	epicnum = IDnum
         name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
         Kepler = False
-    elif Kepler:
-        name, star_dict, bjd, f, ef, quarters = read_Kepler_data(epicnum)
+    elif Kep:
+	KICnum = IDnum
+        name, star_dict, bjd, f, ef, quarters = read_Kepler_data(KICnum)
     else:
         return None
         

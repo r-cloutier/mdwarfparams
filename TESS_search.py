@@ -36,6 +36,10 @@ def get_lc(hdu):
 
 def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
     '''Boxbar bin the light curve.'''
+    # check that the desired binning is coarser than the input sampling
+    if np.diff(t).mean() > dt:
+	return t, f, ef
+
     Nbounds = int(np.floor((t.max()-t.min()) / dt))
     tbin, fbin, efbin = np.zeros(Nbounds-1), np.zeros(Nbounds-1), \
 			np.zeros(Nbounds-1)
@@ -123,10 +127,12 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
                 dt = Ttot / Npntsmax
             else:
                 dt = timescale_to_resolve
+
 	    # trim outliers and median filter to avoid fitting deep transits
             g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
-            tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
-                                      ef[g1][g], dt=dt)
+            #tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+            #                          ef[g1][g], dt=dt)
+            tbin, fbin, efbin = boxcar(bjd[g1][g], f[g1][g], ef[g1][g], dt=dt)
             gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
                                                        tbin, fbin, efbin)
             # compute residuals and the normality test p-value
@@ -226,7 +232,7 @@ def _get_GP(thetaGP, x, res, ey):
 
 def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                   Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3,
-		  Plims=(.5,1e2):
+		  Plims=(.5,1e2)):
     '''Search for periodic transit-like events.'''
     # "detrend" the lc
     detrend_LC(bjd, f, ef, quarters, thetaGPs)
