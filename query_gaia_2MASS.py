@@ -6,13 +6,11 @@ from astroquery.vizier import Vizier
 import rvs
 from send_email import *
 from uncertainties import unumpy as unp
-from planetsearch import get_star
+from planetsearch import *
 import mwdust
 
-global fout
-fout = 'input_data/K2targets/K2Mdwarfsv6_leq3300.csv'
 
-def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
+def get_stellar_data_K2(epicnums, fout, radius_arcsec=10, overwrite=False):
     
     Nstars = epicnums.size
     radius_arcsec_orig = radius_arcsec+0
@@ -28,7 +26,8 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
         print float(i) / epicnums.size
         
         # download fits header and get coordinates
-        ras[i],decs[i],Kepmags[i],K2campaigns[i] = get_data_from_fits(epicnums[i])
+        ras[i],decs[i],Kepmags[i],K2campaigns[i] = \
+                                            get_data_from_fits_K2(epicnums[i])
         
         # search gaia and 2MASS until we find a likely match
         # based on photometry
@@ -70,8 +69,67 @@ def get_stellar_data(epicnums, radius_arcsec=10, overwrite=False):
         np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
 
 
+        
+def get_stellar_data_Kep(KICids, fout, radius_arcsec=10, overwrite=False):
+    
+    Nstars = KICids.size
+    radius_arcsec_orig = radius_arcsec+0
+    ras, decs = np.zeros(Nstars), np.zeros(Nstars)
+    Kepmags = np.zeros(Nstars)
+    pars, Kmags = np.zeros((Nstars,2)), np.zeros((Nstars,2))
+    dists, mus = np.zeros((Nstars,2)), np.zeros((Nstars,2))
+    AKs, MKs = np.zeros((Nstars,2)), np.zeros((Nstars,2))
+    Teffs, Mss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
+    Rss, loggs = np.zeros((Nstars, 2)), np.zeros((Nstars, 2))
+    for i in range(KICids.size):
 
-def get_data_from_fits(epicnum):
+        print float(i) / KICids.size
+        
+        # download fits header and get coordinates
+        ras[i],decs[i],Kepmags[i] = get_data_from_fits_Kep(KICids[i])
+        
+        # search gaia and 2MASS until we find a likely match
+        # based on photometry
+        if np.isfinite(ras[i]) and np.isfinite(decs[i]):
+
+            pars[i] = np.nan, np.nan
+            radius_arcsec = radius_arcsec_orig
+            while (np.isnan(pars[i,0])) and (radius_arcsec <= 60):
+                p = query_one_star(ras[i], decs[i], radius_arcsec=radius_arcsec)
+                pars[i],Kmags[i],dists[i],mus[i],AKs[i],MKs[i],Rss[i],Teffs[i],Mss[i]=p
+                logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
+                                    unp.uarray(Rss[i,0],Rss[i,1]))
+                loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
+                radius_arcsec += 5
+
+        else:
+            p = np.repeat(np.nan,18).reshape(9,2)
+            pars[i],Kmags[i],dists[i],mus[i],AKs[i],MKs[i],Rss[i],Teffs[i],Mss[i] = p
+            logg = compute_logg(unp.uarray(Mss[i,0],Mss[i,1]),
+                                unp.uarray(Rss[i,0],Rss[i,1]))
+            loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
+            
+    # save results
+    hdr = 'KICid,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,'+ \
+          'Kmag,e_Kmag,dist_pc,e_dist,mu,e_mu,AK,e_AK,MK,e_MK,Rs_RSun,e_Rs,'+ \
+          'Teff_K,e_Teff,Ms_MSun,e_Ms,logg_dex,e_logg'
+    outarr = np.array([KICids, ras, decs, Kepmags, pars[:,0],
+                       pars[:,1], Kmags[:,0], Kmags[:,1], dists[:,0],
+                       dists[:,1], mus[:,0], mus[:,1], AKs[:,0], AKs[:,1],
+                       MKs[:,0], MKs[:,1], Rss[:,0], Rss[:,1], Teffs[:,0],
+                       Teffs[:,1], Mss[:,0],Mss[:,1], loggs[:,0], loggs[:,1]]).T
+
+    if os.path.exists(fout) and not overwrite:
+        inarr = np.loadtxt(fout, delimiter=',')
+        assert inarr.shape[1] == outarr.shape[1]
+        np.savetxt(fout, np.append(inarr, outarr, axis=0),
+                   delimiter=',', header=hdr, fmt='%.8e')
+    else:
+        np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
+
+
+
+def get_data_from_fits_K2(epicnum):
     # download tar file
     # from https://archive.stsci.edu/hlsps/k2sff/
     campaigns = [0,1,2,3,4,5,6,7,8,91,92,102,111,112,12,13,14,15,16,17][::-1]
@@ -91,6 +149,30 @@ def get_data_from_fits(epicnum):
             return ra, dec, Kepmag, campaign
 
     return np.repeat(np.nan, 4)
+
+
+def get_data_from_fits_Kep(KICid):
+    # download tar file
+    dir2 = '%.9d'%KICid
+    dir1 = dir2[:4]
+    url = 'https://archive.stsci.edu/pub/kepler/lightcurves/'
+    url += '%s/%s'%(dir1,dir2)
+
+    # get fits files in the directory and download the LCs
+    fs = listFD(url, ext='.fits')
+    if fs.size > 0:
+        os.system('wget %s'%fs[0])
+        fname = str(fs[0]).split('/')[-1]
+        if os.path.exists(fname):
+            hdr = fits.open(fname)[0].header
+            os.system('rm %s'%fname)
+            ra, dec, Kepmag = hdr['RA_OBJ'], hdr['DEC_OBJ'], hdr['KEPMAG']
+            return ra, dec, Kepmag
+        else:
+            return np.repeat(np.nan, 3)
+    else:
+        return np.repeat(np.nan, 3)
+
 
 
 def query_one_star(ra_deg, dec_deg, radius_arcsec=10):
@@ -304,12 +386,21 @@ def MK2Ms(MK):
     
 
 if __name__ == '__main__':
-    ##fname = 'input_data/K2targets/K2Mdwarfsv1_gtr3300.csv'
-    fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
-    epicnums = np.loadtxt(fname, delimiter=',')[:,0]
+    #fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
+    #epicnums = np.loadtxt(fname, delimiter=',')[:,0]
+    #epicnums = epicnums[1000:]
+    #t0 = time.time()
+    #fout = 'input_data/K2targets/K2Mdwarfsv6_leq3300.csv'
+    #get_stellar_data_K2(epicnums, fout, overwrite=False)
+    #print 'Took %.3f min'%((time.time()-t0)/60.)
+    #send_email()
 
-    epicnums = epicnums[1000:]
+    fname = 'input_data/Keplertargets/kic10_search.csv'
+    fout = 'input_data/Keplertargets/KepMdwarfsv1.csv'
+    KICids = np.loadtxt(fname, delimiter=',', usecols=range(1))
+
+    KICids = KICids[:1000]
     t0 = time.time()
-    get_stellar_data(epicnums, overwrite=False)
+    get_stellar_data_Kep(KICids, fout, overwrite=True)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
