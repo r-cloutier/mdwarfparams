@@ -38,7 +38,14 @@ def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
     '''Boxbar bin the light curve.'''
     # check that the desired binning is coarser than the input sampling
     if np.diff(t).mean() > dt:
-	return t, f, ef
+	if include_edges:
+	    assert tfull.size > 1
+            tbin = np.append(np.append(tfull.min(), t), tfull.max())
+            fbin = np.append(np.append(np.median(f[:10]), f), np.median(f[-10:]))
+            efbin = np.append(np.append(np.median(ef[:10]), ef), np.median(ef[-10:]))
+	    return tbin, fbin, efbin
+	else:
+	    return t, f, ef
 
     Nbounds = int(np.floor((t.max()-t.min()) / dt))
     tbin, fbin, efbin = np.zeros(Nbounds-1), np.zeros(Nbounds-1), \
@@ -48,11 +55,9 @@ def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
 	tbin[i]  = t[inds].mean()
 	fbin[i]  = np.median(f[inds])
 	efbin[i] = np.mean(ef[inds]) / np.sqrt(inds.size)
-    ##plt.plot(t, f, 'k.')
-    ##plt.plot(tbin, fbin, 'bo')
-    ##plt.show()
     if include_edges:
 	assert tfull.size > 1
+	print tfull.min()
         tbin = np.append(np.append(tfull.min(), tbin), tfull.max())
 	fbin = np.append(np.append(np.median(f[:10]), fbin), np.median(f[-10:]))
         efbin = np.append(np.append(np.median(ef[:10]), efbin), np.median(ef[-10:]))
@@ -91,7 +96,7 @@ def initialize_GP_hyperparameters(bjd, f, ef, Pindex=0,
 
 
 def do_optimize_0(bjd, f, ef, quarters, N=10,
-                  Npntsmin=5e2, Npntsmax=1e3, Nsig=3, medkernel=99):
+                  Npntsmin=5e2, Npntsmax=1e3, Nsig=3, medkernel=9):
     '''First fit the PDC LC with GP and a no planet model using an optimization 
     routine and tested with N different initializations.'''
     # fit GP separately to each quarter (or K2 campaign)
@@ -103,13 +108,13 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
     # test various hyperparameter initializations and keep the one resulting
     # in the most gaussian-like residuals
     N = int(N)
-    pvalues, thetaGPs_in_tmp, thetaGPs_out_tmp = np.zeros((NGP,N)), \
-                                                 np.zeros((NGP,N,4)), \
-                                                 np.zeros((NGP,N,4))
+    thetaGPs_in_tmp, thetaGPs_out_tmp = np.zeros((NGP,N,4)), \
+                                        np.zeros((NGP,N,4))
     thetaGPs_in, thetaGPs_out = np.zeros((NGP,4)), np.zeros((NGP,4))
     for i in range(NGP):
         g1 = quarters == quarters[i]
-        
+       
+	pvalues = np.zeros(N) 
         for j in range(N):
             # get initial GP parameters (P, and l from periodogram)
             thetaGPs_in_tmp[i,j] = initialize_GP_hyperparameters(bjd[g1], f[g1],
@@ -130,16 +135,16 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
 
 	    # trim outliers and median filter to avoid fitting deep transits
             g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
-            #tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
-            #                          ef[g1][g], dt=dt)
-            tbin, fbin, efbin = boxcar(bjd[g1][g], f[g1][g], ef[g1][g], dt=dt)
+            tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                      ef[g1][g], dt=dt)
+            #tbin, fbin, efbin = boxcar(bjd[g1][g], f[g1][g], ef[g1][g], dt=dt)
             gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
                                                        tbin, fbin, efbin)
             # compute residuals and the normality test p-value
-            _,pvalues[i,j] = normaltest(fbin-mu)
+            _,pvalues[j] = normaltest(fbin-mu)
             
         # select the most gaussian-like residuals
-        g = np.argsort(pvalues[i])[::-1][0]
+        g = np.argsort(pvalues)[::-1][0]
         thetaGPs_in[i]  = thetaGPs_in_tmp[i,g]
         thetaGPs_out[i] = thetaGPs_out_tmp[i,g]
 
@@ -235,11 +240,13 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
 		  Plims=(.5,1e2)):
     '''Search for periodic transit-like events.'''
     # "detrend" the lc
-    detrend_LC(bjd, f, ef, quarters, thetaGPs)
+    detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin, Npntsmax, Nsig, medkernel)
+    assert self.ef.mean() > 0
 
     # do linear search first
     print 'Computing lnL over transit times and durations...\n'
     bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
+    self._pickleobject()
     transit_times, durations, lnLs, depths = llnl.linear_search(bjd, fcorr, ef)
     self.transit_times, self.durations = transit_times, durations
     self.lnLs_linearsearch, self.depths_linearsearch = lnLs, depths
@@ -276,7 +283,8 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
  
 
 
-def detrend_LC(bjd, f, ef, quarters, thetaGPs):
+def detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin, 
+	       Npntsmax, Nsig, medkernel):
     assert thetaGPs.shape[1] == 4
     NGP = thetaGPs.shape[0]
 
@@ -305,14 +313,14 @@ def detrend_LC(bjd, f, ef, quarters, thetaGPs):
                                    ef[g1][g], dt=dt, include_edges=True,
                                    tfull=bjd[g1])
         self.tbin, self.fbin, self.efbin = tbin, fbin, efbin
-        _, resultsGP, mubin, sigbin = _get_GP(thetaGPs[i], tbin, fbin, efbin) 
+        _, resultsGP, mubin, sigbin = _get_GP(thetaGPs[i], tbin, fbin, efbin)
         fintmu, fintsig = interp1d(tbin, mubin), interp1d(tbin, sigbin)
         mu[g1], sig[g1] = fintmu(bjd[g1]), fintsig(bjd[g1])
         fcorr[g1] = f[g1] - mu[g1] + 1 if mu[g1].sum() > 0 else f[g1] - mu[g1]
-        ef[g1] = np.repeat(llnl.MAD1d(fcorr[g1]), fcorr[g1].size)
+        #ef[g1] = np.repeat(llnl.MAD1d(fcorr[g1]), fcorr[g1].size)
 
     # save
-    self.bjd, self.f, self.ef = bjd, f, ef
+    self.bjd, self.f = bjd, f
     self.mu, self.sig, self.fcorr = mu, sig, fcorr
     self.resultsGP_detrend = thetaGPs
 

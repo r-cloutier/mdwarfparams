@@ -83,7 +83,8 @@ def linear_search(bjd, fcorr, ef):
     NT, ND = transit_times.size, durations.size
     lnLs, depths = np.zeros((NT,ND)), np.zeros((NT,ND))
     for i in range(NT):
-	print float(i) / NT
+	if i % 1e3 == 0:
+	    print float(i) / NT
 	for j in range(ND):
 	    theta = transit_times[i], durations[j]
 	    _,_,lnLs[i,j],depths[i,j] = get_depth_lnlike(theta, bjd, fcorr, ef)

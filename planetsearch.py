@@ -290,12 +290,12 @@ def planet_search(IDnum, K2=False, Kep=False):
     thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters)
     self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
     self._pickleobject()
- 
+
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print 'Searching for transit-like events...\n'
-    params, EBparams, maybeEBparams = find_transits(self, bjd, f, ef,
-                                                    quarters, thetaGPout)
+    params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f, self.ef,
+                                                    self.quarters, self.thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])

@@ -399,7 +399,7 @@ if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv1.csv'
     KICids = np.loadtxt(fname, delimiter=',', usecols=range(1))
 
-    KICids = KICids[1001:10000]
+    KICids = KICids[5000:6000]
     t0 = time.time()
     get_stellar_data_Kep(KICids, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
