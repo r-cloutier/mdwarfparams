@@ -343,7 +343,7 @@ def do_i_run_this_star(ID, K2=False, Kep=False):
         Kep = False
     elif Kep:
         kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
-        prefix = 'KICid'
+        prefix = 'KIC'
         g = kicids == ID
     else:
         return None
