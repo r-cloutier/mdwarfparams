@@ -144,9 +144,9 @@ def get_star(IDnum, K2=False, Kep=False):
     IDnums = d[:,0]
     g = IDnums == IDnum
     assert g.sum() == 1
-    # add fake column if Kepler (to replace K2campaign)
+    # if Kepler, add a fake column to replace K2campaign
     if d.shape[1] == 24:
-	d = np.insert(d, 3, np.zeros(d.shape[0]), axis=1)
+	d = np.insert(d, 3, np.repeat(np.nan,d.shape[0]), axis=1)
     star_info = d[g].reshape(25)
     IDtype = 'epicnum' if K2 else 'kicid'
     star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
@@ -273,7 +273,7 @@ def planet_search(IDnum, K2=False, Kep=False):
         name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
         Kepler = False
     elif Kep:
-	KICnum = IDnum
+        KICnum = IDnum
         name, star_dict, bjd, f, ef, quarters = read_Kepler_data(KICnum)
     else:
         return None

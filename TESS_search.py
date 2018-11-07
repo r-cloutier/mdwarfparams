@@ -112,9 +112,9 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
                                         np.zeros((NGP,N,4))
     thetaGPs_in, thetaGPs_out = np.zeros((NGP,4)), np.zeros((NGP,4))
     for i in range(NGP):
-        g1 = quarters == quarters[i]
+        g1 = quarters == i
        
-	pvalues = np.zeros(N) 
+        pvalues = np.zeros(N) 
         for j in range(N):
             # get initial GP parameters (P, and l from periodogram)
             thetaGPs_in_tmp[i,j] = initialize_GP_hyperparameters(bjd[g1], f[g1],
@@ -133,7 +133,7 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
             else:
                 dt = timescale_to_resolve
 
-	    # trim outliers and median filter to avoid fitting deep transits
+            # trim outliers and median filter to avoid fitting deep transits
             g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
             tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
                                       ef[g1][g], dt=dt)
