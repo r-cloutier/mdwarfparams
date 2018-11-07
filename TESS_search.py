@@ -59,10 +59,10 @@ def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
 	efbin[i] = np.mean(ef[inds]) / np.sqrt(inds.size)
     if include_edges:
 	assert tfull.size > 1
-	print tfull.min()
         tbin = np.append(np.append(tfull.min(), tbin), tfull.max())
 	fbin = np.append(np.append(np.median(f[:10]), fbin), np.median(f[-10:]))
-        efbin = np.append(np.append(np.median(ef[:10]), efbin), np.median(ef[-10:]))
+        efbin = np.append(np.append(np.median(ef[:10]), efbin),
+                          np.median(ef[-10:]))
     return tbin, fbin, efbin
 
 
@@ -253,8 +253,8 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
 
     # do linear search first
     print 'Computing lnL over transit times and durations...\n'
-    bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
     self._pickleobject()
+    bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
     transit_times, durations, lnLs, depths = llnl.linear_search(bjd, fcorr, ef)
     self.transit_times, self.durations = transit_times, durations
     self.lnLs_linearsearch, self.depths_linearsearch = lnLs, depths

@@ -66,7 +66,8 @@ def read_Kepler_data(KICid):
     star_dict = get_star(KICid, Kep=True)
     g = (np.isfinite(bjd)) & (np.isfinite(f)) & (np.isfinite(ef))
     s = np.argsort(bjd[g])
-    return 'KIC_%i'%KICid, star_dict, bjd[g][s], f[g][s], ef[g][s], quarters[g][s]
+    return 'KIC_%i'%KICid, star_dict, bjd[g][s], f[g][s], ef[g][s], \
+        quarters[g][s]
 
 
 def listFD(url, ext=''):
@@ -137,20 +138,30 @@ def read_K2_data(epicnum):
     return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
 
 
-def get_star(IDnum, K2=False, Kep=False):
-    infile = K2Mdwarffile if K2 else KepMdwarffile
-    print infile
+def get_star(IDnum, Kep=False, K2=False, TESS=False):
+    if Kep:
+        infile = KepMdwarffile
+        IDtype, sector = 'kicid', 'N/A'
+    elif K2:
+        infile = K2Mdwarffile
+        IDtype, sector = 'epicnum', 'K2campaign'
+    elif TESS:
+        infile = TESSMdwarffile
+        IDtype, sector = 'ticid', 'TESSsector'
+    else:
+        raise ValueError('Must select one of Kep, K2, or TESS')
+
     d = np.loadtxt(infile, delimiter=',')
+    # if Kepler, add a fake column to replace K2campaign/TESSsector
+    if Kep:
+	d = np.insert(d, 3, np.repeat(np.nan,d.shape[0]), axis=1)
+
     IDnums = d[:,0]
     g = IDnums == IDnum
     assert g.sum() == 1
-    # if Kepler, add a fake column to replace K2campaign
-    if d.shape[1] == 24:
-	d = np.insert(d, 3, np.repeat(np.nan,d.shape[0]), axis=1)
     star_info = d[g].reshape(25)
-    IDtype = 'epicnum' if K2 else 'kicid'
     star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
-                 'dec': star_info[2], 'K2campaign': star_info[3],
+                 'dec': star_info[2], sector: star_info[3],
                  'Kepmag': star_info[4], 'par': star_info[5],
                  'e_par': star_info[6], 'Kmag': star_info[7],
                  'e_Kmag': star_info[8], 'dist': star_info[9],
@@ -165,11 +176,9 @@ def get_star(IDnum, K2=False, Kep=False):
     return star_dict
 
 
-def is_star_of_interest(IDnum, Kep=False):
-    '''Return True is star obeys the desired conditions'''
-    K2 = not Kep
-    star_dict = get_star(IDnum, K2=K2)
-    # 3083 K2 M dwarfs w/ Kepmag<15.2
+def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
+    '''Return True if star obeys the desired conditions'''
+    star_dict = get_star(IDnum, Kep=Kep, K2=K2, TESS=TESS)
     return (star_dict['Ms'] <= .75) & \
         (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
         (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
@@ -320,7 +329,6 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     #self.params_guess_final = get_planet_detections(self.evidence_ratios,
     #                                                self.params_guess)
     #self.Ndet = self.params_guess_final.shape[0]
-
     self.DONE = True
     self._pickleobject()
     
