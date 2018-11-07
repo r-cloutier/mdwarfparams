@@ -261,23 +261,30 @@ def get_planet_detections(evidence_ratios, params_guess):
     return params_guess_out[s]
         
 
-def planet_search(IDnum, K2=False, Kep=False):
+def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     '''Run a planet search on an input Kepler or K2 light curve using the 
     pipeline defined in compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
     if not is_star_of_interest(IDnum, Kep=Kep):
         return None
-    if K2:
-	epicnum = IDnum
-        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
-        Kepler = False
-    elif Kep:
-        KICnum = IDnum
+
+    # get parameters depending on the inut light curves
+    if Kep:
+        KICnum, Nopt = IDnum, 5
         name, star_dict, bjd, f, ef, quarters = read_Kepler_data(KICnum)
+        K2, TESS = False, False
+    elif K2:
+	epicnum, Nopt = IDnum, 10
+        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
+        Kep, TESS = False, False
+    elif TESS:
+        TICnum, Nopt = IDnum, 10
+        name, star_dict, bjd, f, ef, quarters = read_TESS_data(TICnum)
+        Kep, K2 = False, False
     else:
-        return None
-        
+        raise ValueError('Must select one of Kep, K2, or TESS')
+
     # save stellar data and time-series
     self = LCclass(name, -99)  # -99 is unique to planet_search
     self.bjd, self.f, self.ef, self.quarters = bjd, f, ef, quarters
@@ -287,15 +294,16 @@ def planet_search(IDnum, K2=False, Kep=False):
     self._pickleobject()
 
     # fit initial GP hyperparams for each quarter
-    thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters)
+    thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters, N=Nopt)
     self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
     self._pickleobject()
 
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print 'Searching for transit-like events...\n'
-    params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f, self.ef,
-                                                    self.quarters, self.thetaGPout)
+    params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
+                                                    self.ef, self.quarters,
+                                                    self.thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])

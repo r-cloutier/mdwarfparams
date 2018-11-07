@@ -41,8 +41,10 @@ def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
 	if include_edges:
 	    assert tfull.size > 1
             tbin = np.append(np.append(tfull.min(), t), tfull.max())
-            fbin = np.append(np.append(np.median(f[:10]), f), np.median(f[-10:]))
-            efbin = np.append(np.append(np.median(ef[:10]), ef), np.median(ef[-10:]))
+            fbin = np.append(np.append(np.median(f[:10]), f), \
+                             np.median(f[-10:]))
+            efbin = np.append(np.append(np.median(ef[:10]), ef),
+                              np.median(ef[-10:]))
 	    return tbin, fbin, efbin
 	else:
 	    return t, f, ef
@@ -200,8 +202,8 @@ def save_fits(arr, fname):
 
 
 def _optimize_GP(thetaGP, x, res, ey):
-    '''Optimize the GP parameters of a mean-subtracted time-series and return the 
-    mean GP model.'''
+    '''Optimize the GP parameters of a mean-subtracted time-series and return 
+    the mean GP model.'''
     assert len(thetaGP) == 4
     a, l, G, Pgp = np.exp(thetaGP)
     k1 = george.kernels.ExpSquaredKernel(l)
@@ -214,7 +216,8 @@ def _optimize_GP(thetaGP, x, res, ey):
     	mu, cov = gp.predict(res, x)
     	sig = np.sqrt(np.diag(cov))
     except (ValueError, np.linalg.LinAlgError):
-	gp, results, mu, sig = None, np.zeros(len(thetaGP)), np.zeros(x.size), np.zeros(x.size)
+	gp, results, mu, sig = None, np.zeros(len(thetaGP)), np.zeros(x.size), \
+                               np.zeros(x.size)
     return gp, results, mu, sig
 
 
@@ -229,9 +232,10 @@ def _get_GP(thetaGP, x, res, ey):
         gp.compute(x, ey)
         mu, cov = gp.predict(res, x)
         sig = np.sqrt(np.diag(cov))
-	results = thetaGP
+        results = thetaGP
     except (ValueError, np.linalg.LinAlgError):
-        gp, results, mu, sig = None, np.zeros(len(thetaGP)), np.zeros(x.size), np.zeros(x.size)
+        gp, results, mu, sig = None, np.zeros(len(thetaGP)), np.zeros(x.size), \
+                               np.zeros(x.size)
     return gp, results, mu, sig
 
 
@@ -239,8 +243,12 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                   Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3,
 		  Plims=(.5,1e2)):
     '''Search for periodic transit-like events.'''
+    assert not np.all(ef == 0)
+    assert np.unique(quarters).size == thetaGPs.shape[0]
+
     # "detrend" the lc
-    detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin, Npntsmax, Nsig, medkernel)
+    detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin, Npntsmax,
+               Nsig, medkernel)
     assert self.ef.mean() > 0
 
     # do linear search first
@@ -272,8 +280,9 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
     POIs, T0OIs, DOIs, ZOIs, lnLOIs, params, EBparams, maybeEBparams = \
                         llnl.identify_transit_candidates(self, Ps, T0s, Ds, Zs,
                                                          lnLs_transit,
-                                                         durations.size, self.Rs,
-                                                         bjd, fcorr, ef)
+                                                         durations.size,
+                                                         self.Rs, bjd, fcorr,
+                                                         ef)
     self.POIs, self.T0OIs, self.DOIs, self.ZOIs, self.lnLOIs = POIs, T0OIs, \
                                                                DOIs, ZOIs, \
                                                                lnLOIs
@@ -288,8 +297,9 @@ def detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin,
     assert thetaGPs.shape[1] == 4
     NGP = thetaGPs.shape[0]
 
+    self.tbin, self.fbin, self.efbin = np.zeros(0), np.zeros(0), np.zeros(0) 
     mu, sig = np.zeros(bjd.size), np.zeros(bjd.size)
-    fcorr, ef = np.zeros(bjd.size), np.zeros(bjd.size)
+    fcorr = np.zeros(bjd.size)
     for i in range(NGP):
         
         Prot = np.exp(thetaGPs[i,3])
@@ -298,7 +308,7 @@ def detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin,
                                Npnts_per_timescale
 
         # bin the light curve
-        g1 = quarters == quarters[i]
+        g1 = quarters == i
         Ttot = bjd[g1].max() - bjd[g1].min()
         if Ttot/timescale_to_resolve < Npntsmin:
             dt = Ttot / Npntsmin
@@ -312,15 +322,19 @@ def detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin,
         tbin, fbin, efbin = boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
                                    ef[g1][g], dt=dt, include_edges=True,
                                    tfull=bjd[g1])
-        self.tbin, self.fbin, self.efbin = tbin, fbin, efbin
-        _, resultsGP, mubin, sigbin = _get_GP(thetaGPs[i], tbin, fbin, efbin)
+        self.tbin  = np.append(self.tbin, tbin)
+        self.fbin  = np.append(self.fbin, fbin)
+        self.efbin = np.append(self.efbin, efbin)
+
+        # fit the GP model and save
+        _,resultsGP, mubin, sigbin = _get_GP(thetaGPs[i], tbin, fbin, efbin)
         fintmu, fintsig = interp1d(tbin, mubin), interp1d(tbin, sigbin)
         mu[g1], sig[g1] = fintmu(bjd[g1]), fintsig(bjd[g1])
         fcorr[g1] = f[g1] - mu[g1] + 1 if mu[g1].sum() > 0 else f[g1] - mu[g1]
-        #ef[g1] = np.repeat(llnl.MAD1d(fcorr[g1]), fcorr[g1].size)
+        ##ef[g1] = np.repeat(llnl.MAD1d(fcorr[g1]), fcorr[g1].size)
 
     # save
-    self.bjd, self.f = bjd, f
+    self.bjd, self.f, self.ef = bjd, f, ef
     self.mu, self.sig, self.fcorr = mu, sig, fcorr
     self.resultsGP_detrend = thetaGPs
 
@@ -387,4 +401,4 @@ def main(fname):
 
 if __name__ == '__main__':
     fname = sys.argv[1]
-    main(fname)
+    #main(fname)
