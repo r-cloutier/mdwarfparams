@@ -309,7 +309,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
 
     # search for transits in the corrected LC and get the transit parameters
     # guesses
-    print 'Searching for transit-like events...\n'
+    print '\nSearching for transit-like events...\n'
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
                                                     self.ef, self.quarters,
                                                     self.thetaGPout)

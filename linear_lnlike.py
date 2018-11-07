@@ -47,10 +47,43 @@ def box_transit_model_time(theta, t):
     return fmodel
 
 
-def get_depth_lnlike(theta, bjd, fcorr, ef, depthmax=.1, N=2e2):
+def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
+    '''Boxbar bin the light curve.'''
+    # check that the desired binning is coarser than the input sampling
+    if np.diff(t).mean() > dt:
+	if include_edges:
+	    assert tfull.size > 1
+            tbin = np.append(np.append(tfull.min(), t), tfull.max())
+            fbin = np.append(np.append(np.median(f[:10]), f), \
+                             np.median(f[-10:]))
+            efbin = np.append(np.append(np.median(ef[:10]), ef),
+                              np.median(ef[-10:]))
+	    return tbin, fbin, efbin
+	else:
+	    return t, f, ef
+
+    Nbounds = int(np.floor((t.max()-t.min()) / dt))
+    tbin, fbin, efbin = np.zeros(Nbounds-1), np.zeros(Nbounds-1), \
+			np.zeros(Nbounds-1)
+    for i in range(Nbounds-1):
+  	inds = np.arange(t.size/Nbounds) + i*t.size/Nbounds
+	tbin[i]  = t[inds].mean()
+	fbin[i]  = np.median(f[inds])
+	efbin[i] = np.mean(ef[inds]) / np.sqrt(inds.size)
+    if include_edges:
+	assert tfull.size > 1
+        tbin = np.append(np.append(tfull.min(), tbin), tfull.max())
+	fbin = np.append(np.append(np.median(f[:10]), fbin), np.median(f[-10:]))
+        efbin = np.append(np.append(np.median(ef[:10]), efbin),
+                          np.median(ef[-10:]))
+    return tbin, fbin, efbin
+
+
+def get_depth_lnlike(theta, bjd, fcorr, ef, depthmax=.1, N=1e2):
     '''Given a transit time and duration, get the max lnL depth and its lnL.'''
     # sample depths
     depthmin, N = np.median(ef), int(N)
+    assert depthmin > 0
     depths = 10**(np.random.uniform(np.log10(depthmin), np.log10(depthmax), N))
 
     # compute lnLs of the depths given a transit time and duration
@@ -76,7 +109,7 @@ def linear_search(bjd, fcorr, ef):
     '''Evaluate the lnL as a function of transit duration and 
     transit time/epoch of a transit.'''
     # setup transit time and duration grids
-    transit_times = np.arange(bjd.min(), bjd.max(), 30./60/24)
+    transit_times,_,_ = boxcar(bjd, fcorr, ef, dt=30./60/24)
     durations = np.array([1.2,2.4,4.8]) / 24  # coarse grid in transit duration
 
     # get max lnL depth over the linear grid of transit times and durations

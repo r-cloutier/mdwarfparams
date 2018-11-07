@@ -34,38 +34,6 @@ def get_lc(hdu):
     return hdr, t, f, ef
 
 
-def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
-    '''Boxbar bin the light curve.'''
-    # check that the desired binning is coarser than the input sampling
-    if np.diff(t).mean() > dt:
-	if include_edges:
-	    assert tfull.size > 1
-            tbin = np.append(np.append(tfull.min(), t), tfull.max())
-            fbin = np.append(np.append(np.median(f[:10]), f), \
-                             np.median(f[-10:]))
-            efbin = np.append(np.append(np.median(ef[:10]), ef),
-                              np.median(ef[-10:]))
-	    return tbin, fbin, efbin
-	else:
-	    return t, f, ef
-
-    Nbounds = int(np.floor((t.max()-t.min()) / dt))
-    tbin, fbin, efbin = np.zeros(Nbounds-1), np.zeros(Nbounds-1), \
-			np.zeros(Nbounds-1)
-    for i in range(Nbounds-1):
-  	inds = np.arange(t.size/Nbounds) + i*t.size/Nbounds
-	tbin[i]  = t[inds].mean()
-	fbin[i]  = np.median(f[inds])
-	efbin[i] = np.mean(ef[inds]) / np.sqrt(inds.size)
-    if include_edges:
-	assert tfull.size > 1
-        tbin = np.append(np.append(tfull.min(), tbin), tfull.max())
-	fbin = np.append(np.append(np.median(f[:10]), fbin), np.median(f[-10:]))
-        efbin = np.append(np.append(np.median(ef[:10]), efbin),
-                          np.median(ef[-10:]))
-    return tbin, fbin, efbin
-
-
 def initialize_GP_hyperparameters(bjd, f, ef, Pindex=0,
                                   Npntsmin=5e2, Npntsmax=1e3):
     '''Guess initial values of the GP hyperparameters.'''
@@ -92,7 +60,7 @@ def initialize_GP_hyperparameters(bjd, f, ef, Pindex=0,
         dt = Ttot / Npntsmax
     else:
         dt = timescale_to_resolve
-    tbin, fbin, efbin = boxcar(bjd, f, ef, dt=dt)
+    tbin, fbin, efbin = llnl.boxcar(bjd, f, ef, dt=dt)
     lna = np.log(np.max(abs(fbin-fbin.mean())) * .75)
     return lna, lnl, lnG, lnP#, s
 
@@ -137,9 +105,8 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
 
             # trim outliers and median filter to avoid fitting deep transits
             g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
-            tbin, fbin, efbin =boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
-                                      ef[g1][g], dt=dt)
-            #tbin, fbin, efbin = boxcar(bjd[g1][g], f[g1][g], ef[g1][g], dt=dt)
+            tbin, fbin, efbin = llnl.boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                            ef[g1][g], dt=dt)
             gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
                                                        tbin, fbin, efbin)
             # compute residuals and the normality test p-value
@@ -187,7 +154,7 @@ def do_mcmc_N(thetaGP, params, bjd, f, ef, Nmcmc_pnts=3e2,
         dt = (bjd.max()-bjd.min())/Nmcmc_pnts 
     else: 
         dt = Prot/4.
-    tbin, fbin, efbin = boxcar(bjd,f,ef,dt=dt)
+    tbin, fbin, efbin = llnl.boxcar(bjd,f,ef,dt=dt)
     theta_full = np.append(thetaGP, theta)
     sampler, samples = mcmcN.run_emcee(theta_full, tbin, fbin, efbin,
                                        initialize, nwalkers=nwalkers,
@@ -259,14 +226,15 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
     self.transit_times, self.durations = transit_times, durations
     self.lnLs_linearsearch, self.depths_linearsearch = lnLs, depths
     self.SNRs_linearsearch = (lnLs-np.median(lnLs, axis=0)) / llnl.MAD2d(lnLs)
-
+    self._pickleobject()
+    
     # get transit candidates and initial parameters guesses
     print 'Computing lnL over periods and mid-transit times...\n'
     Ps, T0s, Ds, Zs, lnLs_transit = llnl.compute_transit_lnL(bjd, fcorr, ef,
                                                              transit_times,
                                                              durations, lnLs,
                                                              depths, SNRthresh)
-    # set period limit 
+    # set period limit
     Pmin, Pmax = Plims
     g = (Ps >= Pmin) & (Ps <= Pmax)
     Ps, T0s, Ds, Zs, lnLs_transit = Ps[g], T0s[g], Ds[g], Zs[g], lnLs_transit[g]
@@ -319,9 +287,9 @@ def detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin,
             
         # trim outliers and median filter to avoid fitting deep transits
         g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
-        tbin, fbin, efbin = boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
-                                   ef[g1][g], dt=dt, include_edges=True,
-                                   tfull=bjd[g1])
+        tbin, fbin, efbin = llnl.boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                        ef[g1][g], dt=dt, include_edges=True,
+                                        tfull=bjd[g1])
         self.tbin  = np.append(self.tbin, tbin)
         self.fbin  = np.append(self.fbin, fbin)
         self.efbin = np.append(self.efbin, efbin)
