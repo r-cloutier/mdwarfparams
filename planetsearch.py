@@ -63,12 +63,61 @@ def read_Kepler_data(KICid):
         ef = np.append(ef, eftmp)
         quarters = np.append(quarters, np.zeros(ftmp.size)+i)
 
+    # limit Kepler baseline to save on computational expense
+    bjd, f, ef, quarters = _reduce_Kepler_baseline(bjd, f, ef, quarters)
+        
     star_dict = get_star(KICid, Kep=True)
+    return 'KIC_%i'%KICid, star_dict, bjd, f, ef, quarters
+
+
+def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
+    '''Q0-Q17 baselines are ~1440 days (~3.9 years) so searching for individual 
+    transits in the linear search phase is cripplingly expensive (compared to K2 
+    with 80 day baselines). For my M-dwarf occurrence rate calculations I am only 
+    concered with P<=100 days. In a light curve with 100 ppm measurement 
+    uncertainties, an Earth-sized planet around a 0.5 RSun star has a
+    SNR = 3.35*sqrt(N_transits) so only 2-3 transits are needed for a detection 
+    so the maximum baseline is set to 2-3 times Pmax or ~300 days. Let's make it 
+    270 since many Kepler quarters are ~90 days in length.'''  
+    assert bjd.size == f.size
+    assert bjd.size == ef.size
+    assert bjd.size == quarters.size
+
+    # clean
     g = (np.isfinite(bjd)) & (np.isfinite(f)) & (np.isfinite(ef))
     s = np.argsort(bjd[g])
-    return 'KIC_%i'%KICid, star_dict, bjd[g][s], f[g][s], ef[g][s], \
-        quarters[g][s]
+    bjd, f, ef, quarters = bjd[g][s], f[g][s], ef[g][s], quarters[g][s]
 
+    # get each quarters duration and median uncertainty
+    NQ = np.unique(quarters).size
+    med_ef_quarter, dur_quarter = np.zeros(NQ), np.zeros(NQ)
+    for i in range(NQ):
+        g = quarters == i
+        med_ef_quarter[i] = np.median(ef[g])
+        dur_quarter[i] = bjd[g].max() - bjd[g].min()
+    
+    # take the least noisy consecutive quarters that encapsulate tmax days
+    found_match, Nconsecutive_quarters = False, 5
+    while not found_match:
+        i = Nconsecutive_quarters + 0
+        dur_combine, avg_ef_combine = np.zeros(NQ-i+1), np.zeros(NQ-i+1)
+        for j in range(NQ-i+1):
+            dur_combine[j] = np.sum(dur_quarter[j:j+i])
+            avg_ef_combine[j] = np.mean(med_ef_quarter[j:j+i])
+        # do we have something close to tmax?
+        g = np.isclose(dur_combine, tmax, rtol=.1)
+        found_match = np.any(g)
+        Nconsecutive_quarters -= 1
+
+    # save quarters
+    start = np.where(g)[0][avg_ef_combine[g] == np.min(avg_ef_combine[g])]
+    quarter_inds = np.arange(int(start), int(start)+i)
+    g1 = np.in1d(quarters, quarter_inds)
+    bjd, f, ef, quarters = bjd[g1], f[g1], ef[g1], quarters[g1]
+    quarters -= quarters.min()   # start indexing from 0 
+    return bjd, f, ef, quarters
+
+        
 
 def listFD(url, ext=''):
     '''List the contents of an https directory.'''
