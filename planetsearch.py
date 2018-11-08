@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
-KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv2.csv'
+KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv3.csv'
 threshBayesfactor = 1e2
 
 
@@ -90,6 +90,9 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
 
     # get each quarters duration and median uncertainty
     NQ = np.unique(quarters).size
+    if NQ < 3:
+	return np.repeat(np.nan, 4)
+
     med_ef_quarter, dur_quarter = np.zeros(NQ), np.zeros(NQ)
     for i in range(NQ):
         g = quarters == i
@@ -344,6 +347,10 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
         Kep, K2 = False, False
     else:
         raise ValueError('Must select one of Kep, K2, or TESS')
+
+    # stop if bad time-series
+    if np.any(np.isnan(bjd)):
+	return None
 
     # save stellar data and time-series
     self = LCclass(name, -99)  # -99 is unique to planet_search
