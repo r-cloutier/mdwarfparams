@@ -98,7 +98,7 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
     
     # take the least noisy consecutive quarters that encapsulate tmax days
     found_match, Nconsecutive_quarters = False, 5
-    while not found_match:
+    while (not found_match) and (Nconsecutive_quarters >= 3):
         i = Nconsecutive_quarters + 0
         dur_combine, avg_ef_combine = np.zeros(NQ-i+1), np.zeros(NQ-i+1)
         for j in range(NQ-i+1):
@@ -110,6 +110,8 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
         Nconsecutive_quarters -= 1
 
     # save quarters
+    if not found_match:
+        g = np.ones(NQ-i+1).astype(bool)
     start = np.where(g)[0][avg_ef_combine[g] == np.min(avg_ef_combine[g])]
     quarter_inds = np.arange(int(start), int(start)+i)
     g1 = np.in1d(quarters, quarter_inds)
