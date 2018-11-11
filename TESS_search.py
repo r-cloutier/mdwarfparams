@@ -217,6 +217,7 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
     detrend_LC(self, bjd, f, ef, quarters, thetaGPs, Npntsmin, Npntsmax,
                Nsig, medkernel)
     assert self.ef.mean() > 0
+    fcorr = self.fcorr    
 
     # do linear search first
     print 'Computing lnL over transit times and durations...\n'
