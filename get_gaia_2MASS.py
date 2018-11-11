@@ -3,7 +3,7 @@ from imports import *
 from query_gaia_2MASS import *
 
 
-def get_initial_KIC_data(fout):
+def get_initial_KepID_data(fout):
     '''Get the available data for the Kepler-GAIA cross-matched stars.'''
     # get cross-matach results with different search radii
     fs = np.sort(glob.glob('input_data/Keplertargets/kepler_dr2_*fits'))
@@ -21,6 +21,7 @@ def get_initial_KIC_data(fout):
     Kepmags = np.zeros(0)
     pars = np.zeros(0)
     e_pars = np.zeros(0)
+    Teff_tmp = np.zeros(0)
     Jmags = np.zeros(0)
     Hmags = np.zeros(0)
     Kmags = np.zeros(0)
@@ -46,9 +47,17 @@ def get_initial_KIC_data(fout):
         Kepmags = np.append(Kepmags, f['kepmag'])
         pars = np.append(pars, f['parallax']) + .029  # systemic correction
         e_pars = np.append(e_pars, f['parallax_error'])
+        Teff_tmp = np.append(Teff_tmp, f['teff'])
         Jmags = np.append(Jmags, f['jmag'])
         Hmags = np.append(Hmags, f['hmag'])
         Kmags = np.append(Kmags, f['kmag'])
+
+    # make intitial list of M dwarfs
+    g = Teff_tmp <= 4200
+    KepIDs, ras, decs, ls, bs = KepIDs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, e_GBPmags, GRPmags, e_GRPmags = GBPmags[g], e_GBPmags[g], GRPmags[g], e_GRPmags[g]
+    Kepmags, pars, e_pars, Teff_tmp = Kepmags[g], pars[g], e_pars[g], Teff_tmp[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
 
     # get 2MASS uncertainties which are not included in the cross-match data
     e_Jmags, e_Hmags, e_Kmags = get_2MASS(ras, decs, Jmags, Hmags, Kmags)
@@ -56,7 +65,7 @@ def get_initial_KIC_data(fout):
           'e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag'
     outarr_tmp = np.array([KepIDs, ras, decs, Kepmags, pars, e_pars, Jmags,
                            e_Jmags, Hmags, e_Hmags, Kmags, e_Kmags]).T
-    np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
+    np.savetxt(fout, outarr_tmp, delimiter=',', header=hdr, fmt='%.8e')
     
     
     # compute quantities
@@ -144,4 +153,4 @@ def gaia2Teff(GBPmag, GRPmag, Jmag, Hmag):
 
 if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv5.csv'
-    get_initial_KIC_data(fout)
+    get_initial_KepID_data(fout)

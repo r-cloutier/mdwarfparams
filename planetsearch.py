@@ -17,7 +17,7 @@ KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv3.csv'
 threshBayesfactor = 1e2
 
 
-def read_Kepler_data(KICid):
+def read_Kepler_data(Kepid):
     # make directories
     try:
 	os.mkdir('MAST')
@@ -27,7 +27,7 @@ def read_Kepler_data(KICid):
 	os.mkdir('MAST/Kepler')
     except OSError:
 	pass
-    folder2 = 'MAST/Kepler/KIC%.9d'%KICid
+    folder2 = 'MAST/Kepler/KepID%.9d'%Kepid
     try:
        	os.mkdir(folder2)
     except OSError:
@@ -36,7 +36,7 @@ def read_Kepler_data(KICid):
     # download LC files if not already
     fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
     if fnames.size == 0:
-        dir2 = '%.9d'%KICid
+        dir2 = '%.9d'%Kepid
         dir1 = dir2[:4]
         url = 'https://archive.stsci.edu/pub/kepler/lightcurves/'
         url += '%s/%s'%(dir1,dir2)
@@ -66,8 +66,8 @@ def read_Kepler_data(KICid):
     # limit Kepler baseline to save on computational expense
     bjd, f, ef, quarters = _reduce_Kepler_baseline(bjd, f, ef, quarters)
         
-    star_dict = get_star(KICid, Kep=True)
-    return 'KIC_%i'%KICid, star_dict, bjd, f, ef, quarters
+    star_dict = get_star(Kepid, Kep=True)
+    return 'KepID_%i'%Kepid, star_dict, bjd, f, ef, quarters
 
 
 def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
@@ -334,8 +334,8 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
 
     # get parameters depending on the inut light curves
     if Kep:
-        KICnum, Nopt = IDnum, 5
-        name, star_dict, bjd, f, ef, quarters = read_Kepler_data(KICnum)
+        Kepnum, Nopt = IDnum, 5
+        name, star_dict, bjd, f, ef, quarters = read_Kepler_data(Kepnum)
         K2, TESS = False, False
     elif K2:
 	epicnum, Nopt = IDnum, 10
@@ -401,7 +401,7 @@ def do_i_run_this_star(ID, K2=False, Kep=False):
         Kep = False
     elif Kep:
         kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
-        prefix = 'KIC'
+        prefix = 'KepID'
         g = kicids == ID
     else:
         return None

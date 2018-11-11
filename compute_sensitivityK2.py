@@ -19,7 +19,7 @@ def remove_detected_planets(epicnum, prefix, bjd, f):
     light curve before searching for injected planets.'''
     # get planet search results
     try:
-	prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+	prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
         d = loadpickle('PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix))
     except IOError:
         raise ValueError('initial planet search has not been run.')
@@ -152,7 +152,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 
 def do_i_run_this_sim(epicnum, prefix, index):
     # check if planet search has already been run
-    prefix2 = 'EPIC' if prefix == 'K2' else 'KIC'
+    prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
     fname = 'PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix)
     if os.path.exists(fname) and loadpickle(fname).DONE:
         

@@ -70,9 +70,9 @@ def get_stellar_data_K2(epicnums, fout, radius_arcsec=10, overwrite=False):
 
 
         
-def get_stellar_data_Kep(KICids, fout, radius_arcsec=10, overwrite=False):
+def get_stellar_data_Kep(Kepids, fout, radius_arcsec=10, overwrite=False):
     
-    Nstars = KICids.size
+    Nstars = Kepids.size
     radius_arcsec_orig = radius_arcsec+0
     ras, decs = np.zeros(Nstars), np.zeros(Nstars)
     Kepmags = np.zeros(Nstars)
@@ -81,12 +81,12 @@ def get_stellar_data_Kep(KICids, fout, radius_arcsec=10, overwrite=False):
     AKs, MKs = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     Teffs, Mss = np.zeros((Nstars,2)), np.zeros((Nstars,2))
     Rss, loggs = np.zeros((Nstars, 2)), np.zeros((Nstars, 2))
-    for i in range(KICids.size):
+    for i in range(Kepids.size):
 
-        print float(i) / KICids.size
+        print float(i) / Kepids.size
         
         # download fits header and get coordinates
-        ras[i],decs[i],Kepmags[i] = get_data_from_fits_Kep(KICids[i])
+        ras[i],decs[i],Kepmags[i] = get_data_from_fits_Kep(Kepids[i])
         
         # search gaia and 2MASS until we find a likely match
         # based on photometry
@@ -110,10 +110,10 @@ def get_stellar_data_Kep(KICids, fout, radius_arcsec=10, overwrite=False):
             loggs[i] = unp.nominal_values(logg), unp.std_devs(logg)
             
     # save results
-    hdr = 'KICid,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,'+ \
+    hdr = 'Kepid,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,'+ \
           'Kmag,e_Kmag,dist_pc,e_dist,mu,e_mu,AK,e_AK,MK,e_MK,Rs_RSun,e_Rs,'+ \
           'Teff_K,e_Teff,Ms_MSun,e_Ms,logg_dex,e_logg'
-    outarr = np.array([KICids, ras, decs, Kepmags, pars[:,0],
+    outarr = np.array([Kepids, ras, decs, Kepmags, pars[:,0],
                        pars[:,1], Kmags[:,0], Kmags[:,1], dists[:,0],
                        dists[:,1], mus[:,0], mus[:,1], AKs[:,0], AKs[:,1],
                        MKs[:,0], MKs[:,1], Rss[:,0], Rss[:,1], Teffs[:,0],
@@ -151,9 +151,9 @@ def get_data_from_fits_K2(epicnum):
     return np.repeat(np.nan, 4)
 
 
-def get_data_from_fits_Kep(KICid):
+def get_data_from_fits_Kep(Kepid):
     # download tar file
-    dir2 = '%.9d'%KICid
+    dir2 = '%.9d'%Kepid
     dir1 = dir2[:4]
     url = 'https://archive.stsci.edu/pub/kepler/lightcurves/'
     url += '%s/%s'%(dir1,dir2)
@@ -397,10 +397,10 @@ if __name__ == '__main__':
 
     fname = 'input_data/Keplertargets/kic10_search.csv'
     fout = 'input_data/Keplertargets/KepMdwarfsv1.csv'
-    KICids = np.loadtxt(fname, delimiter=',', usecols=range(1))
+    Kepids = np.loadtxt(fname, delimiter=',', usecols=range(1))
 
-    KICids = KICids[30000:]
+    Kepids = Kepids[30000:]
     t0 = time.time()
-    get_stellar_data_Kep(KICids, fout, overwrite=False)
+    get_stellar_data_Kep(Kepids, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
