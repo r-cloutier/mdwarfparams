@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
-KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv3.csv'
+KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv9.csv'
 threshBayesfactor = 1e2
 
 
@@ -195,7 +195,7 @@ def read_K2_data(epicnum):
 def get_star(IDnum, Kep=False, K2=False, TESS=False):
     if Kep:
         infile = KepMdwarffile
-        IDtype, sector = 'kicid', 'N/A'
+        IDtype, sector = 'kepid', 'N/A'
     elif K2:
         infile = K2Mdwarffile
         IDtype, sector = 'epicnum', 'K2campaign'
@@ -208,25 +208,45 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
     d = np.loadtxt(infile, delimiter=',')
     # if Kepler, add a fake column to replace K2campaign/TESSsector
     if Kep:
-	d = np.insert(d, 3, np.repeat(np.nan,d.shape[0]), axis=1)
-
-    IDnums = d[:,0]
-    g = IDnums == IDnum
-    assert g.sum() == 1
-    star_info = d[g].reshape(25)
-    star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
-                 'dec': star_info[2], sector: star_info[3],
-                 'Kepmag': star_info[4], 'par': star_info[5],
-                 'e_par': star_info[6], 'Kmag': star_info[7],
-                 'e_Kmag': star_info[8], 'dist': star_info[9],
-                 'e_dist': star_info[10], 'mu': star_info[11],
-                 'e_mu': star_info[12], 'AK': star_info[13],
-                 'e_AK': star_info[14], 'MK': star_info[15],
-                 'e_MK': star_info[16], 'Rs': star_info[17],
-                 'e_Rs': star_info[18], 'Teff': star_info[19],
-                 'e_Teff': star_info[20], 'Ms': star_info[21],
-                 'e_Ms': star_info[22], 'logg': star_info[23],
-                 'e_logg': star_info[24]}
+	IDnums = d[:,0]
+        g = IDnums == IDnum
+        assert g.sum() == 1
+        star_info = d[g].reshape(32)
+	star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
+                     'dec': star_info[2], 'Kepmag': star_info[3],
+                     'par': star_info[4], 'e_par': star_info[5],
+                     'Jmag': star_info[6], 'e_Jmag': star_info[7],
+                     'Hmag': star_info[8], 'e_Hmag': star_info[9],
+                     'Kmag': star_info[10], 'e_Kmag': star_info[11],
+                     'GBPmag': star_info[12], 'e_GBPmag': star_info[13],
+                     'GRPmag': star_info[14], 'e_GRPmag': star_info[15],
+                     'dist': star_info[16], 'e_dist': star_info[17],
+                     'mu': star_info[18], 'e_mu': star_info[19],
+                     'AK': star_info[20], 'e_AK': star_info[21],
+                     'MK': star_info[22], 'e_MK': star_info[23],
+                     'Rs': star_info[24], 'e_Rs': star_info[25],
+                     'Teff': star_info[26], 'e_Teff': star_info[27],
+                     'Ms': star_info[28], 'e_Ms': star_info[29],
+                     'logg': star_info[30], 'e_logg': star_info[31]}
+    elif K2:
+	IDnums = d[:,0]
+        g = IDnums == IDnum
+        assert g.sum() == 1
+        star_info = d[g].reshape(25)
+    	star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
+                     'dec': star_info[2], sector: star_info[3],
+                     'Kepmag': star_info[4], 'par': star_info[5],
+                     'e_par': star_info[6], 'Kmag': star_info[7],
+                     'e_Kmag': star_info[8], 'dist': star_info[9],
+                     'e_dist': star_info[10], 'mu': star_info[11],
+                     'e_mu': star_info[12], 'AK': star_info[13],
+                     'e_AK': star_info[14], 'MK': star_info[15],
+                     'e_MK': star_info[16], 'Rs': star_info[17],
+                     'e_Rs': star_info[18], 'Teff': star_info[19],
+                     'e_Teff': star_info[20], 'Ms': star_info[21],
+                     'e_Ms': star_info[22], 'logg': star_info[23],
+                     'e_logg': star_info[24]}
+        
     return star_dict
 
 
@@ -400,9 +420,9 @@ def do_i_run_this_star(ID, K2=False, Kep=False):
         prefix = 'EPIC'
         Kep = False
     elif Kep:
-        kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
+        kepids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
         prefix = 'KepID'
-        g = kicids == ID
+        g = kepids == ID
     else:
         return None
 
@@ -420,8 +440,8 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    kicids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
+    kepids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
     for i in range(startind, endind):
-	print kicids[i] #epics[i]
-	if do_i_run_this_star(kicids[i], Kep=True):
-            planet_search(kicids[i], Kep=True)
+	print kepids[i] #epics[i]
+	if do_i_run_this_star(kepids[i], Kep=True):
+            planet_search(kepids[i], Kep=True)
