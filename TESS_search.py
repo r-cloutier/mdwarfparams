@@ -207,7 +207,7 @@ def _get_GP(thetaGP, x, res, ey):
 
 
 def find_transits(self, bjd, f, ef, quarters, thetaGPs,
-                  Npntsmin=5e2, Npntsmax=1e3, medkernel=99, Nsig=3,
+                  Npntsmin=5e2, Npntsmax=1e3, medkernel=9, Nsig=3,
 		  Plims=(.5,1e2)):
     '''Search for periodic transit-like events.'''
     assert not np.all(ef == 0)
@@ -221,7 +221,6 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
     # do linear search first
     print 'Computing lnL over transit times and durations...\n'
     self._pickleobject()
-    bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
     transit_times, durations, lnLs, depths = llnl.linear_search(bjd, fcorr, ef)
     self.transit_times, self.durations = transit_times, durations
     self.lnLs_linearsearch, self.depths_linearsearch = lnLs, depths

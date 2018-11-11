@@ -72,13 +72,13 @@ def read_Kepler_data(Kepid):
 
 def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
     '''Q0-Q17 baselines are ~1440 days (~3.9 years) so searching for individual 
-    transits in the linear search phase is cripplingly expensive (compared to K2 
-    with 80 day baselines). For my M-dwarf occurrence rate calculations I am only 
-    concered with P<=100 days. In a light curve with 100 ppm measurement 
+    transits in the linear search phase is cripplingly expensive (compared to 
+    K2 with 80 day baselines). For my M-dwarf occurrence rate calculations I am 
+    only concered with P<=100 days. In a light curve with 100 ppm measurement 
     uncertainties, an Earth-sized planet around a 0.5 RSun star has a
     SNR = 3.35*sqrt(N_transits) so only 2-3 transits are needed for a detection 
-    so the maximum baseline is set to 2-3 times Pmax or ~300 days. Let's make it 
-    270 since many Kepler quarters are ~90 days in length.'''  
+    so the maximum baseline is set to 2-3 times Pmax or ~300 days. Let's make 
+    it 270 since many Kepler quarters are ~90 days in length.'''  
     assert bjd.size == f.size
     assert bjd.size == ef.size
     assert bjd.size == quarters.size
@@ -89,37 +89,38 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
     bjd, f, ef, quarters = bjd[g][s], f[g][s], ef[g][s], quarters[g][s]
 
     # get each quarters duration and median uncertainty
-    NQ = np.unique(quarters).size
-    if NQ < 3:
+    if bjd.max()-bjd.min() < tmax:
 	return np.repeat(np.nan, 4)
 
-    med_ef_quarter, dur_quarter = np.zeros(NQ), np.zeros(NQ)
+    NQ = np.unique(quarters).size
+    med_ef_quarter = np.zeros(NQ)
+    bjdmin_quarter = np.zeros(NQ)
+    bjdmax_quarter = np.zeros(NQ)
     for i in range(NQ):
         g = quarters == i
         med_ef_quarter[i] = np.median(ef[g])
-        dur_quarter[i] = bjd[g].max() - bjd[g].min()
-    
-    # take the least noisy consecutive quarters that encapsulate tmax days
-    found_match, Nconsecutive_quarters = False, 5
-    while (not found_match) and (Nconsecutive_quarters >= 3):
-        i = Nconsecutive_quarters + 0
-        dur_combine, avg_ef_combine = np.zeros(NQ-i+1), np.zeros(NQ-i+1)
-        for j in range(NQ-i+1):
-            dur_combine[j] = np.sum(dur_quarter[j:j+i])
-            avg_ef_combine[j] = np.mean(med_ef_quarter[j:j+i])
-        # do we have something close to tmax?
-        g = np.isclose(dur_combine, tmax, rtol=.1)
-        found_match = np.any(g)
-        Nconsecutive_quarters -= 1
+        bjdmin_quarter[i] = bjd[g].min()
+        bjdmax_quarter[i] = bjd[g].max()
 
-    # save quarters
-    if not found_match:
-        g = np.ones(NQ-i+1).astype(bool)
-    start = np.where(g)[0][avg_ef_combine[g] == np.min(avg_ef_combine[g])]
-    quarter_inds = np.arange(int(start), int(start)+i)
-    g1 = np.in1d(quarters, quarter_inds)
+    # take the least noisy consecutive quarters that encapsulate tmax days
+    tspan, med_ef_span = np.zeros((NQ,NQ)), np.zeros((NQ,NQ))
+    for i in range(NQ):
+        for j in range(NQ):
+            tspan[i,j] = bjdmax_quarter[i] - bjdmin_quarter[j]
+            med_ef_span[i,j] = med_ef_quarter[i]
+
+    g_rows, g_cols = np.where(np.isclose(tspan, tmax, rtol=.1))
+    if g_rows.size == 0:
+        return np.repeat(np.nan, 4)
+    ef_avg = np.zeros(g_rows.size)
+    for i in range(g_rows.size):
+        ef_avg[i] = med_ef_span[g_cols[i]:g_rows[i]+1,g_cols[i]].sum()
+
+    g = np.where(ef_avg == np.min(ef_avg))[0]
+    g1 = np.in1d(quarters, range(g_cols[g], g_rows[g]+1))
     bjd, f, ef, quarters = bjd[g1], f[g1], ef[g1], quarters[g1]
     quarters -= quarters.min()   # start indexing from 0 
+
     return bjd, f, ef, quarters
 
         
@@ -368,7 +369,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     else:
         raise ValueError('Must select one of Kep, K2, or TESS')
 
-    # stop if bad time-series
+    # stop if bad time-series (sometimes too short)
     if np.any(np.isnan(bjd)):
 	return None
 
