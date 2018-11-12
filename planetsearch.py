@@ -64,6 +64,7 @@ def read_Kepler_data(Kepid):
         quarters = np.append(quarters, np.zeros(ftmp.size)+i)
 
     # limit Kepler baseline to save on computational expense
+    print 'KepID ', Kepid
     bjd, f, ef, quarters = _reduce_Kepler_baseline(bjd, f, ef, quarters)
         
     star_dict = get_star(Kepid, Kep=True)
@@ -369,7 +370,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     else:
         raise ValueError('Must select one of Kep, K2, or TESS')
 
-    # stop if bad time-series (sometimes too short)
+    # stop if bad time-series (e.g. sometimes baseline is too short)
     if np.any(np.isnan(bjd)):
 	return None
 

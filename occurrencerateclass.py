@@ -36,7 +36,7 @@ class OccurrenceRateclass:
         fs = np.array(glob.glob('%s/%s_*/LC_-00099'%(self.folder, self.prefix))
         if fs.size == 0:
             return None
-	self.fs_planetsearch, self.epicnums_planetsearch = [], np.zeros(0)
+	self.fs_planetsearch, self.names_planetsearch = [], np.zeros(0)
 
         # detected planet params
         self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
@@ -63,9 +63,9 @@ class OccurrenceRateclass:
 		for j in range(d.Ndet+1):
 
                     self.fs_planetsearch.append(fs[i])
-                    self.epicnums_planetsearch = \
-                                        np.append(self.epicnums_planetsearch,
-                                                  d.epicnum)
+                    self.names_planetsearch = \
+                                        np.append(self.names_planetsearch,
+                                                  d.object_name)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.efs = np.append(self.efs, d.ef.mean())
@@ -134,7 +134,7 @@ class OccurrenceRateclass:
         self.Fs, self.e_Fs = unp.nominal_values(Fs), unp.std_devs(Fs)
         
         # save stuff
-        _, self.unique_inds = np.unique(self.epicnums_planetsearch,
+        _, self.unique_inds = np.unique(self.names_planetsearch,
                                         return_index=True)
         self.Nstars = self.unique_inds.size
         self.Nplanets_detected = self.Ndetected[self.unique_inds].sum()
@@ -187,8 +187,8 @@ class OccurrenceRateclass:
         self.NdetF_i = np.zeros((self.Nstars, self._xlen, self._ylen))
         for i in range(self.Nstars):
 
-            epicnum =  self.epicnums_planetsearch[self.unique_inds[i]]
-            g1 = self.epicnums_planetsearch == epicnum
+            name =  self.names_planetsearch[self.unique_inds[i]]
+            g1 = self.names_planetsearch == name
             assert g1.sum() > 0
 
             for j in range(self._xlen):
@@ -231,11 +231,11 @@ class OccurrenceRateclass:
                                                     
 
     def save_stars_with_detections(self):
-        epic_tmp = self.epicnums_planetsearch[self.unique_inds]
-        epicnum2save = epic_tmp[self.Ndetected[self.unique_inds] > 0]
-	self.Nstars_wdet = epicnum2save.size
+        name_tmp = self.names_planetsearch[self.unique_inds]
+        name2save = name_tmp[self.Ndetected[self.unique_inds] > 0]
+	self.Nstars_wdet = name2save.size
         np.savetxt('input_data/K2targets/K2Mdwarfs_withdetections.csv',
-                   epicnum2save, delimiter=',', fmt='%i')
+                   name2save, delimiter=',', fmt='%i')
 
 
     def get_simulation_results(self):
@@ -243,10 +243,10 @@ class OccurrenceRateclass:
         sensitivity and FP corrections for each star with a detected planet
         candidate.'''
         # get results from injection/recovery
-        self.epicnums_wdet = np.loadtxt('input_data/K2targets/' + \
-                                        'K2Mdwarfs_withdetections.csv',
+        self.names_wdet = np.loadtxt('input_data/K2targets/' + \
+                                     'K2Mdwarfs_withdetections.csv',
                                         delimiter=',')
-        self.Nstars_wdet = self.epicnums_wdet.size
+        self.Nstars_wdet = self.names_wdet.size
         self.Nsims = np.zeros(self.Nstars_wdet)
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
@@ -262,13 +262,12 @@ class OccurrenceRateclass:
         
         for i in range(self.Nstars_wdet):
 
-            epicnum = self.epicnums_wdet[i]
-            print i, epicnum
-            fs = np.array(glob.glob('%s/%s_%i/LC*'%(self.folder, self.prefix, epicnum)))
+            name = self.names_wdet[i]
+            print i, name
+            fs = np.array(glob.glob('%s/%s/LC*'%(self.folder, name)))
 
 	    # remove planet search result (i.e. with index -99)
-            g = np.in1d(fs, '%s/%s_%i/LC_-00099'%(self.folder, self.prefix,
-						  epicnum))
+            g = np.in1d(fs, '%s/%s/LC_-00099'%(self.folder, name))
 	    if np.any(g):
 	        fs = np.delete(fs, np.where(g)[0][0])
             if fs.size == 0:
@@ -435,8 +434,8 @@ class OccurrenceRateclass:
                     rpmid = 10**(np.log10(self.logrpgrid[k]) + \
                                  np.diff(np.log10(self.logrpgrid[:2])/2))
                     
-                    epicnum = self.epicnums_wdet[i]
-                    g = np.where(self.epicnums_planetsearch == epicnum)[0][0]
+                    name = self.names_wdet[i]
+                    g = np.where(self.names_planetsearch == name)[0][0]
                     Ms = unp.uarray(self.Mss[g], self.e_Mss[g])
                     smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, Ms, 0))
                     Ls = unp.uarray(self.Lss[g], self.e_Lss[g])
@@ -494,8 +493,8 @@ class OccurrenceRateclass:
         for i in range(self.Nstars_wdet):
 
 	    print float(i) / self.Nstars_wdet
-            g = self.epicnums_planetsearch[self.unique_inds] == \
-                self.epicnums_wdet[i]
+            g = self.names_planetsearch[self.unique_inds] == \
+                self.names_wdet[i]
             
             NdetP_i = self.NdetP_i[g].reshape(self._xlen, self._ylen)
             SP_i = fill_map_nans(self.sensP_i[i])
