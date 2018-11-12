@@ -34,7 +34,7 @@ def read_Kepler_data(Kepid):
        	pass
 
     # download LC files if not already
-    fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
+    fnames = np.array(glob.glob('%s/kplr*_llc.fits'%folder2))
     if fnames.size == 0:
         dir2 = '%.9d'%Kepid
         dir1 = dir2[:4]
@@ -119,6 +119,7 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
         ef_avg[i] = med_ef_span[g_cols[i]:g_rows[i]+1,g_cols[i]].sum()
 
     g = np.where(ef_avg == np.min(ef_avg))[0]
+    print g.sum()
     g1 = np.in1d(quarters, range(g_cols[g], g_rows[g]+1))
     bjd, f, ef, quarters = bjd[g1], f[g1], ef[g1], quarters[g1]
     quarters -= quarters.min()   # start indexing from 0 
