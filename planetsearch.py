@@ -431,7 +431,7 @@ def do_i_run_this_star(ID, K2=False, Kep=False):
     if g.sum() != 1:
 	return False
     # check if star is already done
-    fname = glob.glob('PipelineResults/%s_%i/*LC_-00099'%(prefix, ID))
+    fname = glob.glob('PipelineResults/%s_%i/LC_-00099'%(prefix, ID))
     if len(fname) == 1:
         return not loadpickle(fname[0]).DONE
     else:

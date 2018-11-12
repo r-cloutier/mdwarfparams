@@ -1,5 +1,5 @@
 from LCclass import *
-from K2sensclass import *
+from sensclass import *
 from uncertainties import unumpy as unp
 import rvs
 from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
@@ -33,7 +33,7 @@ class OccurrenceRateclass:
     def get_planetsearch_results(self):
         '''Get the results from the planetsearch, i.e. the detected planets 
         and stellar properties.'''
-        fs = np.array(glob.glob('%s/%s_*/LC_-00099'%(self.folder, self.prefix))
+        fs = np.array(glob.glob('%s/%s_*/LC_-00099'%(self.folder, self.prefix)))
         if fs.size == 0:
             return None
 	self.fs_planetsearch, self.names_planetsearch = [], np.zeros(0)
@@ -688,5 +688,6 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 
 
 if __name__ == '__main__':
-    folder = sys.argv[1]
-    self = OccurrenceRateclass(folder, compute_detections=True, compute_sens=True, compute_occurrence_rate=True)
+    folder = sys.argv[1]  # 'PipelineResults'
+    prefix = sys.argv[2]  # 'KepID'
+    self = OccurrenceRateclass(folder, prefix, compute_detections=True, compute_sens=False, compute_occurrence_rate=False)
