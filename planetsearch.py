@@ -41,8 +41,9 @@ def read_Kepler_data(Kepid):
         url = 'https://archive.stsci.edu/pub/kepler/lightcurves/'
         url += '%s/%s'%(dir1,dir2)
 
-        # get fits files in the directory and download the LCs
-        fs = listFD(url, ext='.fits')
+        # get fits files in the directory and download the 
+ 	# long cadence LCs
+        fs = listFD(url, ext='_llc.fits')
         for i in range(fs.size):
             os.system('wget %s'%fs[i])
             fname = str(fs[i]).split('/')[-1]
