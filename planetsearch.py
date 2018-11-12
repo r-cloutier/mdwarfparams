@@ -51,7 +51,7 @@ def read_Kepler_data(Kepid):
                 os.system('mv %s %s'%(fname, folder2))
 
     # get data from fits files
-    fnames = np.array(glob.glob('%s/kplr*_llc.fits'%folder2))
+    fnames = np.sort(np.array(glob.glob('%s/kplr*_llc.fits'%folder2)))
     bjd, f, ef, quarters = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
     for i in range(fnames.size):
         hdu = fits.open(fnames[i])[1]
