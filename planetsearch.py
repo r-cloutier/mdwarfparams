@@ -351,7 +351,8 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     pipeline defined in compute_sensitivity to search for planets.'''
     
     # get data and only run the star if it is of interest
-    if not is_star_of_interest(IDnum, Kep=Kep):
+    if not is_star_of_interest(IDnum, Kep=Kep, K2=K2, TESS=TESS):
+	print 'star not of interest: ', IDnum
         return None
 
     # get parameters depending on the inut light curves

@@ -13,7 +13,7 @@ class OccurrenceRateclass:
 		 compute_occurrence_rate=False,
                  Plims=(.5,80), Flims=(.1,4e2), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
-	self.fname_out = '%s/%s_K2results'%(self.folder, self.prefix)
+	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
         self._xlen, self._ylen = int(xlen), int(ylen)
         self.Plims, self.Flims, self.rplims = Plims, Flims, rplims
         
@@ -45,7 +45,7 @@ class OccurrenceRateclass:
         self.rps, self.e_rps = np.zeros(0), np.zeros(0)        
 
         # POI params
-        self.cond_vals, self.cond_free_params = np.zeros((0,7)), np.zeros((0,7))
+        self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
 
         # stellar params
         self.Kepmags, self.efs = np.zeros(0), np.zeros(0)
@@ -101,13 +101,13 @@ class OccurrenceRateclass:
                         g = abs(Pss-P) == np.min(abs(Pss-P))
                         assert g.sum() in range(2)
                         cond_vals = d.transit_condition_values[g] if j > 0 \
-                                    else np.repeat(np.nan,7)
+                                    else np.repeat(np.nan,6)
                     else:
-                        cond_vals = np.repeat(np.nan, 7)
+                        cond_vals = np.repeat(np.nan, 6)
 		    self.cond_vals = np.append(self.cond_vals,
-                                               cond_vals.reshape(1,7), axis=0)
+                                               cond_vals.reshape(1,6), axis=0)
                     self.cond_free_params = np.append(self.cond_free_params,
-                                d.transit_condition_free_params.reshape(1,7),
+                                d.transit_condition_free_params.reshape(1,6),
                                                       axis=0)
 
                     # save periods and planets radii
@@ -230,7 +230,7 @@ class OccurrenceRateclass:
                                      Fgrid, rpgrid).reshape(xlen,ylen)
                                                     
 
-    def save_stars_with_detections(self):
+    def OLDsave_stars_with_detections(self):
         name_tmp = self.names_planetsearch[self.unique_inds]
         name2save = name_tmp[self.Ndetected[self.unique_inds] > 0]
 	self.Nstars_wdet = name2save.size
