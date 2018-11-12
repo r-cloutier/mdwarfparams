@@ -51,7 +51,7 @@ def read_Kepler_data(Kepid):
                 os.system('mv %s %s'%(fname, folder2))
 
     # get data from fits files
-    fnames = np.array(glob.glob('%s/kplr*.fits'%folder2))
+    fnames = np.array(glob.glob('%s/kplr*_llc.fits'%folder2))
     bjd, f, ef, quarters = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
     for i in range(fnames.size):
         hdu = fits.open(fnames[i])[1]
@@ -118,8 +118,7 @@ def _reduce_Kepler_baseline(bjd, f, ef, quarters, tmax=270):
     for i in range(g_rows.size):
         ef_avg[i] = med_ef_span[g_cols[i]:g_rows[i]+1,g_cols[i]].sum()
 
-    g = np.where(ef_avg == np.min(ef_avg))[0]
-    print g.sum()
+    g = np.where(ef_avg == np.min(ef_avg))[0][0]
     g1 = np.in1d(quarters, range(g_cols[g], g_rows[g]+1))
     bjd, f, ef, quarters = bjd[g1], f[g1], ef[g1], quarters[g1]
     quarters -= quarters.min()   # start indexing from 0 
