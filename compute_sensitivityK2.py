@@ -42,7 +42,6 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     while Nplanets < 1:
         Nplanets = int(np.round(np.random.normal(2.5,.2))) # from DC15
 
-    print Nplanets
     Pmin, Pmax = Plims
     rpmin, rpmax = rplims
     assert Pmin < Pmax
@@ -146,14 +145,13 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 
 
 
-def do_i_run_this_sim(epicnum, prefix, index):
+def do_i_run_this_sim(IDnum, prefix, index):
     # check if planet search has already been run
-    prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
-    fname = 'PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix)
+    fname = 'PipelineResults/%s_%i/LC_-00099'%(prefix, IDnum)
     if os.path.exists(fname) and loadpickle(fname).DONE:
         
         # check if star is already done
-        fname = 'PipelineResults/%s_%i/%sLC_%.5d'%(prefix2,epicnum,prefix,index)
+        fname = 'PipelineResults/%s_%i/LC_%.5d'%(prefix, IDnum, index)
         if os.path.exists(fname):
             return not loadpickle(fname).DONE
         else:
@@ -165,15 +163,17 @@ def do_i_run_this_sim(epicnum, prefix, index):
 
 if __name__ == '__main__':
     startind = int(sys.argv[1])
-    #endind = int(sys.argv[2])
-    Nsystems = int(sys.argv[2])
-    starting_index = int(sys.argv[3])
+    endind = int(sys.argv[2])
+    Nsystems = int(sys.argv[3])
+    starting_index = int(sys.argv[4])
     #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
-		       delimiter=',')
-    for i in range(startind, startind+1):
-        print epics[i]
+    #epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
+		       #delimiter=',')
+    ids = np.loadtxt('input_data/Keplertargets/KepMdwarfsv9_detectionsfirst.csv',
+                     delimiter=',')
+    for i in range(startind, endind):
+        print ids[i]
         for j in range(Nsystems):
             index = j + starting_index
-            if do_i_run_this_sim(epics[i], 'K2', index):
-                injected_planet_search(epics[i], index, K2=True)
+            if do_i_run_this_sim(ids[i], 'KepID', index):
+                injected_planet_search(ids[i], index, Kep=True)

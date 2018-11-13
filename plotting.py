@@ -64,3 +64,41 @@ def plot_distance_scatter(self, pltt=True, label=False):
     if pltt:
         plt.show()
     plt.close('all')
+
+
+    
+def plot_stellar_radius_uncertainty(pltt=True, label=False):
+    # get initial sample
+    f1 = fits.open('input_data/Keplertargets/kepler_dr2_1arcsec.fits')[1]
+    f4 = fits.open('input_data/Keplertargets/kepler_dr2_4arcsec.fits')[1]
+    kepids = np.append(f1.data['kepid'], f4.data['kepid'])
+    _,g = np.unique(kepids, return_index=True)
+    Teff = np.append(f1.data['teff'], f4.data['teff'])[g]
+    eTeff = np.append(f1.data['teff_err2'], f4.data['teff_err2'])[g]
+    logg = np.append(f1.data['logg'], f4.data['logg'])[g]
+    elogg = np.append(f1.data['logg_err1'], f4.data['logg_err1'])[g]
+    Rs = np.append(f1.data['radius'], f4.data['radius'])[g]
+    eRs = np.append(f1.data['radius_err1'], f4.data['radius_err1'])[g]
+    
+    g = (Teff-eTeff <= 4e3) & (logg+elogg > 3.5) & (Rs-eRs < .75)
+    Rs, eRs = Rs[g], eRs[g]
+    ratio = eRs / Rs
+    print np.nanmean(ratio)
+
+    fig = plt.figure(figsize=(8,6))
+    ax = fig.add_subplot(111)
+    #ax.hist(ratio, bins=np.logspace(np.log10(.01), 0, 30))
+    ax.plot(Rs, ratio, 'ko', ms=2, alpha=.3,
+            label='Initial stellar sample (%i stars)'%ratio.size)
+    ax.set_yscale('log'), ax.set_xlim((0,.8))
+    ax.set_yticks([.03,.06,.1,.3,.6,1])
+    ax.set_yticklabels(['0.03','0.06','0.1','0.3','0.6','1'])
+    ax.set_xlabel('Stellar Radius, R$_s$')
+    ax.set_ylabel('Fractional Stellar Radius\nUncertainty, $\sigma_{R_s}$/R$_s$')
+
+    ax.legend()
+    if label:
+        plt.savefig('plots/sigRs.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
