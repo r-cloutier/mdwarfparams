@@ -15,12 +15,12 @@ def get_modelN(theta, t, f, ef, u1, u2):
         return -np.inf
     Ntransits = (theta.size-5) / 5
     assert Ntransits >= 1
-    fmodel = np.zeros(t.size)
+    fmodel = np.ones(t.size)
     for i in range(Ntransits):
 	P, T0, aRs, rpRs, inc = theta[5+5*i:10+5*i]
         func = transit_model_func_curve_fit(u1, u2)
-        fmodel += func(t, P, T0, aRs, rpRs, inc) - 1
-    mu, cov = gp.predict(f-fmodel+1, t)
+        fmodel *= func(t, P, T0, aRs, rpRs, inc)
+    mu, cov = gp.predict(f*fmodel, t)
     sig = np.sqrt(np.diag(cov))
     return gp, mu, sig
 

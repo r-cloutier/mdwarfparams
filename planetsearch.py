@@ -257,7 +257,7 @@ def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
     '''Return True if star obeys the desired conditions'''
     star_dict = get_star(IDnum, Kep=Kep, K2=K2, TESS=TESS)
     return (star_dict['Ms'] <= .75) & \
-        (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3) & \
+        (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3.5) & \
         (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
 
 

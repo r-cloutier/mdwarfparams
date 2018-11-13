@@ -25,14 +25,14 @@ def remove_detected_planets(epicnum, prefix, bjd, f):
         raise ValueError('initial planet search has not been run.')
 
     # get planet transit models
-    fmodel = np.zeros(bjd.size)
+    fmodel = np.ones(bjd.size)
     for i in range(d.Ndet):
         func = llnl.transit_model_func_curve_fit(d.u1, d.u2)
         P, T0, aRs, rpRs, inc = d.params_optimized[i]
-        fmodel += func(bjd, P, T0, aRs, rpRs, inc) - 1
+        fmodel *= func(bjd, P, T0, aRs, rpRs, inc)
 
     # remove planets to clean the light curve 
-    f_noplanets = f - fmodel
+    f_noplanets = f / fmodel
     return f_noplanets
 
 
@@ -42,6 +42,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     while Nplanets < 1:
         Nplanets = int(np.round(np.random.normal(2.5,.2))) # from DC15
 
+    print Nplanets
     Pmin, Pmax = Plims
     rpmin, rpmax = rplims
     assert Pmin < Pmax
@@ -70,14 +71,9 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     depthtrue, durationtrue = np.zeros(Nplanets), np.zeros(Nplanets)
     for i in range(Nplanets):
         fmodeltmp = transit_model_func_in(bjd, Ptrue[i], T0true[i], aRs[i],
-                                          rpRs[i], incs[i], u1, u2) - 1.
-        fmodel += fmodeltmp
+                                          rpRs[i], incs[i], u1, u2)
+        fmodel *= fmodeltmp
         depthtrue[i] = abs(fmodeltmp.min())
-        #prior2transit = (bjd >= T0true[i]-Ptrue[i]*.5) & (bjd < T0true[i])
-        #aftertransit = (bjd <= T0true[i]+Ptrue[i]*.5) & (bjd > T0true[i])
-        #T1 = bjd[prior2transit][fmodeltmp[prior2transit]==0][-1]
-        #T4 = bjd[aftertransit][fmodeltmp[aftertransit]==0][0]        
-        #durationtrue[i] = T4-T1
         durationtrue[i] = rvs.transit_width(Ptrue[i], Ms, Rs, rptrue[i], bs[i])
         
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
@@ -116,7 +112,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
                                                            self.Rs, self.Teff)
     self.params_true = np.array([Ptrue, T0true, depthtrue, durationtrue]).T
     self.Ptrue, self.rptrue = Ptrue, rptrue
-    self.f = self.f_noplanets + fmodel - 1
+    self.f = self.f_noplanets * fmodel
     self._pickleobject()
     
     # fit initial GP

@@ -764,13 +764,13 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 
     # check autocorrelation after removing planets (is autocorrelated if the
     # systematic correction is bad -> planets detections are not robust)
-    fmodel_tot = np.zeros(bjd.size)
+    fmodel_tot = np.ones(bjd.size)
     for i in range(paramsout.shape[0]):
         _,_,_,_,fmodel,_ = fit_params(paramsout[i], bjd, fcorr,
                                       ef, Ms, Rs, Teff)
-        fmodel_tot += fmodel - 1.
+        fmodel_tot *= fmodel
     cond_autocorrs, autocorr_coeffs = np.zeros(2, dtype=bool), np.zeros(2)
-    cond_autocorrs[0], autocorr_coeffs[0] = is_not_autocorrelated(fcorr - \
+    cond_autocorrs[0], autocorr_coeffs[0] = is_not_autocorrelated(fcorr / \
                                                                   fmodel_tot)
     cond_autocorrs[1], autocorr_coeffs[1] = is_not_autocorrelated(fcorr)
     transit_condition_autocorr_leq_max = np.repeat(np.any(cond_autocorrs),
