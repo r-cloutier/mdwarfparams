@@ -21,7 +21,12 @@ def get_initial_KepID_data(fout):
     Kepmags = np.zeros(0)
     pars = np.zeros(0)
     e_pars = np.zeros(0)
-    Teff_tmp = np.zeros(0)
+    Teff = np.zeros(0)
+    e_Teff = np.zeros(0)
+    logg = np.zeros(0)
+    e_logg = np.zeros(0)
+    Rs = np.zeros(0)
+    e_Rs = np.zeros(0)
     Jmags = np.zeros(0)
     Hmags = np.zeros(0)
     Kmags = np.zeros(0)
@@ -47,40 +52,59 @@ def get_initial_KepID_data(fout):
         Kepmags = np.append(Kepmags, f['kepmag'])
         pars = np.append(pars, f['parallax']) + .029  # systemic correction
         e_pars = np.append(e_pars, f['parallax_error'])
-        Teff_tmp = np.append(Teff_tmp, f['teff'])
+        Teff = np.append(Teff, f['teff'])
+        e_Teff = np.append(e_Teff, f['teff_err1'])
+        logg = np.append(logg, f['logg'])
+        e_logg = np.append(e_logg, f['logg_err1'])
+        Rs = np.append(Rs, f['radius'])
+        e_Rs = np.append(e_Rs, f['radius_err1'])
         Jmags = np.append(Jmags, f['jmag'])
         Hmags = np.append(Hmags, f['hmag'])
         Kmags = np.append(Kmags, f['kmag'])
 
-    # make intitial list of M dwarfs
-    g = Teff_tmp <= 4200
+    # remove duplicates from each search radius and make initial target list
+    _,g1 = np.unique(KepIDs, return_index=True)
+    print 'Number of stars in Kepler-GAIA catalog = %i'%g1.size
+    g = (np.in1d(np.arange(Teff.size), g1)) & (Teff-e_Teff <= 4e3) & \
+        (logg+e_logg > 3.5) & (Rs-e_Rs < .75)
+    print 'Number of preliminary M dwarfs in Kepler-GAIA catalog = %i'%g.sum()
     KepIDs, ras, decs, ls, bs = KepIDs[g], ras[g], decs[g], ls[g], bs[g]
-    GBPmags, e_GBPmags, GRPmags, e_GRPmags = GBPmags[g], e_GBPmags[g], GRPmags[g], e_GRPmags[g]
-    Kepmags, pars, e_pars, Teff_tmp = Kepmags[g], pars[g], e_pars[g], Teff_tmp[g]
-    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    Teff, e_Teff = Teff[g], e_Teff[g]
+    logg, e_logg = logg[g], e_logg[g]
+    Rs, e_Rs = Rs[g], e_Rs[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]    
 
     # get 2MASS uncertainties which are not included in the cross-match data
     e_Jmags, e_Hmags, e_Kmags = get_2MASS(ras, decs, Jmags, Hmags, Kmags)
-    hdr = 'KepID,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Jmag,'+ \
-          'e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag'
-    outarr_tmp = np.array([KepIDs, ras, decs, Kepmags, pars, e_pars, Jmags,
+    hdr = 'KepID,ra_deg,dec_deg,ls_deg,bs_deg,Kepmag,GBPmag,e_GBPmag,GRPmag,'+ \
+          'e_GRPmag,parallax_mas,e_parallax,Jmag,e_Jmag,Hmag,e_Hmag,Kmag,'+ \
+          'e_Kmag'
+    outarr_tmp = np.array([KepIDs, ras, decs, ls, bs, Kepmags, GBPmags,
+                           e_GBPmags, GRPmags, e_GRPmags, pars, e_pars, Jmags,
                            e_Jmags, Hmags, e_Hmags, Kmags, e_Kmags]).T
-    np.savetxt(fout, outarr_tmp, delimiter=',', header=hdr, fmt='%.8e')
-    
+    np.savetxt(fout, outarr_tmp, delimiter=',', header=hdr, fmt='%.8e')   
     
     # compute quantities
-    dists, mus = compute_distance_modulus(unp.uarray(pars,e_pars))
-    AKs = compute_AK_mwdust(ls, bs, unp.nominal_values(dists),
-                            unp.std_devs(dists))
-    MKs = compute_MK(unp.uarray(Kmags, e_Kmags), mus, AKs)
-    Rss = MK2Rs(MKs)
-    Teffs = gaia2Teff(unp.uarray(GBPmags, e_GBPmags),
-                      unp.uarray(GRPmags, e_GRPmags),
-                      unp.uarray(Jmags, e_Jmags),
-                      unp.uarray(Hmags, e_Hmags))
-    Mss = MK2Ms(MK)
-    loggs = compute_logg(Mss, Rss)
+    #dists, mus = compute_distance_modulus(unp.uarray(pars,e_pars))
+    #AKs = compute_AK_mwdust(ls, bs, unp.nominal_values(dists),
+    #                        unp.std_devs(dists))
+    #MKs = compute_MK(unp.uarray(Kmags, e_Kmags), mus, AKs)
+    #Rss = MK2Rs(MKs)
+    #Teffs = gaia2Teff(unp.uarray(GBPmags, e_GBPmags),
+    #                  unp.uarray(GRPmags, e_GRPmags),
+    #                  unp.uarray(Jmags, e_Jmags),
+    #                  unp.uarray(Hmags, e_Hmags))
+    #Mss = MK2Ms(MK)
+    #loggs = compute_logg(Mss, Rss)
 
+    # get distance posteriors
+    
+    
+    
+    
     # save results
     hdr = 'KepID,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Jmag,'+ \
           'e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag,dist_pc,e_dist,mu,e_mu,AK,e_AK,'+ \
@@ -152,5 +176,5 @@ def gaia2Teff(GBPmag, GRPmag, Jmag, Hmag):
 
 
 if __name__ == '__main__':
-    fout = 'input_data/Keplertargets/KepMdwarfsv5.csv'
+    fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
     get_initial_KepID_data(fout)

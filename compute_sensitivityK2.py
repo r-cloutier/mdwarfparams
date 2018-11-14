@@ -14,13 +14,13 @@ def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
     return f
 
 
-def remove_detected_planets(epicnum, prefix, bjd, f):
+def remove_detected_planets(IDnum, prefix, bjd, f):
     '''Remove planet detections using their optimized parameters to clean the 
     light curve before searching for injected planets.'''
     # get planet search results
     try:
 	prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
-        d = loadpickle('PipelineResults/%s_%i/%sLC_-00099'%(prefix2,epicnum,prefix))
+        d = loadpickle('PipelineResults/%s_%i/LC_-00099'%(prefix,IDnum))
     except IOError:
         raise ValueError('initial planet search has not been run.')
 
@@ -83,19 +83,19 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
     planet_search to search for planets.'''
 
     # get data and only run the star if it is of interest
-    if not is_star_of_interest(epicnum):
+    if not is_star_of_interest(epicnum, Kep=Kep, K2=K2):
         return None
 
     if K2:
         name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
-	prefix, Kep = 'K2', False
+	prefix, Kep, Nopt = 'EPIC', False, 10
     elif Kep:
 	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(epicnum)
-	prefix = 'Kep'
+	prefix, Nopt = 'KepID', 5
     else:
 	return None
     self = LCclass(name, index)
-    self.bjd, self.f_orig, self.ef = bjd, np.copy(f), ef
+    self.bjd, self.f_orig, self.ef, self.quarters = bjd, np.copy(f), ef, quarters
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
     self.DONE = False
@@ -103,7 +103,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 
     # remove planets detected by the planet search which should already
     # have been run
-    self.f_noplanets = remove_detected_planets(epicnum, self.prefix, self.bjd, self.f_orig)
+    self.f_noplanets = remove_detected_planets(epicnum, prefix, self.bjd, self.f_orig)
     
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
@@ -115,10 +115,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
     self._pickleobject()
     
     # fit initial GP
-    thetaGPall, resultsGPall, thetaGPin, thetaGPout = do_optimize_0(self.bjd,
-                                                                    self.f,
-                                                                    self.ef)
-    self.thetaGPall, self.resultsGPall = thetaGPall, resultsGPall
+    thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters, N=Nopt)
     self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
     self._pickleobject()
 
@@ -126,7 +123,8 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
     # guesses
     print 'Searching for transit-like events...\n'
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
-                                                    self.ef, thetaGPout)
+                                                    self.ef, self.quarters,
+						    self.thetaGPout)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])
