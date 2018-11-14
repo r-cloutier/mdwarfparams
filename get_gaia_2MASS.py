@@ -1,6 +1,7 @@
 # use the results from the Kepler-GAIA cross-match here: https://gaia-kepler.fun
 from imports import *
 from query_gaia_2MASS import *
+from priors import get_results
 
 
 def get_initial_KepID_data(fout):
@@ -21,6 +22,10 @@ def get_initial_KepID_data(fout):
     Kepmags = np.zeros(0)
     pars = np.zeros(0)
     e_pars = np.zeros(0)
+    dists = np.zeros(0)
+    ehi_dists = np.zeros(0)
+    elo_dists = np.zeros(0)
+    dist_modality = np.zeros(0)
     Teff = np.zeros(0)
     e_Teff = np.zeros(0)
     logg = np.zeros(0)
@@ -52,6 +57,11 @@ def get_initial_KepID_data(fout):
         Kepmags = np.append(Kepmags, f['kepmag'])
         pars = np.append(pars, f['parallax']) + .029  # systemic correction
         e_pars = np.append(e_pars, f['parallax_error'])
+        dists = np.append(dists, f['r_est'])
+        ehi_dists = np.append(ehi_dists, f['r_hi']-f['r_est'])
+        elo_dists = np.append(elo_dists, f['r_est']-f['r_lo'])
+        dist_modality = np.append(dist_modality, f['r_modality_flag'])
+        
         Teff = np.append(Teff, f['teff'])
         e_Teff = np.append(e_Teff, f['teff_err1'])
         logg = np.append(logg, f['logg'])
@@ -72,10 +82,12 @@ def get_initial_KepID_data(fout):
     GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
                                              e_GBPmags[g], e_GRPmags[g]
     Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    dist_modality = dist_modality[g]
     Teff, e_Teff = Teff[g], e_Teff[g]
     logg, e_logg = logg[g], e_logg[g]
     Rs, e_Rs = Rs[g], e_Rs[g]
-    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]    
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
 
     # get 2MASS uncertainties which are not included in the cross-match data
     e_Jmags, e_Hmags, e_Kmags = get_2MASS(ras, decs, Jmags, Hmags, Kmags)
@@ -100,10 +112,28 @@ def get_initial_KepID_data(fout):
     #Mss = MK2Ms(MK)
     #loggs = compute_logg(Mss, Rss)
 
-    # get distance posteriors
-    
-    
-    
+    # get distance posteriors using Bailer-Jones R script
+    distpost_success = save_posteriors(KepIDs, pars, e_pars, ls, bs, Kep=True)
+    g = (distpost_success == True) & (dist_modality == 1)
+    print 'Number of M dwarfs with reliable GAIA distances = %i'%g.sum()
+    KepIDs, ras, decs, ls, bs = KepIDs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    dist_modality = dist_modality[g]
+    Teff, e_Teff = Teff[g], e_Teff[g]
+    logg, e_logg = logg[g], e_logg[g]
+    Rs, e_Rs = Rs[g], e_Rs[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
+    e_Jmags, e_Hmags, e_Kmags = Jmags[g], Hmags[g], Kmags[g]
+
+    # compute parameter posteriors
+    p  = compute_posterior_pdfs(KepIDs, ls, bs, dists, ehi_dists, elo_dists,
+                                GBPmags, e_GBPmags, GRPmags, e_GRPmags, Jmags,
+                                e_Jmags, Hmags, e_Hmags)
+    mus, ehi_mus, elo_mus, AKs, e_AK, MKs, ehi_MKs, elo_MKs, Rss, ehi_Rss, \
+        elo_Rss, Teffs, ehi_Teffs, elo_Teffs, Mss, ehi_Mss, elo_Mss = p
     
     # save results
     hdr = 'KepID,ra_deg,dec_deg,Kepmag,parallax_mas,e_parallax,Jmag,'+ \
@@ -162,7 +192,90 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
     return e_Jmags, e_Hmags, e_Kmags 
 
 
+def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
+                    TESS=False):
+    '''Go to the directory with the Bailor-Jones + 2018 R scripts to compute 
+    the distance posterior for a single source. Save the posterior with a 
+    unique file name.'''
+    assert IDnums.size == pars.size
+    assert IDnums.size == e_pars.size
+    assert IDnums.size == ls.size
+    assert IDnums.size == bs.size
 
+    if Kep:
+        prefix = 'KepID'
+    elif K2:
+        prefix = 'EPIC'
+    elif TESS:
+        prefix = 'TIC'
+    
+    cwd = os.getcwd()
+    os.chdir('%s/Gaia-DR2-distances'%cwd)
+    cmd_prefix = 'Rscript get_dist_post.R %s'%prefix
+    distpost_success = np.zeros(IDnums.size).astype(bool)
+    for i in range(IDnums.size):
+        print float(i) / IDnums.size
+        cmd = '%s_%i %.6e %.6e %.6f %.6f'%(cmd_prefix, IDnums[i], pars[i],
+                                           e_pars[i], ls[i], bs[i])
+        # run if not done already
+        fout = 'DistancePosteriors/%s_%i.csv'%(prefix, IDnums[i])
+        if not os.path.exists(fout):
+            os.system(cmd)
+        if os.path.exists(fout):
+            distpost_success[i] = True
+            
+    os.chdir(cwd)
+    return distpost_success
+
+
+def compute_posterior_pdfs(IDnums, ls, bs, dists, ehi_dists, elo_dists, GBPmags,
+                           e_GBPmags, GRPmags, e_GRPmags, Jmags, e_Jmags, Hmags,
+                           e_Hmags, Kmags, e_Kmags, Nsamp=1e3,
+                           Kep=False, K2=False):
+    '''Read-in the distance posterior given the identifier and compute 
+    parameters of interest given input photometry.'''
+    if Kep:
+        prefix = 'KepID'
+    elif K2:
+        prefix = 'EPIC'
+    
+    N = IDnums.size
+    mus, ehi_mus, elo_mus = np.zeros(N), np.zeros(N), np.zeros(N)
+    AKs, e_AK = np.zeros(N), np.zeros(N)
+    MKs, ehi_MKs, elo_MKs = np.zeros(N), np.zeros(N), np.zeros(N)
+    Rss, ehi_Rss, elo_Rss = np.zeros(N), np.zeros(N), np.zeros(N)
+    Teffs, ehi_Teffs, elo_Teffs = np.zeros(N), np.zeros(N), np.zeros(N)
+    Mss, ehi_Mss, elo_Mss = np.zeros(N), np.zeros(N), np.zeros(N)
+    for i in range(N):
+        
+        # get dist pdf
+        try:
+            fname='Gaia-DR2-distances/DistancePosteriors/%s_%i.csv'%(prefix,
+                                                                     IDnums[i])
+            x_dist, pdf_dist = np.loadtxt(fname, delimiter=',', skiprows=1,
+                                          usecols=(1,2)).T
+        except IOError:
+            pass
+
+        # sample parameter distributions
+        Nsamp = int(Nsamp)
+        samp_dist = np.random.choice(x_dist, Nsamp, p=pdf_dist/pdf_dist.sum())
+        samp_mu = 5*np.log10(samp_dist) - 5
+        AKs[i], e_AKs[i] = compute_AK_mwdust(ls[i], bs[i], dists[i],
+                                        np.mean([ehi_dists[i],elo_dists[i]]))
+        samp_AK = np.random.normal(AKs[i], e_AKs[i], Nsamp)
+        samp_Kmag = np.random.normal(Kmags[i], e_Kmags[i], Nsamp)
+        samp_MK = samp_Kmag - samp_mu - samp_AK
+        samp_Rs =
+        samp_Teff =
+        samp_Ms = 
+                                            
+        # get point estimates
+        mus[i], ehi_mus[i], elo_mus[i] = get_results(samp_mu)
+        
+
+
+    
 def gaia2Teff(GBPmag, GRPmag, Jmag, Hmag):
     '''Use the relation from Mann+2015 (table 2)
     http://adsabs.harvard.edu/abs/2015ApJ...804...64M
@@ -177,4 +290,4 @@ def gaia2Teff(GBPmag, GRPmag, Jmag, Hmag):
 
 if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
-    get_initial_KepID_data(fout)
+    #get_initial_KepID_data(fout)
