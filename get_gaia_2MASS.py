@@ -123,6 +123,24 @@ def get_initial_KepID_data(fout):
         ehi_MKs, elo_MKs, Rss, ehi_Rss, elo_Rss, Teffs, ehi_Teffs, elo_Teffs, \
         Mss, ehi_Mss, elo_Mss, loggs, ehi_loggs, elo_loggs = p
 
+    # identify M dwarfs
+    g = (MKs>4.6) & (MKs < 9.8)
+    print 'Number of M dwarfs in Kepler-GAIA catalog = %i'%g.sum()
+    KepIDs, ras, decs, ls, bs = KepIDs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
+    e_Jmags, e_Hmags, e_Kmags = e_Jmags[g], e_Hmags[g], e_Kmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    mus, ehi_mus, elo_mus = mus[g], ehi_mus[g], elo_mus[g]
+    AKs, e_AKs = AKs[g], e_AKs[g]
+    MKs, ehi_MKs, elo_MKs = MKs[g], ehi_MKs[g], elo_MKs[g]
+    Rss, ehi_Rss, elo_Rss = Rss[g], ehi_Rss[g], elo_Rss[g]
+    Teffs, ehi_Teffs, elo_Teffs = Teffs[g], ehi_Teffs[g], elo_Teffs[g]
+    Mss, ehi_Mss, elo_Mss = Mss[g], ehi_Mss[g], elo_Mss[g]
+    loggs, ehi_loggs, elo_loggs = loggs[g], ehi_loggs[g], elo_loggs[g]
+    
     # save results
     hdr = 'KepID,ra_deg,dec_deg,GBPmag,e_GBPmag,GRPmag,e_GRPmag,Kepmag,'+ \
           'Jmag,e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag,parallax_mas,e_parallax,'+ \
