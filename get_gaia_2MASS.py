@@ -198,7 +198,7 @@ def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
         prefix = 'TIC'
     
     cwd = os.getcwd()
-    os.chdir('%s/Gaia-DR2-distances'%cwd)
+    os.chdir('%s/Gaia-DR2-distances_custom'%cwd)
     cmd_prefix = 'Rscript get_dist_post.R %s'%prefix
     distpost_success = np.zeros(IDnums.size).astype(bool)
     for i in range(IDnums.size):
@@ -240,8 +240,8 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
         
         # get dist pdf
         try:
-            fname='Gaia-DR2-distances/DistancePosteriors/%s_%i.csv'%(prefix,
-                                                                     IDnums[i])
+            fname='Gaia-DR2-distances_custom/DistancePosteriors/%s_%i.csv'%(prefix,
+                                                                            IDnums[i])
             x_dist, pdf_dist = np.loadtxt(fname, delimiter=',', skiprows=1,
                                           usecols=(1,2)).T
         except IOError:
@@ -284,7 +284,7 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
         outarr = np.array([samp_GBPmag, samp_GRPmag, samp_Jmag, samp_Hmag,
                            samp_Kmag, samp_dist, samp_mu, samp_AK, samp_MK,
                            samp_Rs, samp_Teff, samp_Ms, samp_logg]).T
-        fname='Gaia-DR2-distances/DistancePosteriors/KepID_allpost_%i'%IDnums[i]
+        fname='Gaia-DR2-distances_custom/DistancePosteriors/KepID_allpost_%i'%IDnums[i]
         np.savetxt(fname, outarr, delimiter=',', header=hdr, fmt='%.8e')
         
     return mus, ehi_mus, elo_mus, dists, ehi_dists, elo_dists, AKs, e_AKs, \
