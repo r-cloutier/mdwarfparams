@@ -77,8 +77,6 @@ def get_initial_KepID_data(fout):
     print 'Number of stars in Kepler-GAIA catalog = %i'%g1.size
     g = (np.in1d(np.arange(Teff.size), g1)) & (Teff-e_Teff <= 4e3) & \
         (logg+e_logg > 3.5) & (Rs-e_Rs < .75)
-    # TEMP
-    g = np.where(g)[0][2:4]
     print 'Number of preliminary M dwarfs in Kepler-GAIA catalog = %i'%g.sum()
     KepIDs, ras, decs, ls, bs = KepIDs[g], ras[g], decs[g], ls[g], bs[g]
     GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
@@ -155,6 +153,7 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
     Nstars = ras_deg.size
     e_Jmags, e_Hmags, e_Kmags = np.zeros(Nstars), np.zeros(Nstars), \
                                 np.zeros(Nstars)
+    print 'Getting 2MASS photometry...'
     for i in range(Nstars):
 
         if i % 1e3 == 0:
@@ -338,4 +337,4 @@ def sample_logg(samp_Ms, samp_Rs):
 
 if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
-    #get_initial_KepID_data(fout)
+    get_initial_KepID_data(fout)
