@@ -154,7 +154,7 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
     e_Jmags, e_Hmags, e_Kmags = np.zeros(Nstars), np.zeros(Nstars), \
                                 np.zeros(Nstars)
     print 'Getting 2MASS photometry...'
-    for i in range(Nstars):
+    for i in range(4500,Nstars): # TEMP
 
         if i % 1e2 == 0:
             print float(i) / Nstars
@@ -169,7 +169,8 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
             np.isclose(K2M, Kmags[i], rtol=phot_rtol)
 
         if g.sum() > 0:
-            g2 = abs(K2M[g]-Kmags[i]) == np.min(abs(K2M[g]-Kmags[i]))
+            g2 = (abs(J2M[g]-Jmags[i]) == np.min(abs(J2M[g]-Jmags[i]))) & \
+                 (abs(K2M[g]-Kmags[i]) == np.min(abs(K2M[g]-Kmags[i])))
             e_Jmags[i] = eJ2M[g][g2]
             e_Hmags[i] = eH2M[g][g2]
             e_Kmags[i] = eK2M[g][g2]
