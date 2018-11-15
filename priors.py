@@ -38,14 +38,19 @@ def get_results(samples, sigma=5):
     plus_1sigs = np.zeros(samples.shape[1])
     min_1sigs = np.zeros(samples.shape[1])
     for i in range(MAPs.size):
-        kernel = gaussian_kde(samples[:,i])
-        xarr = np.linspace(samples[:,i].min(), samples[:,i].max(), 1000)
-        probs = kernel.pdf(xarr) / kernel.pdf(xarr).sum()
-        probs = gaussian_filter1d(probs, sigma)
-        MAPs[i] = float(xarr[probs==probs.max()])
-	# get percentiles
-	xarr = np.random.choice(xarr, 1000, p=probs/probs.sum())
-	v = np.percentile(xarr, (16,84))
-	plus_1sigs[i], min_1sigs[i] = v[1]-MAPs[i], MAPs[i]-v[0]
+	samp = samples[:,i]
+	samp = samp[np.isfinite(samp)]
+	try:
+            kernel = gaussian_kde(samp)
+            xarr = np.linspace(samp.min(), samp.max(), 1000)
+            probs = kernel.pdf(xarr) / kernel.pdf(xarr).sum()
+            probs = gaussian_filter1d(probs, sigma)
+            MAPs[i] = float(xarr[probs==probs.max()])
+	    # get percentiles
+	    xarr = np.random.choice(xarr, 1000, p=probs/probs.sum())
+	    v = np.percentile(xarr, (16,84))
+	    plus_1sigs[i], min_1sigs[i] = v[1]-MAPs[i], MAPs[i]-v[0]
+	except ValueError:
+	    MAPs[i], plus_1sigs[i], min_1sigs[i] = np.repeat(np.nan,3)
 
     return np.array([MAPs, plus_1sigs, min_1sigs])

@@ -331,7 +331,6 @@ def compute_AK_mwdust(ls, bs, dist, edist, eAK_frac=.3):
     ls, bs = np.ascontiguousarray(ls), np.ascontiguousarray(bs)
     AK, eAK = np.zeros(ls.size), np.zeros(ls.size)
     for i in range(ls.size):
-        print ls[i], bs[i], dist_kpc[i], edist_kpc[i]
         v = dustmap(ls[i], bs[i],
                     np.array([dist_kpc[i], dist_kpc[i]+edist_kpc[i]]))
         AK[i], eAK[i] = v[0], np.sqrt(abs(np.diff(v))**2 + (eAK_frac*v[0])**2)
