@@ -154,7 +154,7 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
     e_Jmags, e_Hmags, e_Kmags = np.zeros(Nstars), np.zeros(Nstars), \
                                 np.zeros(Nstars)
     print 'Getting 2MASS photometry...'
-    for i in range(4500,Nstars): # TEMP
+    for i in range(Nstars):
 
         if i % 1e2 == 0:
             print float(i) / Nstars
