@@ -156,7 +156,7 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
     print 'Getting 2MASS photometry...'
     for i in range(Nstars):
 
-        if i % 1e3 == 0:
+        if i % 1e2 == 0:
             print float(i) / Nstars
         
         # get matching photometry between Kepler-GAIA and 2MASS
