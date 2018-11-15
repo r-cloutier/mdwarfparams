@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
-KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv9.csv'
+KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv10.csv'
 threshBayesfactor = 1e2
 
 
@@ -214,23 +214,27 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
 	IDnums = d[:,0]
         g = IDnums == IDnum
         assert g.sum() == 1
-        star_info = d[g].reshape(32)
+        star_info = d[g].reshape(39)
 	star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
-                     'dec': star_info[2], 'Kepmag': star_info[3],
-                     'par': star_info[4], 'e_par': star_info[5],
-                     'Jmag': star_info[6], 'e_Jmag': star_info[7],
-                     'Hmag': star_info[8], 'e_Hmag': star_info[9],
-                     'Kmag': star_info[10], 'e_Kmag': star_info[11],
-                     'GBPmag': star_info[12], 'e_GBPmag': star_info[13],
-                     'GRPmag': star_info[14], 'e_GRPmag': star_info[15],
-                     'dist': star_info[16], 'e_dist': star_info[17],
-                     'mu': star_info[18], 'e_mu': star_info[19],
-                     'AK': star_info[20], 'e_AK': star_info[21],
-                     'MK': star_info[22], 'e_MK': star_info[23],
-                     'Rs': star_info[24], 'e_Rs': star_info[25],
-                     'Teff': star_info[26], 'e_Teff': star_info[27],
-                     'Ms': star_info[28], 'e_Ms': star_info[29],
-                     'logg': star_info[30], 'e_logg': star_info[31]}
+                     'dec': star_info[2], 'GBPmag': star_info[3],
+                     'e_GBPmag': star_info[4], 'GRPmag': star_info[5],
+                     'e_GRPmag': star_info[6], 'Kepmag': star_info[7],
+                     'Jmag': star_info[8], 'e_Jmag': star_info[9],
+                     'Hmag': star_info[10], 'e_Hmag': star_info[11],
+                     'Kmag': star_info[12], 'e_Kmag': star_info[13],
+                     'par': star_info[14], 'e_par': star_info[15],
+                     'dist': star_info[16], 'ehi_dist': star_info[17],
+                     'elo_dist': star_info[18], 'mu': star_info[19],
+                     'ehi_mu': star_info[20], 'elo_mu': star_info[21],
+                     'AK': star_info[22], 'e_AK': star_info[23],
+                     'MK': star_info[24], 'ehi_MK': star_info[25],
+                     'elo_MK': star_info[26], 'Rs': star_info[27],
+                     'ehi_Rs': star_info[28], 'elo_Rs': star_info[29],
+                     'Teff': star_info[30], 'ehi_Teff': star_info[31],
+                     'elo_Teff': star_info[32], 'Ms': star_info[33],
+                     'ehi_Ms': star_info[34], 'elo_Ms': star_info[35],
+                     'logg': star_info[36], 'ehi_logg': star_info[37],
+                     'elo_logg': star_info[38]}
     elif K2:
 	IDnums = d[:,0]
         g = IDnums == IDnum
