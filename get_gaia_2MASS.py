@@ -108,7 +108,7 @@ def get_initial_KepID_data(fout):
                                              e_GBPmags[g], e_GRPmags[g]
     Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
     dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
-    dist_modality = dist_modality[g]
+    #dist_modality = dist_modality[g]
     Teff, e_Teff = Teff[g], e_Teff[g]
     logg, e_logg = logg[g], e_logg[g]
     Rs, e_Rs = Rs[g], e_Rs[g]
@@ -256,7 +256,8 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
     Mss, ehi_Mss, elo_Mss = np.zeros(N), np.zeros(N), np.zeros(N)
     loggs, ehi_loggs, elo_loggs = np.zeros(N), np.zeros(N), np.zeros(N)
     for i in range(N):
-        
+
+        print float(i)/N
         # get dist pdf
         try:
             fname='Gaia-DR2-distances_custom/DistancePosteriors/%s_%i.csv'%(prefix,
@@ -272,7 +273,7 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
         dists[i], ehi_dists[i], elo_dists[i] = \
                                         get_results(samp_dist.reshape(Nsamp,1))
         samp_mu = 5*np.log10(samp_dist) - 5
-        AK_tmp = compute_AK_mwdust(ls[i], bs[i], samp_dist[i],
+        AK_tmp = compute_AK_mwdust(ls[i], bs[i], dists[i],
                                    np.mean([ehi_dists[i],elo_dists[i]]))
         AKs[i], e_AKs[i] = unp.nominal_values(AK_tmp), unp.std_devs(AK_tmp)
         samp_AK = np.random.normal(AKs[i], e_AKs[i], Nsamp)
@@ -330,7 +331,7 @@ def sample_Ms_from_MK(samp_MK):
     c3 = np.random.normal(.0038, 2e-4, samp_MK.size)
     c4 = np.random.normal(-.0032, 1e-4, samp_MK.size)
     samp_MK_tmp = np.copy(samp_MK)
-    samp_MK_tmp[(samp_MK<5) | (samp_MK>10)] = np.nan
+    samp_MK_tmp[(samp_MK<=4.6) | (samp_MK>10)] = np.nan
     samp_MK_tmp[samp_MK>=10] = np.nan
     dMK = samp_MK_tmp - 7.5
     samp_Ms = c0 + c1*dMK + c2*dMK**2 + c3*dMK**3 + c4*dMK**4
@@ -356,4 +357,4 @@ def sample_logg(samp_Ms, samp_Rs):
 
 if __name__ == '__main__':
     fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
-    get_initial_KepID_data(fout)
+    #get_initial_KepID_data(fout)

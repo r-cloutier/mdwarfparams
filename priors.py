@@ -45,7 +45,7 @@ def get_results(samples, sigma=5):
             xarr = np.linspace(samp.min(), samp.max(), 1000)
             probs = kernel.pdf(xarr) / kernel.pdf(xarr).sum()
             probs = gaussian_filter1d(probs, sigma)
-            MAPs[i] = float(xarr[probs==probs.max()])
+            MAPs[i] = xarr[probs==probs.max()][0]
 	    # get percentiles
 	    xarr = np.random.choice(xarr, 1000, p=probs/probs.sum())
 	    v = np.percentile(xarr, (16,84))
