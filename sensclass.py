@@ -113,7 +113,7 @@ class Sensitivityclass:
                 self.isFP[g] = 0
 
 
-    def compute_sensitivity(self, xlen=120, ylen=60, Plims=(.5,80),
+    def compute_sensitivity(self, xlen=120, ylen=60, Plims=(.5,1e2),
                             rplims=(.5,10)):
         '''Get all the simulations for this star and compute the
         sensitivity and the number of FPs as functions of P and rp.'''

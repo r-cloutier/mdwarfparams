@@ -111,7 +111,7 @@ class K2results:
 
         
 
-    def compute_detections(self, Ntrials=1e3, Plims=(.5,80), rplims=(.5,10)):
+    def compute_detections(self, Ntrials=1e3, Plims=(.5,100), rplims=(.5,10)):
         '''compute detections over P and rp using MC simulations over the 
         radius uncertainties.'''
         Nsims, Ntrials = self.fs.size, int(Ntrials)

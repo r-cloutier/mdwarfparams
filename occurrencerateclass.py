@@ -4,6 +4,7 @@ from uncertainties import unumpy as unp
 import rvs
 from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
+from priors import get_results
 
 
 class OccurrenceRateclass:
@@ -11,7 +12,7 @@ class OccurrenceRateclass:
     def __init__(self, folder, prefix, xlen=20, ylen=12, 
 		 compute_detections=False, compute_sens=False, 
 		 compute_occurrence_rate=False,
-                 Plims=(.5,80), Flims=(.1,4e2), rplims=(.5,10)):
+                 Plims=(.5,100), Flims=(.1,4e2), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
 	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
         self._xlen, self._ylen = int(xlen), int(ylen)
