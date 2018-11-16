@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv7.csv'
-KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv10.csv'
+KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv11.csv'
 threshBayesfactor = 1e2
 
 
@@ -260,9 +260,11 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
 def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
     '''Return True if star obeys the desired conditions'''
     star_dict = get_star(IDnum, Kep=Kep, K2=K2, TESS=TESS)
-    return (star_dict['Ms'] <= .75) & \
-        (star_dict['Rs'] <= .75) & (star_dict['logg'] > 3.5) & \
-        (star_dict['Teff'] >= 2700) & (star_dict['Teff'] <= 4000)
+    return (star_dict['Ms']-star_dict['elo_Ms'] <= .75) & \
+        (star_dict['Rs']-star_dict['elo_Rs'] <= .75) & \
+	(star_dict['logg']+star_dict['ehi_logg'] > 3.5) & \
+        (star_dict['Teff']+star_dist['ehi_Teff'] >= 2700) & \
+	(star_dict['Teff']-star_dict['elo_Teff'] <= 4000)
 
 
 def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):

@@ -42,18 +42,25 @@ class OccurrenceRateclass:
         self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
         self.params_optimized = np.zeros((0,5))
         self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
-        self.rps, self.e_rps = np.zeros(0), np.zeros(0)        
+        self.rps, self.ehi_rps, self.elo_rps = np.zeros(0), np.zeros(0), \
+                                               np.zeros(0)
+        self.smas, self.ehi_smas, self.elo_smas = np.zeros(0), np.zeros(0), \
+                                                  np.zeros(0)
+        self.Fs, self.ehi_Fs, self.elo_Fs = np.zeros(0),np.zeros(0),np.zeros(0)
 
         # POI params
         self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
 
         # stellar params
         self.Kepmags, self.efs = np.zeros(0), np.zeros(0)
-        self.Mss, self.e_Mss = np.zeros(0), np.zeros(0)
-        self.Rss, self.e_Rss = np.zeros(0), np.zeros(0)
-        self.Teffs, self.e_Teffs = np.zeros(0), np.zeros(0)
-        self.loggs, self.e_loggs = np.zeros(0), np.zeros(0)
-
+        self.Mss,self.ehi_Mss,self.elo_Mss = np.zeros(0),np.zeros(0),np.zeros(0)
+        self.Rss,self.ehi_Rss,self.elo_Rss = np.zeros(0),np.zeros(0),np.zeros(0)
+        self.Teffs, self.ehi_Teffs, self.elo_Teffs = np.zeros(0), np.zeros(0), \
+                                                     np.zeros(0)
+        self.loggs, self.ehi_loggs, self.elo_loggs = np.zeros(0), np.zeros(0), \
+                                                     np.zeros(0)
+        self.Lss,self.ehi_Lss,self.elo_Lss = np.zeros(0),np.zeros(0),np.zeros(0)
+        
         for i in range(fs.size):
 
             print float(i)/fs.size, fs[i]
@@ -70,13 +77,22 @@ class OccurrenceRateclass:
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.efs = np.append(self.efs, d.ef.mean())
                     self.Mss = np.append(self.Mss, d.Ms)
-                    self.e_Mss = np.append(self.e_Mss, d.e_Ms)
+                    self.ehi_Mss = np.append(self.ehi_Mss, d.ehi_Ms)
+                    self.elo_Mss = np.append(self.elo_Mss, d.elo_Ms)
                     self.Rss = np.append(self.Rss, d.Rs)
-                    self.e_Rss = np.append(self.e_Rss, d.e_Rs)
+                    self.ehi_Rss = np.append(self.ehi_Rss, d.ehi_Rs)
+                    self.elo_Rss = np.append(self.elo_Rss, d.elo_Rs)
                     self.Teffs = np.append(self.Teffs, d.Teff)
-                    self.e_Teffs = np.append(self.e_Teffs, d.e_Teff)
+                    self.ehi_Teffs = np.append(self.ehi_Teffs, d.ehi_Teff)
+                    self.elo_Teffs = np.append(self.elo_Teffs, d.elo_Teff)
                     self.loggs = np.append(self.loggs, d.logg)
-                    self.e_loggs = np.append(self.e_loggs, d.e_logg)
+                    self.ehi_loggs = np.append(self.ehi_loggs, d.ehi_logg)
+                    self.elo_loggs = np.append(self.elo_loggs, d.elo_logg)
+                    samp_Ls = sample_Ls(d.object_name)
+                    Lss = get_results(samp_Ls.reshape(samp_Ls.size,1))
+                    self.Lss = np.append(self.Lss, Lss[0])
+                    self.ehi_Lss = np.append(self.ehi_Lss, Lss[1])
+                    self.elo_Lss = np.append(self.elo_Lss, Lss[2])
 
                     # save parameter guesses of detected planets
                     params = d.params_guess[j-1] if j > 0 \
@@ -110,29 +126,39 @@ class OccurrenceRateclass:
                                 d.transit_condition_free_params.reshape(1,6),
                                                       axis=0)
 
-                    # save periods and planets radii
+                    # save planet params
                     self.Ps = np.append(self.Ps, params_opt[0])
                     self.e_Ps = np.append(self.e_Ps,
                                           get_1sigma(params_res[:,0]))
-                    rpRs = unp.uarray(params_opt[3],
-                                      get_1sigma(params_res[:,3]))
-                    Rs = unp.uarray(d.Rs, d.e_Rs)
-                    rp, e_rp = rpRs2rp(rpRs, Rs)
+                    samp_rp = sample_rp(d.object_name, params_opt[3],
+                                        get_1sigma(params_res[:,3]))
+                    rp,ehi_rp,elo_rp = get_results(samp_rp.reshape(samp_rp.size,
+                                                                   1))
                     self.rps = np.append(self.rps, rp)
-                    self.e_rps = np.append(self.e_rps, e_rp)
+                    self.ehi_rps = np.append(self.ehi_rps, ehi_rp)
+                    self.elo_rps = np.append(self.elo_rps, elo_rp)
+                    samp_sma = sample_sma(d.object_name, self.Ps[-1],
+                                          self.e_Ps[-1])
+                    smas = get_results(samp_sma.reshape(samp_sma.size,1))
+                    self.smas = np.append(self.smas, smas[0])
+                    self.ehi_smas = np.append(self.ehi_smas, smas[1])
+                    self.elo_smas = np.append(self.elo_smas, smas[2])
+                    samp_F = compute_F(samp_Ls, samp_sma)
+                    Fs = get_results(samp_F.reshape(samp_F.size,1))
+                    self.Fs = np.append(self.Fs, Fs[0])
+                    self.ehi_Fs = np.append(self.ehi_Fs, Fs[1])
+                    self.elo_Fs = np.append(self.elo_Fs, Fs[2])
 
-        # save stellar luminosities and planet sma and F
-        Rss   = unp.uarray(self.Rss, self.e_Rss)
-        Teffs = unp.uarray(self.Teffs, self.e_Teffs)
-        Lss = compute_Ls(Rss, Teffs)
-        self.Lss, self.e_Lss = unp.nominal_values(Lss), unp.std_devs(Lss)
-        Ps = unp.uarray(self.Ps, self.e_Ps)
-        Mss   = unp.uarray(self.Mss, self.e_Mss)
-        smas = rvs.semimajoraxis(Ps, Mss, 0)
-        self.smas, self.e_smas = unp.nominal_values(smas), unp.std_devs(smas)
-        Fs = compute_F(Lss, smas)
-        self.Fs, self.e_Fs = unp.nominal_values(Fs), unp.std_devs(Fs)
-        
+                    # save planet samples for MC sampling
+                    samp_P = np.random.normal(self.Ps[-1], self.e_Ps[-1],
+                                              samp_rp.size)
+                    outarr = np.array([samp_P, samp_sma, samp_F, samp_rp]).T
+                    hdr = 'P_days,sma_AU,F_Fearth,rp_Rearth'
+                    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+                    fname += '%s_planetpost'%d.object_name
+                    np.savetxt(fname, outarr, header=hdr, delimiter=',',
+                               fmt='%.8e')
+
         # save stuff
         _, self.unique_inds = np.unique(self.names_planetsearch,
                                         return_index=True)
@@ -161,16 +187,10 @@ class OccurrenceRateclass:
             if self.Ndetected[i] > 0:
                 
                 # compute MC realizations of this planet
-                P, eP = self.Ps[i], self.e_Ps[i]
-                rp, erp = self.rps[i], self.e_rps[i]
-                Ms, eMs = self.Mss[i], self.e_Mss[i]
-                Ls, eLs = self.Lss[i], self.e_Lss[i]
                 self.Ps_MC[i],self.Fs_MC[i],self.rps_MC[i] = \
-                                                    sample_planets(P, eP,
-                                                                   rp, erp,
-                                                                   Ms, eMs,
-                                                                   Ls, eLs,
-                                                                   Ntrials)
+                                    sample_planets(self.names_planetsearch[i],
+                                                   Ntrials)
+                
             else:
                 self.Ps_MC[i]  = np.repeat(np.nan, Ntrials)
                 self.Fs_MC[i]  = np.repeat(np.nan, Ntrials)
@@ -426,29 +446,40 @@ class OccurrenceRateclass:
         for i in range(self.Nstars_wdet):
             for j in range(self._xlen):
                 for k in range(self._ylen):
-                    
+
+                    # get central values
                     Pmid = 10**(np.log10(self.logPgrid[j]) + \
                                 np.diff(np.log10(self.logPgrid[:2])/2))
                     Fmid = 10**(np.log10(self.logFgrid[j]) + \
                                 np.diff(np.log10(self.logFgrid[:2])/2))
                     rpmid = 10**(np.log10(self.logrpgrid[k]) + \
                                  np.diff(np.log10(self.logrpgrid[:2])/2))
-                    
+
+                    # get parameters pdfs
                     name = self.names_wdet[i]
-                    g = np.where(self.names_planetsearch == name)[0][0]
-                    Ms = unp.uarray(self.Mss[g], self.e_Mss[g])
-                    smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, Ms, 0))
-                    Ls = unp.uarray(self.Lss[g], self.e_Lss[g])
-                    smaF = sma_from_F(Fmid, Ls)
-                    Rs = unp.uarray(self.Rss[g], self.e_Rss[g])
+                    KepID = int(name.split('_')[-1])
+                    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+                    fname += 'KepID_allpost_%i'%KepID
+                    inds = np.array([9,11])
+                    samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
+                    #fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+                    #fname += '%s_planetpost'%name
+                    
+                    samp_smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, samp_Ms, 0))
+                    samp_Ls = sample_Ls(name)
+                    samp_smaF = sma_from_F(Fmid, samp_Ls)
+                    
+                    samp_probP = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
+                                 samp_smaP
+                    probP,_,_ = get_results(samp_probP.reshape(samp_probP.size,1))
+                    self.transit_probP_i[i,j,k] = probP
+                    #self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
 
-                    probP = (rvs.Rsun2m(Rs) + rvs.Rearth2m(rpmid)) / smaP
-                    self.transit_probP_i[i,j,k] = unp.nominal_values(probP)
-                    self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
-
-                    probF = (rvs.Rsun2m(Rs) + rvs.Rearth2m(rpmid)) / smaF
-                    self.transit_probF_i[i,j,k] = unp.nominal_values(probF)
-                    self.e_transit_probF_i[i,j,k] = unp.std_devs(probF)
+                    samp_probF = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
+                                 samp_smaF
+                    probF,_,_ = get_results(samp_probF.reshape(samp_probF.size,1))
+                    self.transit_probF_i[i,j,k] = probF
+                    #self.e_transit_probF_i[i,j,k] = unp.std_devs(probF)
                     
 
 	# correction from beta distribution fit (Kipping 2013)
@@ -560,14 +591,79 @@ def compute_Ls(Rs_Sun, Teff_K):
     return Rs_Sun**2 * (Teff_K / 5772.)**4
 
 
+def sample_Ls(object_name, Nsamp=1e4):
+    '''Sample Ls PDF from the Rs and Teff PDFs for this star.'''
+    # get Rs and Teff pdfs
+    Nsamp = int(Nsamp)
+    try:
+        KepID = int(object_name.split('_')[-1])
+        fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+        fname += 'KepID_allpost_%i'%KepID
+        inds = np.arange(9,11)
+        samp_Rs_tmp, samp_Teff_tmp = np.loadtxt(fname, delimiter=',')[:,inds].T
+        samp_Rs = np.random.choice(samp_Rs_tmp, Nsamp) + \
+                  np.random.randn(Nsamp)*1e-3
+        samp_Teff = np.random.choice(samp_Teff_tmp, Nsamp) + \
+                    np.random.randn(Nsamp)*1e-1
+    except IOError:
+        samp_Rs = np.repeat(np.nan, Nsamp)
+        samp_Teff = np.repeat(np.nan, Nsamp)
+
+    # compute Ls distribution
+    return samp_Rs**2 * (samp_Teff / 5772.)**4
+            
+
 def compute_F(Ls_Sun, smas_AU):
     return Ls_Sun / smas_AU**2
 
 
-def sma_from_F(F_Sun, Ls_Sun):
-    return unp.sqrt(Ls_Sun / F_sun)
-    
+def sma_from_F(F_Sun, samp_Ls_Sun):
+    samp_sma = np.sqrt(samp_Ls_Sun / F_Sun)
+    return samp_sma
 
+
+def sample_rp(object_name, rpRs, e_rpRs, Nsamp=1e4):
+    '''Sample rp PDF from the Rs PDF for this star.'''
+    # get Rs pdf
+    Nsamp = int(Nsamp)
+    try:
+        KepID = int(object_name.split('_')[-1])
+        fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+        fname += 'KepID_allpost_%i'%KepID
+        samp_Rs_tmp = np.loadtxt(fname, delimiter=',')[:,9]
+        samp_Rs = np.random.choice(samp_Rs_tmp, Nsamp) + \
+                  np.random.randn(Nsamp)*1e-3
+    except IOError:
+        samp_Rs = np.repeat(np.nan, Nsamp)
+
+    # create gaussian rpRs ditribution
+    samp_rpRs = np.random.normal(rpRs, e_rpRs, Nsamp)
+    
+    # compute rp distribution
+    return rvs.m2Rearth(rvs.Rsun2m(samp_rpRs*samp_Rs))
+
+
+def sample_sma(object_name, P, e_P, Nsamp=1e4):
+    '''Sample sma PDF from the Ms PDF for this star.'''
+    # get Ms pdf
+    Nsamp = int(Nsamp)
+    try:
+        KepID = int(object_name.split('_')[-1])
+        fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+        fname += 'KepID_allpost_%i'%KepID
+        samp_Ms_tmp = np.loadtxt(fname, delimiter=',')[:,11]
+        samp_Ms = np.random.choice(samp_Ms_tmp, Nsamp) + \
+                  np.random.randn(Nsamp)*1e-3
+    except IOError:
+        samp_Ms = np.repeat(np.nan, Nsamp)
+
+    # create gaussian P ditribution
+    samp_P = np.random.normal(P, e_P, Nsamp)
+    
+    # compute sma distribution
+    return rvs.semimajoraxis(samp_P, samp_Ms, 0)
+
+    
 def get_1sigma(results):
     '''results = med, plus_1sig, minus_1sig'''
     assert results.size == 3
@@ -579,13 +675,16 @@ def rpRs2rp(rpRs, Rs):
     return unp.nominal_values(rp), unp.std_devs(rp)
 
 
-def sample_planets(P, eP, rp, erp, Ms, eMs, Ls, eLs, N):
-    Psout = np.random.normal(P, eP, int(N))
-    Ps = unp.uarray(Psout, np.repeat(eP, int(N)))
-    smas = rvs.semimajoraxis(Ps, unp.uarray(Ms,eMs), 0)
-    Fsout = unp.nominal_values(compute_F(unp.uarray(Ls,eLs), smas))
-    rpsout = np.random.normal(rp, erp, int(N))
-    return Psout, Fsout, rpsout
+def sample_planets(object_name, N):
+    '''Sample planets P, F, and radius from their saved posterior PDFs.'''
+    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+    fname += '%s_planetpost'%object_name                
+    samp_P,_, samp_F, samp_rp = np.loadtxt(fname, delimiter=',').T
+    N = int(N)
+    samp_P = np.random.choice(samp_P, N) + np.random.randn(N)*1e-2
+    samp_F = np.random.choice(samp_F, N) + np.random.randn(N)*1e-2
+    samp_rp = np.random.choice(samp_rp, N) + np.random.randn(N)*1e-2
+    return samp_P, samp_F, samp_rp
 
 
 def fill_map_nans(arr):
@@ -690,4 +789,7 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    self = OccurrenceRateclass(folder, prefix, compute_detections=True, compute_sens=False, compute_occurrence_rate=False)
+    self = OccurrenceRateclass(folder, prefix,
+                               compute_detections=True,
+                               compute_sens=False,
+                               compute_occurrence_rate=False)
