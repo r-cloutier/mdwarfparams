@@ -263,7 +263,7 @@ def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
     return (star_dict['Ms']-star_dict['elo_Ms'] <= .75) & \
         (star_dict['Rs']-star_dict['elo_Rs'] <= .75) & \
 	(star_dict['logg']+star_dict['ehi_logg'] > 3.5) & \
-        (star_dict['Teff']+star_dist['ehi_Teff'] >= 2700) & \
+        (star_dict['Teff']+star_dict['ehi_Teff'] >= 2700) & \
 	(star_dict['Teff']-star_dict['elo_Teff'] <= 4000)
 
 

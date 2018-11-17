@@ -234,8 +234,8 @@ class OccurrenceRateclass:
                          (self.rps_MC[g1] <= self.logrpgrid[k+1])
                     self.NdetF_i[i,j,k] = g3.sum() / float(Ntrials)
 
-                    g4 = (self.smas_MC[g1] >= self.logagrid[j]) & \
-                         (self.smas_MC[g1] <= self.logagrid[j+1]) & \
+                    g4 = (self.as_MC[g1] >= self.logagrid[j]) & \
+                         (self.as_MC[g1] <= self.logagrid[j+1]) & \
                          (self.rps_MC[g1] >= self.logrpgrid[k]) & \
                          (self.rps_MC[g1] <= self.logrpgrid[k+1])
                     self.Ndeta_i[i,j,k] = g4.sum() / float(Ntrials)
@@ -277,28 +277,31 @@ class OccurrenceRateclass:
         sensitivity and FP corrections for each star with a detected planet
         candidate.'''
         # get results from injection/recovery
-        self.names_wdet = np.loadtxt('input_data/K2targets/' + \
-                                     'K2Mdwarfs_withdetections.csv',
-                                        delimiter=',')
-        self.Nstars_wdet = self.names_wdet.size
-        self.Nsims = np.zeros(self.Nstars_wdet)
+        #self.names_sim = np.loadtxt('input_data/K2targets/' + \
+        #                             'K2Mdwarfs_withdetections.csv',
+        #                            delimiter=',')
+        fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix)
+        self.names_simulated = np.array([int(i.split('/')[1])
+                                         for i in fs])
+        self.Nstars_simulated = self.names_simulated.size
+        self.Nsims = np.zeros(self.Nstars_simulated)
         Nmaxfs, NmaxPs = 700, 20
-        self.Nplanets_inj = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
-        self.Nplanets_rec = np.zeros((self.Nstars_wdet, Nmaxfs)) + np.nan
-        self.Ps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.Fs_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.as_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.rps_inj = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.is_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.Ps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.Fs_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.as_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.rps_rec = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
-        self.is_FP = np.zeros((self.Nstars_wdet, Nmaxfs, NmaxPs)) + np.nan
+        self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
+        self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
+        self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.rps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.is_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.Ps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.Fs_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.as_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.rps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.is_FP = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         
-        for i in range(self.Nstars_wdet):
+        for i in range(self.Nstars_simulated):
 
-            name = self.names_wdet[i]
+            name = self.names_simulated[i]
             print i, name
             fs = np.array(glob.glob('%s/%s/LC*'%(self.folder, name)))
 
@@ -373,19 +376,19 @@ class OccurrenceRateclass:
         self.logrpgrid = np.logspace(np.log10(self.rplims[0]),
                                      np.log10(self.rplims[1]), self._ylen+1)
 
-        self.NrecP_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NinjP_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NFPP_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NrecP_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.NinjP_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.NFPP_i  = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
 
-        self.NrecF_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NinjF_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NFPF_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.NrecF_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.NinjF_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.NFPF_i  = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
         
-        self.Nreca_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.Ninja_i = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
-        self.NFPa_i  = np.zeros((self.Nstars_wdet, self._xlen, self._ylen))
+        self.Nreca_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.Ninja_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
+        self.NFPa_i  = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
 
-        for i in range(self.Nstars_wdet):
+        for i in range(self.Nstars_simulated):
             for j in range(self._xlen):
                 for k in range(self._ylen):
 
@@ -503,7 +506,7 @@ class OccurrenceRateclass:
         self.transit_proba_i = np.zeros_like(self.sensP_i)
         self.e_transit_proba_i = np.zeros_like(self.sensP_i)
 
-        for i in range(self.Nstars_wdet):
+        for i in range(self.Nstars_simulated):
             for j in range(self._xlen):
                 for k in range(self._ylen):
 
@@ -518,7 +521,7 @@ class OccurrenceRateclass:
                                  np.diff(np.log10(self.logrpgrid[:2])/2))
 
                     # get parameters pdfs
-                    name = self.names_wdet[i]
+                    name = self.names_simulated[i]
                     KepID = int(name.split('_')[-1])
                     fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
                     fname += 'KepID_allpost_%i'%KepID
@@ -593,23 +596,23 @@ class OccurrenceRateclass:
         '''Use the maps of Ndet, yield_corr, sensitivity, and transit 
         probability to compute the occurrence rate over P/F and rp.'''
         assert self.NdetP_i.shape[0] == self.Nstars
-        assert self.sensP_i.shape[0] == self.Nstars_wdet
+        assert self.sensP_i.shape[0] == self.Nstars_simulated
         assert self.NdetP_i.shape[1:] == self.sensP_i.shape[1:]
         assert self.NdetF_i.shape[0] == self.Nstars
-        assert self.sensF_i.shape[0] == self.Nstars_wdet
+        assert self.sensF_i.shape[0] == self.Nstars_simulated
         assert self.NdetF_i.shape[1:] == self.sensF_i.shape[1:]
         assert self.Ndeta_i.shape[0] == self.Nstars
-        assert self.sensa_i.shape[0] == self.Nstars_wdet
+        assert self.sensa_i.shape[0] == self.Nstars_simulated
         assert self.Ndeta_i.shape[1:] == self.sensa_i.shape[1:]
         
         self.occurrence_rateP_i = np.zeros_like(self.sens_i)
         self.occurrence_rateF_i = np.zeros_like(self.sens_i)
         self.occurrence_ratea_i = np.zeros_like(self.sens_i)
-        for i in range(self.Nstars_wdet):
+        for i in range(self.Nstars_simulated):
 
-	    print float(i) / self.Nstars_wdet
+	    print float(i) / self.Nstars_simulated
             g = self.names_planetsearch[self.unique_inds] == \
-                self.names_wdet[i]
+                self.names_simulated[i]
             
             NdetP_i = self.NdetP_i[g].reshape(self._xlen, self._ylen)
             SP_i = fill_map_nans(self.sensP_i[i])
