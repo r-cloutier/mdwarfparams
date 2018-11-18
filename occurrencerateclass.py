@@ -6,6 +6,8 @@ from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
 from priors import get_results
 
+global fine_factor
+fine_factor = 6
 
 class OccurrenceRateclass:
 
@@ -245,7 +247,7 @@ class OccurrenceRateclass:
 	self.Ndeta_tot = fill_map_nans(np.nansum(self.Ndeta_i, axis=0))
 
         # interpolate onto a fine grid
-        xlen, ylen = self._xlen*6, self._ylen*6
+        xlen, ylen = self._xlen*fine_factor, self._ylen*fine_factor
         self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
                                          np.log10(self.Plims[1]), xlen)
         self.logFgrid_fine = np.logspace(np.log10(self.Flims[0]),
@@ -280,9 +282,8 @@ class OccurrenceRateclass:
         #self.names_sim = np.loadtxt('input_data/K2targets/' + \
         #                             'K2Mdwarfs_withdetections.csv',
         #                            delimiter=',')
-        fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix)
-        self.names_simulated = np.array([int(i.split('/')[1])
-                                         for i in fs])
+        fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
+        self.names_simulated = np.array([i.split('/')[1] for i in fs])
         self.Nstars_simulated = self.names_simulated.size
         self.Nsims = np.zeros(self.Nstars_simulated)
         Nmaxfs, NmaxPs = 700, 20
@@ -316,7 +317,10 @@ class OccurrenceRateclass:
             for j in range(fs.size):
 
                 print float(j) / fs.size
-                d = loadpickle(fs[j])
+                try:
+                    d = loadpickle(fs[j])
+                except EOFError, ValueError:
+                    pass
                 if d.DONE:
                     self.Nsims[i] += 1
                     self.Nplanets_inj[i,j] = d.Ptrue.size
@@ -463,7 +467,15 @@ class OccurrenceRateclass:
                                                         axis=0))
 
         # interpolate onto a fine grid
-        xlen, ylen = self.logPgrid_fine.size, self.logrpgrid_fine.size
+        xlen, ylen = self._xlen*fine_factor, self._ylen*fine_factor
+        self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
+                                         np.log10(self.Plims[1]), xlen)
+        self.logFgrid_fine = np.logspace(np.log10(self.Flims[0]),
+                                         np.log10(self.Flims[1]), xlen)
+        self.logagrid_fine = np.logspace(np.log10(self.smalims[0]),
+                                         np.log10(self.smalims[1]), xlen)
+        self.logrpgrid_fine = np.logspace(np.log10(self.rplims[0]),
+                                          np.log10(self.rplims[1]), ylen)
         Pgrid  = np.repeat(self.logPgrid_fine, ylen)
         Fgrid  = np.repeat(self.logFgrid_fine, ylen)
         agrid  = np.repeat(self.logagrid_fine, ylen)
@@ -899,6 +911,6 @@ if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
     self = OccurrenceRateclass(folder, prefix,
-                               compute_detections=True,
-                               compute_sens=False,
+                               compute_detections=False,
+                               compute_sens=True,
                                compute_occurrence_rate=False)
