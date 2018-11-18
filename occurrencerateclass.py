@@ -93,7 +93,7 @@ class OccurrenceRateclass:
                     self.loggs = np.append(self.loggs, d.logg)
                     self.ehi_loggs = np.append(self.ehi_loggs, d.ehi_logg)
                     self.elo_loggs = np.append(self.elo_loggs, d.elo_logg)
-                    _,_,samp_Ls = sample_Ls(d.object_name)
+                    _,_,samp_Ls = sample_Ls(d.object_name) 
                     Lss = get_results(samp_Ls.reshape(samp_Ls.size,1))
                     self.Lss = np.append(self.Lss, Lss[0])
                     self.ehi_Lss = np.append(self.ehi_Lss, Lss[1])
