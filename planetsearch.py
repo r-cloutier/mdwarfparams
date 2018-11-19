@@ -362,7 +362,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
 	print 'star not of interest: ', IDnum
         return None
 
-    # get parameters depending on the inut light curves
+    # get parameters depending on the input light curves
     if Kep:
         Kepnum, Nopt = IDnum, 5
         name, star_dict, bjd, f, ef, quarters = read_Kepler_data(Kepnum)

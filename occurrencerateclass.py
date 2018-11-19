@@ -23,14 +23,17 @@ class OccurrenceRateclass:
         self.rplims = rplims
         
         if compute_detections:
+	    self.fname_out += '_det'
             self.get_planetsearch_results()
             self._pickleobject()
             
         if compute_sens:
+	    self.fname_out += '_sens'
             self.get_simulation_results()
             self._pickleobject()
 
         if compute_occurrence_rate:
+	    self.fname_out += '_occ'
             self.compute_occurrence_rate()
 	    self._pickleobject()
 
@@ -155,14 +158,15 @@ class OccurrenceRateclass:
                     self.elo_Fs = np.append(self.elo_Fs, Fs[2])
 
                     # save planet samples for MC sampling
-                    samp_P = np.random.normal(self.Ps[-1], self.e_Ps[-1],
-                                              samp_rp.size)
-                    outarr = np.array([samp_P, samp_sma, samp_F, samp_rp]).T
-                    hdr = 'P_days,sma_AU,F_Fearth,rp_Rearth'
-                    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-                    fname += '%s_planetpost'%d.object_name
-                    np.savetxt(fname, outarr, header=hdr, delimiter=',',
-                               fmt='%.8e')
+                    if j > 0:
+                        samp_P = np.random.normal(self.Ps[-1], self.e_Ps[-1],
+                                                  samp_rp.size)
+                        outarr = np.array([samp_P, samp_sma, samp_F, samp_rp]).T
+                        hdr = 'P_days,sma_AU,F_Fearth,rp_Rearth'
+                        fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+                        fname += '%s_planetpost_%i'%(d.object_name, j)
+                        np.savetxt(fname, outarr, header=hdr, delimiter=',',
+                                   fmt='%.8e')
 
         # save stuff
         _, self.unique_inds = np.unique(self.names_planetsearch,
@@ -181,6 +185,8 @@ class OccurrenceRateclass:
         if not hasattr(self, 'fs_planetsearch'):
             return None
         N, Ntrials = self.fs_planetsearch.size, int(Ntrials)
+        planet_indices = np.zeros(N)
+        planets_considered = []
         self.Ps_MC = np.zeros((N, Ntrials))
         self.Fs_MC = np.zeros((N, Ntrials))
         self.as_MC = np.zeros((N, Ntrials))
@@ -192,10 +198,16 @@ class OccurrenceRateclass:
 
             if self.Ndetected[i] > 0:
                 
-                # compute MC realizations of this planet
+                # compute MC realizations of this planet around this star
+                name = self.names_planetsearch[i]
+                planet_index = planet_indices[self.names_planetsearch == name].sum() + 1
+                planet_indices[i] = 1
+                PDF_fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+                PDF_fname += '%s_planetpost_%i'%(name, planet_index)
+                assert PDF_fname not in planets_considered
+                planets_considered.append(PDF_fname)
                 self.Ps_MC[i],self.Fs_MC[i],self.as_MC[i],self.rps_MC[i] = \
-                                    sample_planets(self.names_planetsearch[i],
-                                                   Ntrials)
+                                    sample_planets(PDF_fname, Ntrials)
                 
             else:
                 self.Ps_MC[i]  = np.repeat(np.nan, Ntrials)
@@ -539,9 +551,7 @@ class OccurrenceRateclass:
                     fname += 'KepID_allpost_%i'%KepID
                     inds = np.array([9,11])
                     samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
-                    #fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-                    #fname += '%s_planetpost'%name
-                    
+                
                     samp_smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, samp_Ms, 0))
                     samp_probP = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaP
@@ -795,11 +805,9 @@ def rpRs2rp(rpRs, Rs):
     return unp.nominal_values(rp), unp.std_devs(rp)
 
 
-def sample_planets(object_name, N):
+def sample_planets(PDF_fname, N):
     '''Sample planets P, F, and radius from their saved posterior PDFs.'''
-    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-    fname += '%s_planetpost'%object_name                
-    samp_P, samp_sma, samp_F, samp_rp = np.loadtxt(fname, delimiter=',').T
+    samp_P, samp_sma, samp_F, samp_rp = np.loadtxt(PDF_fname, delimiter=',').T
     N = int(N)
     samp_P = resample_PDF(samp_P, N, 1e-3)
     samp_F = resample_PDF(samp_F, N, 1e-3)
