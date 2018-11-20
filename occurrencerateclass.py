@@ -11,13 +11,13 @@ class OccurrenceRateclass:
 
     def __init__(self, folder, prefix, xlen=20, ylen=12, 
 		 compute_detections=False, compute_sens=False, 
-		 compute_occurrence_rate=False, fine_factor=6
+		 compute_occurrence_rate=False, fine_factor=6,
                  Plims=(.5,1e2), Flims=(.1,4e2), smalims=(5e-3,.5),
                  rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
 	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
         self._xlen, self._ylen = int(xlen), int(ylen)
-	self._fine_factor = float(fine_factor)
+	self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
         self.rplims = rplims
         
@@ -297,6 +297,26 @@ class OccurrenceRateclass:
         self.names_simulated = np.unique([i.split('/')[1] for i in fs])
         self.Nstars_simulated = self.names_simulated.size
         self.Nsims = np.zeros(self.Nstars_simulated)
+
+        # stellar params
+        self.Kepmags = np.zeros(self.Nstars_simulated)
+        self.efs = np.zeros(self.Nstars_simulated)
+        self.Mss = np.zeros(self.Nstars_simulated)
+        self.ehi_Mss = np.zeros(self.Nstars_simulated)
+        self.elo_Mss = np.zeros(self.Nstars_simulated)
+        self.Rss = np.zeros(self.Nstars_simulated)
+        self.ehi_Rss = np.zeros(self.Nstars_simulated)
+        self.elo_Rss = np.zeros(self.Nstars_simulated)
+        self.Teffs = np.zeros(self.Nstars_simulated)
+        self.ehi_Teffs = np.zeros(self.Nstars_simulated)
+        self.elo_Teffs = np.zeros(self.Nstars_simulated)
+        self.loggs = np.zeros(self.Nstars_simulated)
+        self.ehi_loggs = np.zeros(self.Nstars_simulated)
+        self.elo_loggs = np.zeros(self.Nstars_simulated)
+        self.Lss = np.zeros(self.Nstars_simulated)
+        self.ehi_Lss = np.zeros(self.Nstars_simulated)
+        self.elo_Lss = np.zeros(self.Nstars_simulated)
+
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
@@ -334,6 +354,27 @@ class OccurrenceRateclass:
                     d = loadpickle(fs[j])
                 except EOFError, ValueError:
                     pass
+
+                # save stellar params
+                if j == 0:
+                    self.Kepmags[i] = d.Kepmag
+                    self.efs[i] = self.efs, d.ef.mean()
+                    self.Mss[i] = d.Ms
+                    self.ehi_Mss[i] = d.ehi_Ms
+                    self.elo_Mss[i] = d.elo_Ms
+                    self.Rss[i] = d.Rs
+                    self.ehi_Rss[i] = d.ehi_Rs
+                    self.elo_Rss[i] = d.elo_Rs
+                    self.Teffs[i] = d.Teff
+                    self.ehi_Teffs[i] = d.ehi_Teff
+                    self.elo_Teffs[i] = d.elo_Teff
+                    self.loggs[i] = d.logg
+                    self.ehi_loggs[i] = d.ehi_logg
+                    self.elo_loggs[i] = d.elo_logg
+                    _,_,samp_Ls = sample_Ls(d.object_name) 
+                    Lss = get_results(samp_Ls.reshape(samp_Ls.size,1))
+                    self.Lss[i], self.ehi_Lss, self.elo_Lss = Lss
+                
                 if d.DONE:
                     self.Nsims[i] += 1
                     self.Nplanets_inj[i,j] = d.Ptrue.size
@@ -360,11 +401,11 @@ class OccurrenceRateclass:
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
 
                     # save vetting results for diagnostic purposes
-                    NPOIs = self.params_guess_priorto_confirm.shape[0]
+                    NPOIs = d.params_guess_priorto_confirm.shape[0]
                     filler3 = np.repeat(np.nan, 6*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,6)
                     self.cond_vals[i,j] = np.append(d.transit_condition_values, filler3, 0)
                     free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,6)
-                    self.cond_free_params[i,j] = np.append(free_params, filler3)
+                    self.cond_free_params[i,j] = np.append(free_params, filler3, 0)
 
 
         # trim excess planets
@@ -413,6 +454,7 @@ class OccurrenceRateclass:
         self.Ninja_i = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
         self.NFPa_i  = np.zeros((self.Nstars_simulated, self._xlen, self._ylen))
 
+	print 'Compute N_rec and N_inj maps (coarse grid)...'
         for i in range(self.Nstars_simulated):
             for j in range(self._xlen):
                 for k in range(self._ylen):
@@ -488,6 +530,8 @@ class OccurrenceRateclass:
                                                         axis=0))
 
         # interpolate onto a fine grid
+	print 'Compute N_rec and N_inj maps (fine grid)...'
+	return None  # TEMP
         xlen, ylen = self._xlen*self._fine_factor, self._ylen*self._fine_factor
         self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
                                          np.log10(self.Plims[1]), xlen)
@@ -539,7 +583,17 @@ class OccurrenceRateclass:
         self.transit_proba_i = np.zeros_like(self.sensP_i)
         self.e_transit_proba_i = np.zeros_like(self.sensP_i)
 
+        print 'Compute transit probability maps (coarse grid)...'
         for i in range(self.Nstars_simulated):
+
+            # get parameters pdfs
+            name = self.names_simulated[i]
+            KepID = int(name.split('_')[-1])
+            fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
+            fname += 'KepID_allpost_%i'%KepID
+            inds = np.array([9,11])
+            samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
+            
             for j in range(self._xlen):
                 for k in range(self._ylen):
 
@@ -553,35 +607,28 @@ class OccurrenceRateclass:
                     rpmid = 10**(np.log10(self.logrpgrid[k]) + \
                                  np.diff(np.log10(self.logrpgrid[:2])/2))
 
-                    # get parameters pdfs
-                    name = self.names_simulated[i]
-                    KepID = int(name.split('_')[-1])
-                    fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-                    fname += 'KepID_allpost_%i'%KepID
-                    inds = np.array([9,11])
-                    samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
-                
+                    # compute transit prob vs P,F,& sma
                     samp_smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, samp_Ms, 0))
                     samp_probP = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaP
                     probP,_,_ = \
-                            get_results(samp_probP.reshape(samp_probP.size,1))
+                                get_results(samp_probP.reshape(samp_probP.size,1))
                     self.transit_probP_i[i,j,k] = probP
                     #self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
-
+                    
                     samp_Rs,_,samp_Ls = sample_Ls(name)
                     samp_smaF = sma_from_F(Fmid, samp_Ls)
                     samp_probF = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaF
                     probF,_,_ = \
-                            get_results(samp_probF.reshape(samp_probF.size,1))
+                                get_results(samp_probF.reshape(samp_probF.size,1))
                     self.transit_probF_i[i,j,k] = probF
                     #self.e_transit_probF_i[i,j,k] = unp.std_devs(probF)
-
+                    
                     samp_proba = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  amid
                     proba,_,_ = \
-                            get_results(samp_proba.reshape(samp_proba.size,1))
+                                get_results(samp_proba.reshape(samp_proba.size,1))
                     self.transit_proba_i[i,j,k] = proba
                     #self.e_transit_proba_i[i,j,k] = unp.std_devs(proba)
 
@@ -602,6 +649,8 @@ class OccurrenceRateclass:
                                                           axis=0))
 
         # interpolate onto a fine grid
+        print 'Compute transit probability maps (fine grid)...'
+        return None # TEMP
         xlen, ylen = self.logPgrid_fine.size, self.logrpgrid_fine.size
         Pgrid  = np.repeat(self.logPgrid_fine, ylen)
         Fgrid  = np.repeat(self.logFgrid_fine, ylen)
@@ -927,7 +976,7 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    #self = OccurrenceRateclass(folder, prefix,
-    #                           compute_detections=False,
-    #                           compute_sens=True,
-    #                           compute_occurrence_rate=False)
+    self = OccurrenceRateclass(folder, prefix,
+                               compute_detections=False,
+                               compute_sens=True,
+                               compute_occurrence_rate=False)
