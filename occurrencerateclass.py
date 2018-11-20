@@ -6,19 +6,18 @@ from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
 from priors import get_results
 
-global fine_factor
-fine_factor = 6
 
 class OccurrenceRateclass:
 
     def __init__(self, folder, prefix, xlen=20, ylen=12, 
 		 compute_detections=False, compute_sens=False, 
-		 compute_occurrence_rate=False,
+		 compute_occurrence_rate=False, fine_factor=6
                  Plims=(.5,1e2), Flims=(.1,4e2), smalims=(5e-3,.5),
                  rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
 	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
         self._xlen, self._ylen = int(xlen), int(ylen)
+	self._fine_factor = float(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
         self.rplims = rplims
         
@@ -259,7 +258,7 @@ class OccurrenceRateclass:
 	self.Ndeta_tot = fill_map_nans(np.nansum(self.Ndeta_i, axis=0))
 
         # interpolate onto a fine grid
-        xlen, ylen = self._xlen*fine_factor, self._ylen*fine_factor
+        xlen, ylen = self._xlen*self._fine_factor, self._ylen*self._fine_factor
         self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
                                          np.log10(self.Plims[1]), xlen)
         self.logFgrid_fine = np.logspace(np.log10(self.Flims[0]),
@@ -479,7 +478,7 @@ class OccurrenceRateclass:
                                                         axis=0))
 
         # interpolate onto a fine grid
-        xlen, ylen = self._xlen*fine_factor, self._ylen*fine_factor
+        xlen, ylen = self._xlen*self._fine_factor, self._ylen*self._fine_factor
         self.logPgrid_fine = np.logspace(np.log10(self.Plims[0]),
                                          np.log10(self.Plims[1]), xlen)
         self.logFgrid_fine = np.logspace(np.log10(self.Flims[0]),
