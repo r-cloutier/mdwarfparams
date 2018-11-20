@@ -196,7 +196,7 @@ class OccurrenceRateclass:
         # over the uncertainties
         for i in range(N):
 
-            if self.Ndetected[i] > 0:
+            if (self.Ndetected[i] > 0) & (np.isfinite(self.Ps[i])):
                 
                 # compute MC realizations of this planet around this star
                 name = self.names_planetsearch[i]
@@ -918,7 +918,7 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    self = OccurrenceRateclass(folder, prefix,
-                               compute_detections=False,
-                               compute_sens=True,
-                               compute_occurrence_rate=False)
+    #self = OccurrenceRateclass(folder, prefix,
+    #                           compute_detections=False,
+    #                           compute_sens=True,
+    #                           compute_occurrence_rate=False)
