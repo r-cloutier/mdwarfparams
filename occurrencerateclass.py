@@ -290,10 +290,8 @@ class OccurrenceRateclass:
         sensitivity and FP corrections for each star with a detected planet
         candidate.'''
         # get results from injection/recovery
-        #self.names_sim = np.loadtxt('input_data/K2targets/' + \
-        #                             'K2Mdwarfs_withdetections.csv',
-        #                            delimiter=',')
-        fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
+        #fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
+        fs = glob.glob('%s/%s_*/LC_00000'%(self.folder, self.prefix)) # TEMP
         self.names_simulated = np.unique([i.split('/')[1] for i in fs])
         self.Nstars_simulated = self.names_simulated.size
         self.Nsims = np.zeros(self.Nstars_simulated)
@@ -358,7 +356,7 @@ class OccurrenceRateclass:
                 # save stellar params
                 if j == 0:
                     self.Kepmags[i] = d.Kepmag
-                    self.efs[i] = self.efs, d.ef.mean()
+                    self.efs[i] = d.ef.mean()
                     self.Mss[i] = d.Ms
                     self.ehi_Mss[i] = d.ehi_Ms
                     self.elo_Mss[i] = d.elo_Ms
