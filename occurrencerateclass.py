@@ -300,6 +300,8 @@ class OccurrenceRateclass:
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
+        self.cond_vals = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))
+        self.cond_free_params = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))
         self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -356,6 +358,14 @@ class OccurrenceRateclass:
                     self.Fs_rec[i,j]  = np.append(F, filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
+
+                    # save vetting results for diagnostic purposes
+                    NPOIs = self.params_guess_priorto_confirm.shape[0]
+                    filler3 = np.repeat(np.nan, 6*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,6)
+                    self.cond_vals[i,j] = np.append(d.transit_condition_values, filler3, 0)
+                    free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,6)
+                    self.cond_free_params[i,j] = np.append(free_params, filler3)
+
 
         # trim excess planets
         endfs = int(np.nanmax(self.Nsims))
