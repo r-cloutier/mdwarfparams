@@ -290,8 +290,7 @@ class OccurrenceRateclass:
         sensitivity and FP corrections for each star with a detected planet
         candidate.'''
         # get results from injection/recovery
-        #fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
-        fs = glob.glob('%s/%s_*/LC_00000'%(self.folder, self.prefix)) # TEMP
+        fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
         self.names_simulated = np.unique([i.split('/')[1] for i in fs])
         self.Nstars_simulated = self.names_simulated.size
         self.Nsims = np.zeros(self.Nstars_simulated)
@@ -591,6 +590,8 @@ class OccurrenceRateclass:
             fname += 'KepID_allpost_%i'%KepID
             inds = np.array([9,11])
             samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
+            samp_Rs,_,samp_Ls = sample_Ls(name)
+            samp_Ms = resample_PDF(samp_Ms, samp_Rs.size, 1e-3)
             
             for j in range(self._xlen):
                 for k in range(self._ylen):
@@ -614,7 +615,6 @@ class OccurrenceRateclass:
                     self.transit_probP_i[i,j,k] = probP
                     #self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
                     
-                    samp_Rs,_,samp_Ls = sample_Ls(name)
                     samp_smaF = sma_from_F(Fmid, samp_Ls)
                     samp_probF = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaF
