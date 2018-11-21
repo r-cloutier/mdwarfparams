@@ -951,6 +951,42 @@ def plot_map(xarr, yarr, zmap, zlabel='', avgtitle=False,
     plt.close('all')
 
 
+    
+def plot_rp_hist(selfsens, selfdet, pltt=True, label=False):
+    '''Plot the 1D planetary radius distribution to visualize the radius gap.'''
+    # get 1D rp occurrence rate
+    bins_rp = np.logspace(np.log10(.5), np.log10(10), 30)
+    Nrec1D = np.zeros(bins_rp.size-1)
+    Ninj1D = np.zeros(bins_rp.size-1)
+    NFP1D = np.zeros(bins_rp.size-1)
+    self = selfsens
+    for i in range(bins_rp.size-1):
+        g = (self.rps_inj >= bins_rp[i]) & (self.rps_inj <= bins_rp[i+1])
+        Nrec1D[i] = self.is_rec[g].sum()
+        Ninj1D[i] = self.is_rec[g].size
+        g = (self.rps_rec >= bins_rp[i]) & (self.rps_rec <= bins_rp[i+1])
+        NFP1D[i] = self.is_FP[g].sum()
+    sens1D = Nrec1D / Ninj1D
+    yield_corr1D = 1. - NFP1D / (NFP1D + Nrec1D)
+    transit_prob = self.transit_probP_avg.mean() # fix prob since the dependence on rp is weak
+        
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    self = selfdet
+    g = np.isfinite(self.rps)
+    Ndet, rp_edges = np.histogram(self.rps[g], bins=bins_rp)
+    eNdet = np.sqrt(Ndet)
+    rparr = 10**(np.log10(rp_edges[:-1]) + np.diff(np.log10(rp_edges))[0]/2)
+    occ = rparr*yield_corr1D / sens1D / transit_prob / self.Nstars
+    ax.errorbar(rparr, occ, eNdet*0, lw=2, elinewidth=1, capsize=2,
+                color='k', drawstyle='steps-mid')
+    ax.set_xscale('log')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+
 def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
     '''Interpolate over x and y to get the value at the 2d grid z.'''
     assert len(zarr.shape) == 2
@@ -974,7 +1010,7 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    self = OccurrenceRateclass(folder, prefix,
-                               compute_detections=False,
-                               compute_sens=True,
-                               compute_occurrence_rate=False)
+    #self = OccurrenceRateclass(folder, prefix,
+    #                           compute_detections=False,
+    #                           compute_sens=True,
+    #                           compute_occurrence_rate=False)

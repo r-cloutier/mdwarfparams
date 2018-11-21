@@ -90,7 +90,7 @@ def get_initial_KepID_data(fout):
     Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
 
     # get 2MASS uncertainties which are not included in the cross-match data
-    e_Jmags, e_Hmags, e_Kmags = get_2MASS(ras, decs, Jmags, Hmags, Kmags)
+    e_Jmags, e_Hmags, e_Kmags = get_2MASS_Kep(ras, decs, Jmags, Hmags, Kmags)
     hdr = 'KepID,ra_deg,dec_deg,ls_deg,bs_deg,Kepmag,GBPmag,e_GBPmag,GRPmag,'+ \
           'e_GRPmag,parallax_mas,e_parallax,Jmag,e_Jmag,Hmag,e_Hmag,Kmag,'+ \
           'e_Kmag'
@@ -155,11 +155,156 @@ def get_initial_KepID_data(fout):
                        ehi_Teffs, elo_Teffs, Mss, ehi_Mss, elo_Mss, loggs,
                        ehi_loggs, elo_loggs]).T
     np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
-    
-        
 
-def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
-              radius_deg=.017, phot_rtol=.02):
+
+def get_initial_EPIC_data(fout):
+    '''Get the available data for the K2-GAIA cross-matched stars.'''
+    # get cross-matach results with different search radii
+    fs = np.sort(glob.glob('input_data/K2targets/k2_dr2_*fits'))
+
+    # get data from the cross-match
+    EPICs = np.zeros(0)
+    ras = np.zeros(0)
+    decs = np.zeros(0)
+    ls = np.zeros(0)
+    bs = np.zeros(0)
+    GBPmags = np.zeros(0)
+    GRPmags = np.zeros(0) 
+    e_GBPmags = np.zeros(0)
+    e_GRPmags = np.zeros(0) 
+    Kepmags = np.zeros(0)
+    pars = np.zeros(0)
+    e_pars = np.zeros(0)
+    dists = np.zeros(0)
+    ehi_dists = np.zeros(0)
+    elo_dists = np.zeros(0)
+    dist_modality = np.zeros(0)
+    Teff = np.zeros(0)
+    e_Teff = np.zeros(0)
+    logg = np.zeros(0)
+    e_logg = np.zeros(0)
+    Rs = np.zeros(0)
+    e_Rs = np.zeros(0)
+    for i in range(fs.size):
+        
+        f = fits.open(fs[i])[1].data
+        EPICs = np.append(EPICs, f['epic_number'])
+        ras = np.append(ras, f['ra'])
+        decs = np.append(decs, f['dec'])
+        ls = np.append(ls, f['l'])
+        bs = np.append(bs, f['b'])
+
+        GBPmags = np.append(GBPmags, f['phot_bp_mean_mag'])
+        FBP = f['phot_bp_mean_flux']
+        eFBP = f['phot_bp_mean_flux_error']
+        e_GBPmags = np.append(e_GBPmags, -2.5*np.log10(FBP / (FBP+eFBP)))
+
+        GRPmags = np.append(GRPmags, f['phot_rp_mean_mag'])
+        FRP = f['phot_rp_mean_flux']
+        eFRP = f['phot_rp_mean_flux_error']
+        e_GRPmags = np.append(e_GRPmags, -2.5*np.log10(FRP / (FRP+eFRP)))
+
+        Kepmags = np.append(Kepmags, f['k2_kepmag'])
+        pars = np.append(pars, f['parallax']) + .029  # systemic correction
+        e_pars = np.append(e_pars, f['parallax_error'])
+        dists = np.append(dists, f['r_est'])
+        ehi_dists = np.append(ehi_dists, f['r_hi']-f['r_est'])
+        elo_dists = np.append(elo_dists, f['r_est']-f['r_lo'])
+        dist_modality = np.append(dist_modality, f['r_modality_flag'])
+        
+        Teff = np.append(Teff, f['k2_teff'])
+        e_Teff = np.append(e_Teff, f['k2_tefferr1'])
+        logg = np.append(logg, f['k2_logg'])
+        e_logg = np.append(e_logg, f['k2_loggerr1'])
+        Rs = np.append(Rs, f['k2_rad'])
+        e_Rs = np.append(e_Rs, f['k2_raderr1'])
+
+    # remove duplicates from each search radius and make initial target list
+    _,g1 = np.unique(EPICs, return_index=True)
+    print 'Number of stars in K2-GAIA catalog = %i'%g1.size
+    g = (np.in1d(np.arange(Teff.size), g1)) & (Teff-e_Teff <= 4e3) & \
+        (logg+e_logg > 3.5) & (Rs-e_Rs < .75)
+    print 'Number of preliminary M dwarfs in K2-GAIA catalog = %i'%g.sum()
+    EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    dist_modality = dist_modality[g]
+    Teff, e_Teff = Teff[g], e_Teff[g]
+    logg, e_logg = logg[g], e_logg[g]
+    Rs, e_Rs = Rs[g], e_Rs[g]
+
+    # get 2MASS uncertainties which are not included in the cross-match data
+    Jmags,e_Jmags,Hmags,e_Hmags,Kmags,e_Kmags = get_2MASS_K2(ras, decs, GBPmags, GRPmags)
+    hdr = 'EPIC,ra_deg,dec_deg,ls_deg,bs_deg,Kepmag,GBPmag,e_GBPmag,GRPmag,'+ \
+          'e_GRPmag,parallax_mas,e_parallax,Jmag,e_Jmag,Hmag,e_Hmag,Kmag,'+ \
+          'e_Kmag'
+    outarr_tmp = np.array([EPICs, ras, decs, ls, bs, Kepmags, GBPmags,
+                           e_GBPmags, GRPmags, e_GRPmags, pars, e_pars, Jmags,
+                           e_Jmags, Hmags, e_Hmags, Kmags, e_Kmags]).T
+    np.savetxt(fout, outarr_tmp, delimiter=',', header=hdr, fmt='%.8e')   
+    
+    # get distance posteriors using Bailer-Jones R script
+    distpost_success = save_posteriors(EPICs, pars, e_pars, ls, bs, K2=True)
+    g = (distpost_success == True) & (dist_modality == 1)
+    print 'Number of M dwarfs with reliable GAIA distances = %i'%g.sum()
+    EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    #dist_modality = dist_modality[g]
+    Teff, e_Teff = Teff[g], e_Teff[g]
+    logg, e_logg = logg[g], e_logg[g]
+    Rs, e_Rs = Rs[g], e_Rs[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
+    e_Jmags, e_Hmags, e_Kmags = e_Jmags[g], e_Hmags[g], e_Kmags[g]
+
+    # compute parameter posteriors
+    p  = compute_posterior_pdfs(EPICs, ls, bs, GBPmags, e_GBPmags, GRPmags,
+                                e_GRPmags, Jmags, e_Jmags, Hmags, e_Hmags,
+                                Kmags, e_Kmags, K2=True)
+    mus, ehi_mus, elo_mus, dists, ehi_dists, elo_dists, AKs, e_AKs, MKs, \
+        ehi_MKs, elo_MKs, Rss, ehi_Rss, elo_Rss, Teffs, ehi_Teffs, elo_Teffs, \
+        Mss, ehi_Mss, elo_Mss, loggs, ehi_loggs, elo_loggs = p
+
+    # identify M dwarfs
+    g = (MKs>4.6) & (MKs < 9.8)
+    print 'Number of M dwarfs in K2-GAIA catalog = %i'%g.sum()
+    EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
+    GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
+                                             e_GBPmags[g], e_GRPmags[g]
+    Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
+    e_Jmags, e_Hmags, e_Kmags = e_Jmags[g], e_Hmags[g], e_Kmags[g]
+    Kepmags, pars, e_pars = Kepmags[g], pars[g], e_pars[g]
+    dists, ehi_dists, elo_dists = dists[g], ehi_dists[g], elo_dists[g]
+    mus, ehi_mus, elo_mus = mus[g], ehi_mus[g], elo_mus[g]
+    AKs, e_AKs = AKs[g], e_AKs[g]
+    MKs, ehi_MKs, elo_MKs = MKs[g], ehi_MKs[g], elo_MKs[g]
+    Rss, ehi_Rss, elo_Rss = Rss[g], ehi_Rss[g], elo_Rss[g]
+    Teffs, ehi_Teffs, elo_Teffs = Teffs[g], ehi_Teffs[g], elo_Teffs[g]
+    Mss, ehi_Mss, elo_Mss = Mss[g], ehi_Mss[g], elo_Mss[g]
+    loggs, ehi_loggs, elo_loggs = loggs[g], ehi_loggs[g], elo_loggs[g]
+    
+    # save results
+    hdr = 'EPIC,ra_deg,dec_deg,GBPmag,e_GBPmag,GRPmag,e_GRPmag,Kepmag,'+ \
+          'Jmag,e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag,parallax_mas,e_parallax,'+ \
+          'dist_pc,ehi_dist,elo_dist,mu,ehi_mu,elo_mu,AK,e_AK,MK,ehi_MK,'+ \
+          'elo_MK,Rs_RSun,ehi_Rs,elo_Rs,Teff_K,ehi_Teff,elo_Teff,Ms_MSun,'+ \
+          'ehi_Ms,elo_Ms,logg_dex,ehi_logg,elo_logg'
+    outarr = np.array([EPICs, ras, decs, GBPmags, e_GBPmags, GRPmags,
+                       e_GRPmags, Kepmags, Jmags, e_Jmags, Hmags, e_Hmags,
+                       Kmags, e_Kmags, pars, e_pars, dists, ehi_dists,
+                       elo_dists, mus, ehi_mus, elo_mus, AKs, e_AKs, MKs,
+                       ehi_MKs, elo_MKs, Rss, ehi_Rss, elo_Rss, Teffs,
+                       ehi_Teffs, elo_Teffs, Mss, ehi_Mss, elo_Mss, loggs,
+                       ehi_loggs, elo_loggs]).T
+    np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
+
+        
+def get_2MASS_Kep(ras_deg, decs_deg, Jmags, Hmags, Kmags,
+                  radius_deg=.017, phot_rtol=.02):
     '''Match Kepler stars with GAIA data to the 2MASS point-source catlog to 
     retrieve photometric uncertainties.'''
     # get 2MASS data
@@ -197,6 +342,60 @@ def get_2MASS(ras_deg, decs_deg, Jmags, Hmags, Kmags,
             e_Jmags[i], e_Hmags[i], e_Kmags[i] = np.repeat(np.nan, 3)
 
     return e_Jmags, e_Hmags, e_Kmags 
+
+
+
+def get_2MASS_K2(ras_deg, decs_deg, GBPmags, GRPmags,
+                 radius_deg=.017):
+    '''Match K2 stars with GAIA data to the 2MASS point-source catlog to 
+    retrieve photometry and uncertainties.'''
+    # get 2MASS point source catalog
+    d = np.load('input_data/Keplertargets/fp_2mass.fp_psc12298.npy')
+    inds = np.array([0,1,3,5,6,8,9,11])
+    ras2M, decs2M, J2M, eJ2M, H2M, eH2M, K2M, eK2M = d[:,inds].T
+    
+    # match each star individually
+    Nstars = ras_deg.size
+    GBP_GRP = GBPmags - GRPmags
+    Jmags, Hmags, Kmags = np.zeros(Nstars), np.zeros(Nstars), np.zeros(Nstars)
+    e_Jmags, e_Hmags, e_Kmags = np.zeros(Nstars), np.zeros(Nstars), \
+                                np.zeros(Nstars)
+    print 'Getting 2MASS photometry...'
+    for i in range(Nstars):
+
+        if i % 1e2 == 0:
+            print float(i) / Nstars
+        
+        # get matching photometry between Kepler-GAIA and 2MASS
+        H_K = GAIAcolor2HK(GBP_GRP[i])
+        g = (ras2M >= ras_deg[i] - radius_deg) & \
+            (ras2M <= ras_deg[i] + radius_deg) & \
+            (decs2M >= decs_deg[i] - radius_deg) & \
+            (decs2M <= decs_deg[i] + radius_deg) & \
+            np.isclose(H2M-K2M, H_K, atol=3*.2411) # evans18 color relation
+
+        if g.sum() > 0:
+            g2 = (abs((H2M-K2M)[g]-H_K) == np.min(abs((H2M-K2M)[g]-H_K)))
+            Jmags[i] = J2M[g][g2]
+            Hmags[i] = H2M[g][g2]
+            Kmags[i] = K2M[g][g2]
+            e_Jmags[i] = eJ2M[g][g2]
+            e_Hmags[i] = eH2M[g][g2]
+            e_Kmags[i] = eK2M[g][g2]
+
+        else:
+            Jmags[i], Hmags[i], Kmags[i] = np.repeat(np.nan, 3)
+            e_Jmags[i], e_Hmags[i], e_Kmags[i] = np.repeat(np.nan, 3)
+
+    return Jmags, e_Jmags, Hmags, e_Hmags, e_Kmags, Kmags 
+
+
+def GAIAcolor2HK(GBP_GRP):
+    '''Use color relation from Evans18 to map GBP-GRP to H_K
+    (https://www.aanda.org/articles/aa/pdf/2018/08/aa32756-18.pdf)'''
+    a, b, c = 1.991, 6.098, .4238 - GBP_GRP
+    H_K = (-b + np.sqrt(b*b - 4*a*c)) / (2*a) 
+    return H_K
 
 
 def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
@@ -356,5 +555,7 @@ def sample_logg(samp_Ms, samp_Rs):
 
 
 if __name__ == '__main__':
-    fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
+    #fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
     #get_initial_KepID_data(fout)
+    fout = 'input_data/K2targets/K2Mdwarfsv10.csv'
+    get_initial_EPIC_data(fout)
