@@ -1,7 +1,7 @@
 from LCclass import *
 from sensclass import *
 from uncertainties import unumpy as unp
-import rvs
+import rvs, time
 from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
 from priors import get_results
@@ -20,6 +20,8 @@ class OccurrenceRateclass:
 	self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
         self.rplims = rplims
+
+        self._t0 = time.time()
         
         if compute_detections:
 	    self.fname_out += '_det'
@@ -67,10 +69,10 @@ class OccurrenceRateclass:
         self.loggs, self.ehi_loggs, self.elo_loggs = np.zeros(0), np.zeros(0), \
                                                      np.zeros(0)
         self.Lss,self.ehi_Lss,self.elo_Lss = np.zeros(0),np.zeros(0),np.zeros(0)
-        
-        for i in range(fs.size):
+       	for i in range(fs.size):
 
             print float(i)/fs.size, fs[i]
+	    self._conditional_pickleobject(self._t0, time.time())
             d = loadpickle(fs[i])
 	    if d.DONE:
                 
@@ -195,6 +197,8 @@ class OccurrenceRateclass:
         # over the uncertainties
         for i in range(N):
 
+            self._conditional_pickleobject(self._t0, time.time())
+
             if (self.Ndetected[i] > 0) & (np.isfinite(self.Ps[i])):
                 
                 # compute MC realizations of this planet around this star
@@ -228,6 +232,7 @@ class OccurrenceRateclass:
         self.Ndeta_i = np.zeros((self.Nstars, self._xlen, self._ylen))
         for i in range(self.Nstars):
 
+            self._conditional_pickleobject(self._t0, time.time())
             name =  self.names_planetsearch[self.unique_inds[i]]
             g1 = self.names_planetsearch == name
             assert g1.sum() > 0
@@ -334,6 +339,7 @@ class OccurrenceRateclass:
 
             name = self.names_simulated[i]
             print float(i)/self.Nstars_simulated, name
+            self._conditional_pickleobject(self._t0, time.time())
             fs = np.array(glob.glob('%s/%s/LC*'%(self.folder, name)))
 
 	    # remove planet search result (i.e. with index -99)
@@ -453,6 +459,7 @@ class OccurrenceRateclass:
 
 	print 'Compute N_rec and N_inj maps (coarse grid)...'
         for i in range(self.Nstars_simulated):
+            self._conditional_pickleobject(self._t0, time.time())
             for j in range(self._xlen):
                 for k in range(self._ylen):
 
@@ -583,6 +590,7 @@ class OccurrenceRateclass:
         print 'Compute transit probability maps (coarse grid)...'
         for i in range(self.Nstars_simulated):
 
+            self._conditional_pickleobject(self._t0, time.time())
             # get parameters pdfs
             name = self.names_simulated[i]
             KepID = int(name.split('_')[-1])
@@ -688,6 +696,7 @@ class OccurrenceRateclass:
         for i in range(self.Nstars_simulated):
 
 	    print float(i) / self.Nstars_simulated
+            self._conditional_pickleobject(self._t0, time.time())
             g = self.names_planetsearch[self.unique_inds] == \
                 self.names_simulated[i]
             
@@ -763,6 +772,18 @@ class OccurrenceRateclass:
                                      gaussian_filter(self.occurrence_ratea_v2,
                                                      .05), agrid,
                                      rpgrid).reshape(xlen,ylen)
+
+
+    def _conditional_pickleobject(self, t0, tnow):
+	'''Pickle object if enough time has passed. Useful for long loops. 
+	Input times should be obtained from time.time()'''
+        assert tnow > t0
+        t_elapsed_hrs = (tnow - t0) / 36e2
+	t_tolerance_min = 3
+	t_tolerance_hrs = float(t_tolerance_min) / 60
+        if np.isclose(t_elapsed_hrs, 24, atol=t_tolerance_hrs) or \
+           np.isclose(t_elapsed_hrs, 48, atol=t_tolerance_hrs):
+            self._pickleobject()
 
 
     def _pickleobject(self):
@@ -1010,7 +1031,7 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    #self = OccurrenceRateclass(folder, prefix,
-    #                           compute_detections=False,
-    #                           compute_sens=True,
-    #                           compute_occurrence_rate=False)
+    self = OccurrenceRateclass(folder, prefix,
+                               compute_detections=True,
+                               compute_sens=True,
+                               compute_occurrence_rate=False)
