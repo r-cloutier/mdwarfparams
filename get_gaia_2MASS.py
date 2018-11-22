@@ -114,6 +114,12 @@ def get_initial_KepID_data(fout):
     Rs, e_Rs = Rs[g], e_Rs[g]
     Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
     e_Jmags, e_Hmags, e_Kmags = e_Jmags[g], e_Hmags[g], e_Kmags[g]
+    hdr = 'KepID,ls_deg,bs_deg,GBPmag,e_GBPmag,GRPmag,e_GRPmag,'+ \
+          'Jmag,e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag'
+    outarr = np.array([KepIDs, ls, bs, GBPmags, e_GBPmags, GRPmags,
+                       e_GRPmags, Jmags, e_Jmags, Hmags, e_Hmags,
+                       Kmags, e_Kmags]).T
+    np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
 
     # compute parameter posteriors
     p  = compute_posterior_pdfs(KepIDs, ls, bs, GBPmags, e_GBPmags, GRPmags,
@@ -247,7 +253,8 @@ def get_initial_EPIC_data(fout):
     
     # get distance posteriors using Bailer-Jones R script
     distpost_success = save_posteriors(EPICs, pars, e_pars, ls, bs, K2=True)
-    g = (distpost_success == True) & (dist_modality == 1)
+    g = (distpost_success == True) & (dist_modality == 1) & \
+        (Kepmags < 14)
     print 'Number of M dwarfs with reliable GAIA distances = %i'%g.sum()
     EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
     GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
@@ -260,7 +267,13 @@ def get_initial_EPIC_data(fout):
     Rs, e_Rs = Rs[g], e_Rs[g]
     Jmags, Hmags, Kmags = Jmags[g], Hmags[g], Kmags[g]
     e_Jmags, e_Hmags, e_Kmags = e_Jmags[g], e_Hmags[g], e_Kmags[g]
-
+    hdr = 'EPIC,ls_deg,bs_deg,GBPmag,e_GBPmag,GRPmag,e_GRPmag,'+ \
+          'Jmag,e_Jmag,Hmag,e_Hmag,Kmag,e_Kmag'
+    outarr = np.array([EPICs, ls, bs, GBPmags, e_GBPmags, GRPmags,
+                       e_GRPmags, Jmags, e_Jmags, Hmags, e_Hmags,
+                       Kmags, e_Kmags]).T
+    np.savetxt(fout, outarr, delimiter=',', header=hdr, fmt='%.8e')
+    
     # compute parameter posteriors
     p  = compute_posterior_pdfs(EPICs, ls, bs, GBPmags, e_GBPmags, GRPmags,
                                 e_GRPmags, Jmags, e_Jmags, Hmags, e_Hmags,
@@ -463,7 +476,7 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
                                                                             IDnums[i])
             x_dist, pdf_dist = np.loadtxt(fname, delimiter=',', skiprows=1,
                                           usecols=(1,2)).T
-        except IOError:
+        except IOError, ValueError:
             pass
 
         # sample parameter distributions
@@ -503,7 +516,7 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
         outarr = np.array([samp_GBPmag, samp_GRPmag, samp_Jmag, samp_Hmag,
                            samp_Kmag, samp_dist, samp_mu, samp_AK, samp_MK,
                            samp_Rs, samp_Teff, samp_Ms, samp_logg]).T
-        fname='Gaia-DR2-distances_custom/DistancePosteriors/KepID_allpost_%i'%IDnums[i]
+        fname='Gaia-DR2-distances_custom/DistancePosteriors/%s_allpost_%i'%(prefix, IDnums[i])
         np.savetxt(fname, outarr, delimiter=',', header=hdr, fmt='%.8e')
         
     return mus, ehi_mus, elo_mus, dists, ehi_dists, elo_dists, AKs, e_AKs, \
@@ -557,5 +570,6 @@ def sample_logg(samp_Ms, samp_Rs):
 if __name__ == '__main__':
     #fout = 'input_data/Keplertargets/KepMdwarfsv10.csv'
     #get_initial_KepID_data(fout)
-    fout = 'input_data/K2targets/K2Mdwarfsv10.csv'
-    get_initial_EPIC_data(fout)
+    #fout = 'input_data/K2targets/K2Mdwarfsv10.csv'
+    #get_initial_EPIC_data(fout)
+    print 'hi'
