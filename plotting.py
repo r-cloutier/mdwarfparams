@@ -1,6 +1,8 @@
 from GAIAMdwarfs import *
 import matplotlib.gridspec as gridspec
 import matplotlib
+from occurrencerateclass import *
+
 
 matplotlib.rcParams.update({'ytick.labelsize': 11})
 matplotlib.rcParams.update({'xtick.labelsize': 11})
@@ -99,6 +101,63 @@ def plot_stellar_radius_uncertainty(pltt=True, label=False):
     ax.legend()
     if label:
         plt.savefig('plots/sigRs.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+def plot_detected_population_Prp(occurrencerateclass, pltt=True, label=False):
+    '''Plot the empirical distribution of detected planets in the P,rp plane.'''
+    self = occurrencerateclass
+    assert 'det' in self.fname_out
+
+    sigrp = self.rps / np.mean([self.elo_rps,self.ehi_rps],0)
+    g = np.isfinite(self.rps) & np.isfinite(self.Ps) & (sigrp > 3)
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.errorbar(self.Ps[g], self.rps[g], xerr=self.e_Ps[g],
+                yerr=[self.elo_rps[g],self.ehi_rps[g]], fmt='k.',
+                elinewidth=.9)
+    ax.set_xscale('log'), ax.set_yscale('log')
+    ax.set_xlabel('Period [days]')
+    ax.set_ylabel('Planet Radius [R$_{\oplus}$]')
+    ax.set_title('%i planet candidates'%self.Ps[g].size, fontsize=12)
+    
+    if label:
+        plt.savefig('plots/Ndet_Prp.png')    
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+def plot_detected_population_rphist(occurrencerateclass, pltt=True,
+                                    label=False):
+    '''Plot the rp histogram of detected planets.'''
+    self = occurrencerateclass
+    assert 'det' in self.fname_out
+
+    sigrp = self.rps / np.mean([self.elo_rps,self.ehi_rps],0)
+    g = np.isfinite(self.rps) & np.isfinite(self.Ps) & (sigrp > 3)
+    #g = (g) & (self.Mss < .6)
+
+    rpbins = np.logspace(np.log10(.5), np.log10(10), 31)
+    N, rp_edges = np.histogram(self.rps[g], bins=rpbins)
+    rp = 10**(np.log10(rp_edges[1:]) - np.diff(np.log10(rp_edges))[0]/2)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.errorbar(rp, N, yerr=np.sqrt(N), color='k', elinewidth=.9,
+                drawstyle='steps-mid', capsize=2, lw=2.5)
+    ax.set_xscale('log')
+    ax.set_xlabel('Planet Radius [R$_{\oplus}$]')
+    ax.set_ylabel('Number of planet canadidates')
+    ax.set_title('%i planet candidates'%N.sum(), fontsize=12)
+    title = 'all M$_s$'# <$ 0.6 M$_{\odot}$'
+    ax.text(.8, .85, title, fontsize=11, transform=ax.transAxes)
+    
+    if label:
+        plt.savefig('plots/Ndet_rphist_all.png')
     if pltt:
         plt.show()
     plt.close('all')

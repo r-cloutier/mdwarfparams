@@ -209,51 +209,31 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
         raise ValueError('Must select one of Kep, K2, or TESS')
 
     d = np.loadtxt(infile, delimiter=',')
-    # if Kepler, add a fake column to replace K2campaign/TESSsector
-    if Kep:
-	IDnums = d[:,0]
-        g = IDnums == IDnum
-        assert g.sum() == 1
-        star_info = d[g].reshape(39)
-	star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
-                     'dec': star_info[2], 'GBPmag': star_info[3],
-                     'e_GBPmag': star_info[4], 'GRPmag': star_info[5],
-                     'e_GRPmag': star_info[6], 'Kepmag': star_info[7],
-                     'Jmag': star_info[8], 'e_Jmag': star_info[9],
-                     'Hmag': star_info[10], 'e_Hmag': star_info[11],
-                     'Kmag': star_info[12], 'e_Kmag': star_info[13],
-                     'par': star_info[14], 'e_par': star_info[15],
-                     'dist': star_info[16], 'ehi_dist': star_info[17],
-                     'elo_dist': star_info[18], 'mu': star_info[19],
-                     'ehi_mu': star_info[20], 'elo_mu': star_info[21],
-                     'AK': star_info[22], 'e_AK': star_info[23],
-                     'MK': star_info[24], 'ehi_MK': star_info[25],
-                     'elo_MK': star_info[26], 'Rs': star_info[27],
-                     'ehi_Rs': star_info[28], 'elo_Rs': star_info[29],
-                     'Teff': star_info[30], 'ehi_Teff': star_info[31],
-                     'elo_Teff': star_info[32], 'Ms': star_info[33],
-                     'ehi_Ms': star_info[34], 'elo_Ms': star_info[35],
-                     'logg': star_info[36], 'ehi_logg': star_info[37],
-                     'elo_logg': star_info[38]}
-    elif K2:
-	IDnums = d[:,0]
-        g = IDnums == IDnum
-        assert g.sum() == 1
-        star_info = d[g].reshape(25)
-    	star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
-                     'dec': star_info[2], sector: star_info[3],
-                     'Kepmag': star_info[4], 'par': star_info[5],
-                     'e_par': star_info[6], 'Kmag': star_info[7],
-                     'e_Kmag': star_info[8], 'dist': star_info[9],
-                     'e_dist': star_info[10], 'mu': star_info[11],
-                     'e_mu': star_info[12], 'AK': star_info[13],
-                     'e_AK': star_info[14], 'MK': star_info[15],
-                     'e_MK': star_info[16], 'Rs': star_info[17],
-                     'e_Rs': star_info[18], 'Teff': star_info[19],
-                     'e_Teff': star_info[20], 'Ms': star_info[21],
-                     'e_Ms': star_info[22], 'logg': star_info[23],
-                     'e_logg': star_info[24]}
-        
+    IDnums = d[:,0]
+    g = IDnums == IDnum
+    assert g.sum() == 1
+    star_info = d[g].reshape(39)
+    star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
+                 'dec': star_info[2], 'GBPmag': star_info[3],
+                 'e_GBPmag': star_info[4], 'GRPmag': star_info[5],
+                 'e_GRPmag': star_info[6], 'Kepmag': star_info[7],
+                 'Jmag': star_info[8], 'e_Jmag': star_info[9],
+                 'Hmag': star_info[10], 'e_Hmag': star_info[11],
+                 'Kmag': star_info[12], 'e_Kmag': star_info[13],
+                 'par': star_info[14], 'e_par': star_info[15],
+                 'dist': star_info[16], 'ehi_dist': star_info[17],
+                 'elo_dist': star_info[18], 'mu': star_info[19],
+                 'ehi_mu': star_info[20], 'elo_mu': star_info[21],
+                 'AK': star_info[22], 'e_AK': star_info[23],
+                 'MK': star_info[24], 'ehi_MK': star_info[25],
+                 'elo_MK': star_info[26], 'Rs': star_info[27],
+                 'ehi_Rs': star_info[28], 'elo_Rs': star_info[29],
+                 'Teff': star_info[30], 'ehi_Teff': star_info[31],
+                 'elo_Teff': star_info[32], 'Ms': star_info[33],
+                 'ehi_Ms': star_info[34], 'elo_Ms': star_info[35],
+                 'logg': star_info[36], 'ehi_logg': star_info[37],
+                 'elo_logg': star_info[38]}
+    
     return star_dict
 
 
@@ -422,7 +402,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
     
 
 
-def do_i_run_this_star(ID, K2=False, Kep=False):
+def do_i_run_this_star(ID, folder='PipelineResults', K2=False, Kep=False):
     # first check that the star is available
     if K2:
         epics = np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
@@ -439,7 +419,7 @@ def do_i_run_this_star(ID, K2=False, Kep=False):
     if g.sum() != 1:
 	return False
     # check if star is already done
-    fname = glob.glob('PipelineResults/%s_%i/LC_-00099'%(prefix, ID))
+    fname = glob.glob('%s/%s_%i/LC_-00099'%(folder, prefix, ID))
     if len(fname) == 1:
         return not loadpickle(fname[0]).DONE
     else:

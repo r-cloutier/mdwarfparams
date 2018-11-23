@@ -229,7 +229,7 @@ def get_initial_EPIC_data(fout):
     _,g1 = np.unique(EPICs, return_index=True)
     print 'Number of stars in K2-GAIA catalog = %i'%g1.size
     g = (np.in1d(np.arange(Teff.size), g1)) & (Teff-e_Teff <= 4e3) & \
-        (logg+e_logg > 3.5) & (Rs-e_Rs < .75)
+        (logg+e_logg > 3.5) & (Rs-e_Rs < .75) & (Kepmags < 14.1)
     print 'Number of preliminary M dwarfs in K2-GAIA catalog = %i'%g.sum()
     EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
     GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
@@ -242,7 +242,8 @@ def get_initial_EPIC_data(fout):
     Rs, e_Rs = Rs[g], e_Rs[g]
 
     # get 2MASS uncertainties which are not included in the cross-match data
-    Jmags,e_Jmags,Hmags,e_Hmags,Kmags,e_Kmags = get_2MASS_K2(ras, decs, GBPmags, GRPmags)
+    Jmags,e_Jmags,Hmags,e_Hmags,Kmags,e_Kmags = get_2MASS_K2(ras, decs,
+                                                             GBPmags, GRPmags)
     hdr = 'EPIC,ra_deg,dec_deg,ls_deg,bs_deg,Kepmag,GBPmag,e_GBPmag,GRPmag,'+ \
           'e_GRPmag,parallax_mas,e_parallax,Jmag,e_Jmag,Hmag,e_Hmag,Kmag,'+ \
           'e_Kmag'
@@ -253,8 +254,7 @@ def get_initial_EPIC_data(fout):
     
     # get distance posteriors using Bailer-Jones R script
     distpost_success = save_posteriors(EPICs, pars, e_pars, ls, bs, K2=True)
-    g = (distpost_success == True) & (dist_modality == 1) & \
-        (Kepmags < 14)
+    g = (distpost_success == True) & (dist_modality == 1)
     print 'Number of M dwarfs with reliable GAIA distances = %i'%g.sum()
     EPICs, ras, decs, ls, bs = EPICs[g], ras[g], decs[g], ls[g], bs[g]
     GBPmags, GRPmags, e_GBPmags, e_GRPmags = GBPmags[g], GRPmags[g], \
@@ -320,7 +320,8 @@ def get_2MASS_Kep(ras_deg, decs_deg, Jmags, Hmags, Kmags,
                   radius_deg=.017, phot_rtol=.02):
     '''Match Kepler stars with GAIA data to the 2MASS point-source catlog to 
     retrieve photometric uncertainties.'''
-    # get 2MASS data
+    # get 2MASS data for Kepler stars
+    # https://irsa.ipac.caltech.edu/applications/Gator/
     d = np.load('input_data/Keplertargets/fp_2mass.fp_psc12298.npy')
     inds = np.array([0,1,3,5,6,8,9,11])
     ras2M, decs2M, J2M, eJ2M, H2M, eH2M, K2M, eK2M = d[:,inds].T
@@ -347,9 +348,9 @@ def get_2MASS_Kep(ras_deg, decs_deg, Jmags, Hmags, Kmags,
         if g.sum() > 0:
             g2 = (abs(J2M[g]-Jmags[i]) == np.min(abs(J2M[g]-Jmags[i]))) & \
                  (abs(K2M[g]-Kmags[i]) == np.min(abs(K2M[g]-Kmags[i])))
-            e_Jmags[i] = eJ2M[g][g2]
-            e_Hmags[i] = eH2M[g][g2]
-            e_Kmags[i] = eK2M[g][g2]
+            e_Jmags[i] = eJ2M[g][g2][0]
+            e_Hmags[i] = eH2M[g][g2][0]
+            e_Kmags[i] = eK2M[g][g2][0]
 
         else:
             e_Jmags[i], e_Hmags[i], e_Kmags[i] = np.repeat(np.nan, 3)
@@ -363,9 +364,9 @@ def get_2MASS_K2(ras_deg, decs_deg, GBPmags, GRPmags,
     '''Match K2 stars with GAIA data to the 2MASS point-source catlog to 
     retrieve photometry and uncertainties.'''
     # get 2MASS point source catalog
-    d = np.load('input_data/Keplertargets/fp_2mass.fp_psc12298.npy')
-    inds = np.array([0,1,3,5,6,8,9,11])
-    ras2M, decs2M, J2M, eJ2M, H2M, eH2M, K2M, eK2M = d[:,inds].T
+    # https://irsa.ipac.caltech.edu/applications/Gator/
+    d = np.load('input_data/K2targets/fp_2mass.fp_psctot.npy')
+    ras2M, decs2M, J2M, eJ2M, H2M, eH2M, K2M, eK2M = d.T
     
     # match each star individually
     Nstars = ras_deg.size
@@ -389,12 +390,12 @@ def get_2MASS_K2(ras_deg, decs_deg, GBPmags, GRPmags,
 
         if g.sum() > 0:
             g2 = (abs((H2M-K2M)[g]-H_K) == np.min(abs((H2M-K2M)[g]-H_K)))
-            Jmags[i] = J2M[g][g2]
-            Hmags[i] = H2M[g][g2]
-            Kmags[i] = K2M[g][g2]
-            e_Jmags[i] = eJ2M[g][g2]
-            e_Hmags[i] = eH2M[g][g2]
-            e_Kmags[i] = eK2M[g][g2]
+            Jmags[i] = J2M[g][g2][0]
+            Hmags[i] = H2M[g][g2][0]
+            Kmags[i] = K2M[g][g2][0]
+            e_Jmags[i] = eJ2M[g][g2][0]
+            e_Hmags[i] = eH2M[g][g2][0]
+            e_Kmags[i] = eK2M[g][g2][0]
 
         else:
             Jmags[i], Hmags[i], Kmags[i] = np.repeat(np.nan, 3)

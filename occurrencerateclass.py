@@ -9,13 +9,15 @@ from priors import get_results
 
 class OccurrenceRateclass:
 
-    def __init__(self, folder, prefix, xlen=20, ylen=12, 
-		 compute_detections=False, compute_sens=False, 
-		 compute_occurrence_rate=False, fine_factor=6,
-                 Plims=(.5,1e2), Flims=(.1,4e2), smalims=(5e-3,.5),
-                 rplims=(.5,10)):
+    def __init__(self, folder, prefix, startstarind, endstarind,
+                 xlen=20, ylen=12, compute_detections=False,
+                 compute_sens=False, compute_occurrence_rate=False,
+                 fine_factor=6, Plims=(.5,1e2), Flims=(.1,4e2),
+                 smalims=(5e-3,.5), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
 	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
+        self._startstarind, self._endstarind = int(startstarind), int(endstarind)
+        assert self._startstarind < self._endstarind
         self._xlen, self._ylen = int(xlen), int(ylen)
 	self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
@@ -43,6 +45,7 @@ class OccurrenceRateclass:
         '''Get the results from the planetsearch, i.e. the detected planets 
         and stellar properties.'''
         fs = np.array(glob.glob('%s/%s_*/LC_-00099'%(self.folder, self.prefix)))
+        fs = fs[self._startstarind:self._endstarind]
         if fs.size == 0:
             return None
 	self.fs_planetsearch, self.names_planetsearch = [], np.zeros(0)
@@ -175,6 +178,7 @@ class OccurrenceRateclass:
         self.Nstars = self.unique_inds.size
         self.Nplanets_detected = self.Ndetected[self.unique_inds].sum()
         self.fs_planetsearch = np.array(self.fs_planetsearch)
+	self.SNRtransit = self.cond_vals[:,1]
 
         # compute map of planet detections via MC simulations
         self.compute_Ndet_map()
@@ -297,10 +301,13 @@ class OccurrenceRateclass:
         # get results from injection/recovery
         fs = glob.glob('%s/%s_*/LC_0*'%(self.folder, self.prefix))
         self.names_simulated = np.unique([i.split('/')[1] for i in fs])
+        self.names_simulated = self.names_simulated[self._startstarind:self._endstarind]
         self.Nstars_simulated = self.names_simulated.size
-        self.Nsims = np.zeros(self.Nstars_simulated)
+        if self.Nstars_simulated == 0:
+            return None
 
         # stellar params
+        self.Nsims = np.zeros(self.Nstars_simulated)
         self.Kepmags = np.zeros(self.Nstars_simulated)
         self.efs = np.zeros(self.Nstars_simulated)
         self.Mss = np.zeros(self.Nstars_simulated)
@@ -322,8 +329,8 @@ class OccurrenceRateclass:
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
-        self.cond_vals = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))
-        self.cond_free_params = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))
+        self.cond_vals = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
+        self.cond_free_params = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
         self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -414,6 +421,8 @@ class OccurrenceRateclass:
         # trim excess planets
         endfs = int(np.nanmax(self.Nsims))
         endPs = int(np.nanmax(self.Nplanets_inj))
+        self.cond_vals = self.cond_vals[:,:endfs,:endPs,:]
+        self.cond_free_params = self.cond_free_params[:,:endfs,:endPs,:]
         self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
         self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
         self.as_inj = self.as_inj[:,:endfs,:endPs]
@@ -429,7 +438,7 @@ class OccurrenceRateclass:
 
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()
-        self.compute_transitprob_maps()
+        #self.compute_transitprob_maps()
 
         
         
@@ -1031,7 +1040,9 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'
     prefix = sys.argv[2]  # 'KepID'
-    self = OccurrenceRateclass(folder, prefix,
+    startstarind = int(sys.argv[3])  # 0
+    endstarind = int(sys.argv[4])    # 10
+    self = OccurrenceRateclass(folder, prefix, startstarind, endstarind,
                                compute_detections=True,
                                compute_sens=True,
                                compute_occurrence_rate=False)
