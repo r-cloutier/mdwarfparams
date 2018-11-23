@@ -15,9 +15,12 @@ class OccurrenceRateclass:
                  fine_factor=6, Plims=(.5,1e2), Flims=(.1,4e2),
                  smalims=(5e-3,.5), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
-	self.fname_out = '%s/%s_results'%(self.folder, self.prefix)
-        self._startstarind, self._endstarind = int(startstarind), int(endstarind)
+	self._startstarind, self._endstarind = int(startstarind), int(endstarind)
         assert self._startstarind < self._endstarind
+        self.fname_out = '%s/%s_results_%i_%i'%(self.folder, self.prefix,
+                                                self._startstarind,
+                                                self._endstarind)
+        
         self._xlen, self._ylen = int(xlen), int(ylen)
 	self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
