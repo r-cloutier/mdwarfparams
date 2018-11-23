@@ -421,24 +421,6 @@ class OccurrenceRateclass:
                     self.cond_free_params[i,j] = np.append(free_params, filler3, 0)
 
 
-        # trim excess planets
-        endfs = int(np.nanmax(self.Nsims))
-        endPs = int(np.nanmax(self.Nplanets_inj))
-        self.cond_vals = self.cond_vals[:,:endfs,:endPs,:]
-        self.cond_free_params = self.cond_free_params[:,:endfs,:endPs,:]
-        self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
-        self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
-        self.as_inj = self.as_inj[:,:endfs,:endPs]
-        self.rps_inj = self.rps_inj[:,:endfs,:endPs]
-        self.is_rec = self.is_rec[:,:endfs,:endPs]
-
-        endPs = int(np.nanmax(self.Nplanets_rec))
-        self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
-        self.Fs_rec = self.Fs_rec[:,:endfs,:endPs]
-        self.as_rec = self.as_rec[:,:endfs,:endPs]
-        self.rps_rec = self.rps_rec[:,:endfs,:endPs]
-        self.is_FP = self.is_FP[:,:endfs,:endPs]
-
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()
         #self.compute_transitprob_maps()
@@ -1039,6 +1021,102 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
     return float(zarrout) if zarrout.size == 1 else zarrout
 
 
+def combine_individual_sens(folder, prefix):
+    '''sensitivity calculations are done for subsets of all stars to 
+    save time. Combine them here.'''
+    # get sensitivity objects
+    fs = np.sort(np.array(glob.glob('%s/%s_results_*_sens'%(folder, prefix))))
+    Nsens = fs.size
+    self = loadpickle(fs[0])
+    assert '0_75' in self.fname_out
+    self.fname_out = self.fname_out.replace('_0_75','')
+    
+    # append all objects together
+    for i in range(1,Nsens):
+        
+        print float(i) / Nsens
+        d = loadpickle(fs[i])
+        self.as_inj = np.append(self.as_inj, d.as_inj, 0)
+        self.as_rec = np.append(self.as_rec, d.as_rec, 0)
+        self.cond_free_params = np.append(self.cond_free_params,
+                                          d.cond_free_params, 0)
+        self.cond_vals = np.append(self.cond_vals, d.cond_vals, 0)
+        self.e_sensa_i = np.append(self.e_sensa_i, d.e_sensa_i, 0)
+        self.e_sensF_i = np.append(self.e_sensF_i, d.e_sensF_i, 0)
+        self.e_sensP_i = np.append(self.e_sensP_i, d.e_sensP_i, 0)
+        self.e_yield_corra_i = np.append(self.e_yield_corra_i,
+                                         d.e_yield_corra_i, 0)
+        self.e_yield_corrF_i = np.append(self.e_yield_corrF_i,
+                                         d.e_yield_corrF_i, 0)
+        self.e_yield_corrP_i = np.append(self.e_yield_corrP_i,
+                                         d.e_yield_corrP_i, 0)
+        self.efs = np.append(self.efs, d.efs)
+        self.ehi_loggs = np.append(self.ehi_loggs, d.ehi_loggs)
+        self.ehi_Lss = np.append(self.ehi_Lss, d.ehi_Lss)
+        self.ehi_Mss = np.append(self.ehi_Mss, d.ehi_Mss)
+        self.ehi_Rss = np.append(self.ehi_Rss, d.ehi_Rss)
+        self.ehi_Teffs = np.append(self.ehi_Teffs, d.ehi_Teffs)
+        self.elo_loggs = np.append(self.elo_loggs, d.elo_loggs)
+        self.elo_Lss = np.append(self.elo_Lss, d.elo_Lss)
+        self.elo_Mss = np.append(self.elo_Mss, d.elo_Mss)
+        self.elo_Rss = np.append(self.elo_Rss, d.elo_Rss)
+        self.elo_Teffs = np.append(self.elo_Teffs, d.elo_Teffs)
+        self.Fs_inj = np.append(self.Fs_inj, d.Fs_inj, 0)
+        self.Fs_rec = np.append(self.Fs_rec, d.Fs_rec, 0)
+        self.is_FP = np.append(self.is_FP, d.is_FP, 0)
+        self.is_rec = np.append(self.is_rec, d.is_rec, 0)
+        self.Kepmags = np.append(self.Kepmags, d.Kepmags)
+        self.Lss = np.append(self.Lss, d.Lss)
+        self.loggs = np.append(self.loggs, d.loggs)
+        self.Mss = np.append(self.Mss, d.Mss)
+        self.names_simulated = np.append(self.names_simulated,
+                                         d.names_simulated)
+        self.NFPa_i = np.append(self.NFPa_i, d.NFPa_i, 0)
+        self.NFPF_i = np.append(self.NFPF_i, d.NFPF_i, 0)
+        self.NFPP_i = np.append(self.NFPP_i, d.NFPP_i, 0)
+        self.Ninja_i = np.append(self.Ninja_i, d.Ninja_i, 0)
+        self.NinjF_i = np.append(self.NinjF_i, d.NinjF_i, 0)
+        self.NinjP_i = np.append(self.NinjP_i, d.NinjP_i, 0)
+        self.Nplanets_inj = np.append(self.Nplanets_inj, d.Nplanets_inj, 0)
+        self.Nplanets_rec = np.append(self.Nplanets_rec, d.Nplanets_rec, 0)
+        self.Nreca_i = np.append(self.Nreca_i, d.Nreca_i, 0)
+        self.NrecF_i = np.append(self.NrecF_i, d.NrecF_i, 0)
+        self.NrecP_i = np.append(self.NrecP_i, d.NrecP_i, 0)
+        self.Nsims = np.append(self.Nsims, d.Nsims)
+        self.Nstars_simulated += d.Nstars_simulated
+        self.Ps_inj = np.append(self.Ps_inj, d.Ps_inj, 0)
+        self.Ps_rec = np.append(self.Ps_rec, d.Ps_rec, 0)
+        self.Rss = np.append(self.Rss, d.Rss)      
+        self.rps_inj = np.append(self.rps_inj, d.rps_inj, 0)
+        self.rps_rec = np.append(self.rps_rec, d.rps_rec, 0)
+        self.sensa_i = np.append(self.sensa_i, d.sensa_i, 0)
+        self.sensF_i = np.append(self.sensF_i, d.sensF_i, 0)
+        self.sensP_i = np.append(self.sensP_i, d.sensP_i, 0)
+        self.Teffs = np.append(self.Teffs, d.Teffs)
+        self.yield_corra_i = np.append(self.yield_corra_i, d.yield_corra_i, 0)
+        self.yield_corrF_i = np.append(self.yield_corrF_i, d.yield_corrF_i, 0)
+        self.yield_corrP_i = np.append(self.yield_corrP_i, d.yield_corrP_i, 0)
+        
+    # trim excess planets
+    endfs = int(np.nanmax(self.Nsims))
+    endPs = int(np.nanmax(self.Nplanets_inj))
+    self.cond_vals = self.cond_vals[:,:endfs,:endPs,:]
+    self.cond_free_params = self.cond_free_params[:,:endfs,:endPs,:]
+    self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
+    self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
+    self.as_inj = self.as_inj[:,:endfs,:endPs]
+    self.rps_inj = self.rps_inj[:,:endfs,:endPs]
+    self.is_rec = self.is_rec[:,:endfs,:endPs]
+    endPs = int(np.nanmax(self.Nplanets_rec))
+    self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
+    self.Fs_rec = self.Fs_rec[:,:endfs,:endPs]
+    self.as_rec = self.as_rec[:,:endfs,:endPs]
+    self.rps_rec = self.rps_rec[:,:endfs,:endPs]
+    self.is_FP = self.is_FP[:,:endfs,:endPs]
+    
+    self._pickleobject()
+
+        
 
 if __name__ == '__main__':
     folder = sys.argv[1]  # 'PipelineResults'

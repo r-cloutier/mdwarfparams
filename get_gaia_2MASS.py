@@ -401,7 +401,8 @@ def get_2MASS_K2(ras_deg, decs_deg, GBPmags, GRPmags,
             Jmags[i], Hmags[i], Kmags[i] = np.repeat(np.nan, 3)
             e_Jmags[i], e_Hmags[i], e_Kmags[i] = np.repeat(np.nan, 3)
 
-    return Jmags, e_Jmags, Hmags, e_Hmags, e_Kmags, Kmags 
+    #return Jmags, e_Jmags, Hmags, e_Hmags, e_Kmags, Kmags 
+    return Jmags, e_Jmags, Hmags, e_Hmags, Kmags, e_Kmags 
 
 
 def GAIAcolor2HK(GBP_GRP):
@@ -470,7 +471,8 @@ def compute_posterior_pdfs(IDnums, ls, bs, GBPmags, e_GBPmags, GRPmags,
     loggs, ehi_loggs, elo_loggs = np.zeros(N), np.zeros(N), np.zeros(N)
     for i in range(N):
 
-        print float(i)/N
+        if i % 1e2 == 0:
+            print float(i)/N
         # get dist pdf
         try:
             fname='Gaia-DR2-distances_custom/DistancePosteriors/%s_%i.csv'%(prefix,
