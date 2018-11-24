@@ -103,7 +103,7 @@ class OccurrenceRateclass:
                     self.loggs = np.append(self.loggs, d.logg)
                     self.ehi_loggs = np.append(self.ehi_loggs, d.ehi_logg)
                     self.elo_loggs = np.append(self.elo_loggs, d.elo_logg)
-                    _,_,samp_Ls = sample_Ls(d.object_name) 
+                    _,_,samp_Ls = sample_Ls(d.object_name, self.prefix) 
                     Lss = get_results(samp_Ls.reshape(samp_Ls.size,1))
                     self.Lss = np.append(self.Lss, Lss[0])
                     self.ehi_Lss = np.append(self.ehi_Lss, Lss[1])
@@ -145,14 +145,14 @@ class OccurrenceRateclass:
                     self.Ps = np.append(self.Ps, params_opt[0])
                     self.e_Ps = np.append(self.e_Ps,
                                           get_1sigma(params_res[:,0]))
-                    samp_rp = sample_rp(d.object_name, params_opt[3],
+                    samp_rp = sample_rp(d.object_name, self.prefix, params_opt[3],
                                         get_1sigma(params_res[:,3]))
                     rp,ehi_rp,elo_rp = get_results(samp_rp.reshape(samp_rp.size,
                                                                    1))
                     self.rps = np.append(self.rps, rp)
                     self.ehi_rps = np.append(self.ehi_rps, ehi_rp)
                     self.elo_rps = np.append(self.elo_rps, elo_rp)
-                    samp_sma = sample_sma(d.object_name, self.Ps[-1],
+                    samp_sma = sample_sma(d.object_name, self.prefix, self.Ps[-1],
                                           self.e_Ps[-1])
                     smas = get_results(samp_sma.reshape(samp_sma.size,1))
                     self.smas = np.append(self.smas, smas[0])
@@ -384,7 +384,7 @@ class OccurrenceRateclass:
                     self.loggs[i] = d.logg
                     self.ehi_loggs[i] = d.ehi_logg
                     self.elo_loggs[i] = d.elo_logg
-                    _,_,samp_Ls = sample_Ls(d.object_name) 
+                    _,_,samp_Ls = sample_Ls(d.object_name, self.prefix) 
                     Lss = get_results(samp_Ls.reshape(samp_Ls.size,1))
                     self.Lss[i], self.ehi_Lss, self.elo_Lss = Lss
                 
@@ -589,12 +589,12 @@ class OccurrenceRateclass:
             self._conditional_pickleobject(self._t0, time.time())
             # get parameters pdfs
             name = self.names_simulated[i]
-            KepID = int(name.split('_')[-1])
+            ID = int(name.split('_')[-1])
             fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-            fname += 'KepID_allpost_%i'%KepID
+            fname += '%s_allpost_%i'%(self.prefix, ID)
             inds = np.array([9,11])
             samp_Rs,samp_Ms = np.loadtxt(fname, delimiter=',')[:,inds].T
-            samp_Rs,_,samp_Ls = sample_Ls(name)
+            samp_Rs,_,samp_Ls = sample_Ls(name, self.prefix)
             samp_Ms = resample_PDF(samp_Ms, samp_Rs.size, 1e-3)
             
             for j in range(self._xlen):
@@ -795,14 +795,14 @@ def resample_PDF(pdf, Nsamp, sig=1e-3):
     return pdf_resamp
 
 
-def sample_Ls(object_name, Nsamp=1e4):
+def sample_Ls(object_name, prefix, Nsamp=1e4):
     '''Sample Ls PDF from the Rs and Teff PDFs for this star.'''
     # get Rs and Teff pdfs
     Nsamp = int(Nsamp)
     try:
-        KepID = int(object_name.split('_')[-1])
+        ID = int(object_name.split('_')[-1])
         fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-        fname += 'KepID_allpost_%i'%KepID
+        fname += '%s_allpost_%i'%(prefix, ID)
         inds = np.arange(9,11)
         samp_Rs_tmp, samp_Teff_tmp = np.loadtxt(fname, delimiter=',')[:,inds].T
         samp_Rs = resample_PDF(samp_Rs_tmp, Nsamp, 1e-3)
@@ -829,14 +829,14 @@ def get_median_results(arr):
     return v[1], v[2]-v[1], v[1]-v[0]
 
 
-def sample_rp(object_name, rpRs, e_rpRs, Nsamp=1e4):
+def sample_rp(object_name, prefix, rpRs, e_rpRs, Nsamp=1e4):
     '''Sample rp PDF from the Rs PDF for this star.'''
     # get Rs pdf
     Nsamp = int(Nsamp)
     try:
-        KepID = int(object_name.split('_')[-1])
+        ID = int(object_name.split('_')[-1])
         fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-        fname += 'KepID_allpost_%i'%KepID
+        fname += '%s_allpost_%i'%(prefix, ID)
         samp_Rs_tmp = np.loadtxt(fname, delimiter=',')[:,9]
         samp_Rs = resample_PDF(samp_Rs_tmp, Nsamp, 1e-3)
     except IOError:
@@ -849,14 +849,14 @@ def sample_rp(object_name, rpRs, e_rpRs, Nsamp=1e4):
     return rvs.m2Rearth(rvs.Rsun2m(samp_rpRs*samp_Rs))
 
 
-def sample_sma(object_name, P, e_P, Nsamp=1e4):
+def sample_sma(object_name, prefix, P, e_P, Nsamp=1e4):
     '''Sample sma PDF from the Ms PDF for this star.'''
     # get Ms pdf
     Nsamp = int(Nsamp)
     try:
-        KepID = int(object_name.split('_')[-1])
+        ID = int(object_name.split('_')[-1])
         fname = 'Gaia-DR2-distances_custom/DistancePosteriors/'
-        fname += 'KepID_allpost_%i'%KepID
+        fname += '%s_allpost_%i'%(prefix, ID)
         samp_Ms_tmp = np.loadtxt(fname, delimiter=',')[:,11]
         samp_Ms = resample_PDF(samp_Ms_tmp, Nsamp, 1e-3)
     except IOError:
