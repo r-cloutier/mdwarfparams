@@ -19,7 +19,6 @@ def remove_detected_planets(folder, IDnum, prefix, bjd, f):
     light curve before searching for injected planets.'''
     # get planet search results
     try:
-	prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
         d = loadpickle('%s/%s_%i/LC_-00099'%(folder,prefix,IDnum))
     except IOError:
         raise ValueError('initial planet search has not been run.')
