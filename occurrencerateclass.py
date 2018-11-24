@@ -332,8 +332,8 @@ class OccurrenceRateclass:
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
-        self.cond_vals = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
-        self.cond_free_params = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
+        self.cond_vals_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
+        self.cond_free_params_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
         self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -416,10 +416,12 @@ class OccurrenceRateclass:
                     # save vetting results for diagnostic purposes
                     NPOIs = d.params_guess_priorto_confirm.shape[0]
                     filler3 = np.repeat(np.nan, 6*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,6)
-                    self.cond_vals[i,j] = np.append(d.transit_condition_values, filler3, 0)
+                    self.cond_vals_inj[i,j] = np.append(d.transit_condition_values, filler3, 0)
                     free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,6)
-                    self.cond_free_params[i,j] = np.append(free_params, filler3, 0)
+                    self.cond_free_params_inj[i,j] = np.append(free_params, filler3, 0)
 
+	# get 
+	self.SNRtransit_inj = self.cond_vals_inj[:,:,:,1]
 
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()
@@ -1040,9 +1042,10 @@ def combine_individual_sens(folder, prefix):
         d = loadpickle(fs[i])
         self.as_inj = np.append(self.as_inj, d.as_inj, 0)
         self.as_rec = np.append(self.as_rec, d.as_rec, 0)
-        self.cond_free_params = np.append(self.cond_free_params,
-                                          d.cond_free_params, 0)
-        self.cond_vals = np.append(self.cond_vals, d.cond_vals, 0)
+        self.cond_free_params_inj = np.append(self.cond_free_params_inj,
+                                              d.cond_free_params_inj, 0)
+        self.cond_vals_inj = np.append(self.cond_vals_inj, 
+				       d.cond_vals_inj, 0)
         self.e_sensa_i = np.append(self.e_sensa_i, d.e_sensa_i, 0)
         self.e_sensF_i = np.append(self.e_sensF_i, d.e_sensF_i, 0)
         self.e_sensP_i = np.append(self.e_sensP_i, d.e_sensP_i, 0)
@@ -1102,8 +1105,9 @@ def combine_individual_sens(folder, prefix):
     # trim excess planets
     endfs = int(np.nanmax(self.Nsims))
     endPs = int(np.nanmax(self.Nplanets_inj))
-    self.cond_vals = self.cond_vals[:,:endfs,:endPs,:]
-    self.cond_free_params = self.cond_free_params[:,:endfs,:endPs,:]
+    self.cond_vals_inj = self.cond_vals_inj[:,:endfs,:endPs,:]
+    self.cond_free_params_inj = self.cond_free_params_inj[:,:endfs,:endPs,:]
+    self.SNRtransit_inj = self.SNRtransit_inj[:,:endfs,:endPs]
     self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
     self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
     self.as_inj = self.as_inj[:,:endfs,:endPs]
