@@ -612,23 +612,20 @@ class OccurrenceRateclass:
                     samp_smaP = rvs.AU2m(rvs.semimajoraxis(Pmid, samp_Ms, 0))
                     samp_probP = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaP
-                    probP,_,_ = \
-                                get_results(samp_probP.reshape(samp_probP.size,1))
+                    probP,_,_ = get_median_results(samp_probP)
                     self.transit_probP_i[i,j,k] = probP
                     #self.e_transit_probP_i[i,j,k] = unp.std_devs(probP)
                     
                     samp_smaF = sma_from_F(Fmid, samp_Ls)
                     samp_probF = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  samp_smaF
-                    probF,_,_ = \
-                                get_results(samp_probF.reshape(samp_probF.size,1))
+                    probF,_,_ = get_median_results(samp_probF)
                     self.transit_probF_i[i,j,k] = probF
                     #self.e_transit_probF_i[i,j,k] = unp.std_devs(probF)
                     
                     samp_proba = (rvs.Rsun2m(samp_Rs) + rvs.Rearth2m(rpmid)) / \
                                  amid
-                    proba,_,_ = \
-                                get_results(samp_proba.reshape(samp_proba.size,1))
+                    proba,_,_ = get_median_results(samp_proba)
                     self.transit_proba_i[i,j,k] = proba
                     #self.e_transit_proba_i[i,j,k] = unp.std_devs(proba)
 
@@ -823,6 +820,11 @@ def compute_F(Ls_Sun, smas_AU):
 def sma_from_F(F_Sun, samp_Ls_Sun):
     samp_sma = np.sqrt(samp_Ls_Sun / F_Sun)
     return samp_sma
+
+
+def get_median_results(arr):
+    v = np.percentile(arr, (16,50,84))
+    return v[1], v[2]-v[1], v[1]-v[0]
 
 
 def sample_rp(object_name, rpRs, e_rpRs, Nsamp=1e4):
@@ -1124,6 +1126,6 @@ if __name__ == '__main__':
     startstarind = int(sys.argv[3])  # 0
     endstarind = int(sys.argv[4])    # 10
     self = OccurrenceRateclass(folder, prefix, startstarind, endstarind,
-                               compute_detections=True,
+                               compute_detections=False,
                                compute_sens=True,
                                compute_occurrence_rate=False)

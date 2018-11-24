@@ -389,7 +389,8 @@ def get_2MASS_K2(ras_deg, decs_deg, GBPmags, GRPmags,
             np.isclose(H2M-K2M, H_K, atol=3*.2411) # evans18 color relation
 
         if g.sum() > 0:
-            g2 = (abs((H2M-K2M)[g]-H_K) == np.min(abs((H2M-K2M)[g]-H_K)))
+            #g2 = (abs((H2M-K2M)[g]-H_K) == np.min(abs((H2M-K2M)[g]-H_K)))
+            g2 = J2M[g] == np.min(J2M[g])
             Jmags[i] = J2M[g][g2][0]
             Hmags[i] = H2M[g][g2][0]
             Kmags[i] = K2M[g][g2][0]
