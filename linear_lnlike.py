@@ -546,7 +546,9 @@ def fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
     '''Get best-fit parameters.'''
     assert params.shape == (4,)
     P, T0, depth, duration = params
-    assert depth < .9  # sometimes the dimming is passed instead of depth 
+    if depth >= .9:  # sometimes the dimming is passed instead of depth 
+	return np.nan, np.nan, np.nan, np.nan, \
+	       np.repeat(np.nan, bjd.size), np.repeat(np.nan, 7)
     u1, u2 = get_LDcoeffs_Kepler(Ms, Rs, Teff)
     #u1, u2 = get_LDcoeffs_TESS(Ms, Rs, Teff)
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
