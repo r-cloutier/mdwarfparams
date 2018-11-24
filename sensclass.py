@@ -4,12 +4,11 @@ from uncertainties import unumpy as unp
 
 class Sensitivityclass:
 
-    def __init__(self, epicnum, prefix):
-        self.epicnum, self.prefix = epicnum, prefix
-        self.fname_full = 'PipelineResults/%s_%i/%s_%i_sens'%(self.prefix,
-							      self.epicnum,
-							      self.prefix,
-                                                              self.epicnum)
+    def __init__(self, folder, epicnum, prefix):
+        self.epicnum, self.prefix, self.folder = epicnum, prefix, folder
+        self.fname_full = '%s/%s_%i/%s_%i_sens'%(self.folder, self.prefix,
+						 self.epicnum, self.prefix,
+                                                 self.epicnum)
         self.get_data()
 	if self.fs.size > 0:
             #self.get_probable_detections()
@@ -19,12 +18,12 @@ class Sensitivityclass:
 
 
     def get_data(self):
-        self.fs = np.array(glob.glob('PipelineResults/%s_%i/*LC*'%(self.prefix,self.epicnum)))
+        self.fs = np.array(glob.glob('%s/%s_%i/*LC*'%(self.folder,self.prefix,self.epicnum)))
 	# remove planet search result (i.e. with index -99)
-	if np.any(np.in1d(self.fs, 'PipelineResults/%s_%i/%sLC_-00099'%(self.prefix,
-									self.epicnum,self.prefix))):
-	    g = np.where(np.in1d(self.fs, 'PipelineResults/%s_%i/LC_-00099'%(self.prefix,
-									     self.epicnum)))[0][0]
+	if np.any(np.in1d(self.fs, '%s/%s_%i/%sLC_-00099'%(self.folder, self.prefix,
+							   self.epicnum,self.prefix))):
+	    g = np.where(np.in1d(self.fs, '%s/%s_%i/LC_-00099'%(self.folder, self.prefix,
+								self.epicnum)))[0][0]
 	    self.fs = np.delete(self.fs, g)
         if self.fs.size == 0:
 	    return None

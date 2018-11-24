@@ -333,7 +333,7 @@ def get_planet_detections(evidence_ratios, params_guess):
     return params_guess_out[s]
         
 
-def planet_search(IDnum, Kep=False, K2=False, TESS=False):
+def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     '''Run a planet search on an input Kepler or K2 light curve using the 
     pipeline defined in compute_sensitivity to search for planets.'''
     
@@ -363,7 +363,7 @@ def planet_search(IDnum, Kep=False, K2=False, TESS=False):
 	return None
 
     # save stellar data and time-series
-    self = LCclass(name, -99)  # -99 is unique to planet_search
+    self = LCclass(folder, name, -99)  # -99 is unique to planet_search
     self.bjd, self.f, self.ef, self.quarters = bjd, f, ef, quarters
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -429,9 +429,10 @@ def do_i_run_this_star(ID, folder='PipelineResults', K2=False, Kep=False):
 if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
+    folder = sys.argv[3]
     #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
     kepids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
     for i in range(startind, endind):
 	print kepids[i] #epics[i]
-	if do_i_run_this_star(kepids[i], Kep=True):
-            planet_search(kepids[i], Kep=True)
+	if do_i_run_this_star(kepids[i], folder=folder, Kep=True):
+            planet_search(folder, kepids[i], Kep=True)

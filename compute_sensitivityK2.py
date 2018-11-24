@@ -14,13 +14,13 @@ def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
     return f
 
 
-def remove_detected_planets(IDnum, prefix, bjd, f):
+def remove_detected_planets(folder, IDnum, prefix, bjd, f):
     '''Remove planet detections using their optimized parameters to clean the 
     light curve before searching for injected planets.'''
     # get planet search results
     try:
 	prefix2 = 'EPIC' if prefix == 'K2' else 'KepID'
-        d = loadpickle('PipelineResults/%s_%i/LC_-00099'%(prefix,IDnum))
+        d = loadpickle('%s/%s_%i/LC_-00099'%(folder,prefix,IDnum))
     except IOError:
         raise ValueError('initial planet search has not been run.')
 
@@ -78,7 +78,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
     
 
-def injected_planet_search(epicnum, index, K2=False, Kep=False):
+def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
@@ -94,7 +94,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 	prefix, Nopt = 'KepID', 5
     else:
 	return None
-    self = LCclass(name, index)
+    self = LCclass(folder, name, index)
     self.bjd, self.f_orig, self.ef, self.quarters = bjd, np.copy(f), ef, quarters
     for attr in star_dict.keys():
         setattr(self, attr, star_dict[attr])
@@ -103,7 +103,7 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 
     # remove planets detected by the planet search which should already
     # have been run
-    self.f_noplanets = remove_detected_planets(epicnum, prefix, self.bjd, self.f_orig)
+    self.f_noplanets = remove_detected_planets(folder, epicnum, prefix, self.bjd, self.f_orig)
     
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
@@ -143,13 +143,13 @@ def injected_planet_search(epicnum, index, K2=False, Kep=False):
 
 
 
-def do_i_run_this_sim(IDnum, prefix, index):
+def do_i_run_this_sim(IDnum, prefix, index, folder='PipelineResults'):
     # check if planet search has already been run
-    fname = 'PipelineResults/%s_%i/LC_-00099'%(prefix, IDnum)
+    fname = '%s/%s_%i/LC_-00099'%(folder, prefix, IDnum)
     if os.path.exists(fname) and loadpickle(fname).DONE:
         
         # check if star is already done
-        fname = 'PipelineResults/%s_%i/LC_%.5d'%(prefix, IDnum, index)
+        fname = '%s/%s_%i/LC_%.5d'%(folder, prefix, IDnum, index)
         if os.path.exists(fname):
             return not loadpickle(fname).DONE
         else:
@@ -164,6 +164,7 @@ if __name__ == '__main__':
     endind = int(sys.argv[2])
     Nsystems = int(sys.argv[3])
     starting_index = int(sys.argv[4])
+    folder = sys.argv[5]
     #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
     #epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
 		       #delimiter=',')
@@ -174,4 +175,4 @@ if __name__ == '__main__':
         for j in range(Nsystems):
             index = j + starting_index
             if do_i_run_this_sim(ids[i], 'KepID', index):
-                injected_planet_search(ids[i], index, Kep=True)
+                injected_planet_search(folder, ids[i], index, Kep=True)
