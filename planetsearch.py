@@ -331,6 +331,19 @@ def get_planet_detections(evidence_ratios, params_guess):
 
     s = np.argsort(params_guess_out[:,0])
     return params_guess_out[s]
+
+
+def compute_SNRtransit(bjd, fcorr, params_guess):
+    '''Compute the transit SNR.'''
+    assert bjd.size == fcorr.size
+    Nplanets = params_guess.shape[0]
+    SNRtransits, depths = np.zeros(Nplanets), np.zeros(Nplanets)
+    sigtransits = np.repeat(llnl.MAD1d(fcorr), Nplanets)
+    for i in range(Nplanets):
+        P,T0,depths[i],_ = params_guess[i]
+        Ntransits = llnl.compute_Ntransits(bjd, P, T0)
+        SNRtransits[i] = (depths[i] / sigtransits[i]) * np.sqrt(Ntransits)
+    return SNRtransits, depths, sigtransits
         
 
 def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
@@ -387,6 +400,10 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
+    # compute transit S/N of planet candidates
+    p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
+    self.SNRtransits, self.depths, self.sigtransits = p
+                           
     # fit transit models to light curve
     run_mcmc(self)
 

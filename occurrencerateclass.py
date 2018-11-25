@@ -62,7 +62,8 @@ class OccurrenceRateclass:
         self.smas, self.ehi_smas, self.elo_smas = np.zeros(0), np.zeros(0), \
                                                   np.zeros(0)
         self.Fs, self.ehi_Fs, self.elo_Fs = np.zeros(0),np.zeros(0),np.zeros(0)
-
+        self.SNRtransits = np.zeros(0)
+        
         # POI params
         self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
 
@@ -163,7 +164,8 @@ class OccurrenceRateclass:
                     self.Fs = np.append(self.Fs, Fs[0])
                     self.ehi_Fs = np.append(self.ehi_Fs, Fs[1])
                     self.elo_Fs = np.append(self.elo_Fs, Fs[2])
-
+                    self.SNRtransits = np.append(self.SNRtransits, d.SNRtransits)
+                    
                     # save planet samples for MC sampling
                     if j > 0:
                         samp_P = np.random.normal(self.Ps[-1], self.e_Ps[-1],
@@ -181,7 +183,7 @@ class OccurrenceRateclass:
         self.Nstars = self.unique_inds.size
         self.Nplanets_detected = self.Ndetected[self.unique_inds].sum()
         self.fs_planetsearch = np.array(self.fs_planetsearch)
-	self.SNRtransit = self.cond_vals[:,1]
+	self.SNRtransit_cond = self.cond_vals[:,1]
 
         # compute map of planet detections via MC simulations
         self.compute_Ndet_map()
@@ -342,6 +344,7 @@ class OccurrenceRateclass:
         self.Ps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.SNR_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.rps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.is_FP = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         
@@ -408,6 +411,7 @@ class OccurrenceRateclass:
                     self.Ps_rec[i,j] = np.append(params[:,0], filler2)
                     sma = rvs.semimajoraxis(params[:,0], d.Ms, 0)
                     self.as_rec[i,j] = np.append(sma, filler2)
+                    self.SNR_rec[i,j] = np.append(d.SNRtransits, filler2)
                     F = compute_F(compute_Ls(d.Rs, d.Teff), sma)
                     self.Fs_rec[i,j]  = np.append(F, filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
@@ -1042,6 +1046,7 @@ def combine_individual_sens(folder, prefix):
         d = loadpickle(fs[i])
         self.as_inj = np.append(self.as_inj, d.as_inj, 0)
         self.as_rec = np.append(self.as_rec, d.as_rec, 0)
+        self.SNR_rec = np.append(self.SNR_rec, d.SNR_rec, 0)
         self.cond_free_params_inj = np.append(self.cond_free_params_inj,
                                               d.cond_free_params_inj, 0)
         self.cond_vals_inj = np.append(self.cond_vals_inj, 
@@ -1117,6 +1122,7 @@ def combine_individual_sens(folder, prefix):
     self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
     self.Fs_rec = self.Fs_rec[:,:endfs,:endPs]
     self.as_rec = self.as_rec[:,:endfs,:endPs]
+    self.SNR_rec  = self.SNR_rec[:,:endfs,:endPs]
     self.rps_rec = self.rps_rec[:,:endfs,:endPs]
     self.is_FP = self.is_FP[:,:endfs,:endPs]
     

@@ -139,7 +139,7 @@ def plot_detected_population_rphist(occurrencerateclass, pltt=True,
 
     sigrp = self.rps / np.mean([self.elo_rps,self.ehi_rps],0)
     g = np.isfinite(self.rps) & np.isfinite(self.Ps) & (sigrp > 3)
-    #g = (g) & (self.Mss < .6)
+    g = (g) & (self.Mss > .6)
 
     rpbins = np.logspace(np.log10(.5), np.log10(10), 31)
     N, rp_edges = np.histogram(self.rps[g], bins=rpbins)

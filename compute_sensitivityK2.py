@@ -71,11 +71,12 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
         fmodeltmp = transit_model_func_in(bjd, Ptrue[i], T0true[i], aRs[i],
                                           rpRs[i], incs[i], u1, u2)
         fmodel *= fmodeltmp
-        depthtrue[i] = abs(fmodeltmp.min())
+        depthtrue[i] = 1 - abs(fmodeltmp.min())
         durationtrue[i] = rvs.transit_width(Ptrue[i], Ms, Rs, rptrue[i], bs[i])
         
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
-    
+
+
 
 def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
@@ -130,6 +131,14 @@ def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
+    # save depth and SNR for recovered planets plus the SNR of injected
+    p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
+    self.SNRtransits, self.depths, self.sigtransits = p
+    Ntransits = np.array([llnl.compute_Ntransits(self.bjd,Ptrue[i],T0true[i])
+                          for i in range(Ptrue.size)])
+    self.SNRtrue = (depthtrue / self.sigtransits[0]) * np.sqrt(Ntransits)
+    assert SNRtrue.size == Ptrue.size
+    
     # check if planets are detected
     self.is_detected = np.array([int(np.any(np.isclose(params[:,0], Ptrue[i],
                                                        rtol=.02)))
