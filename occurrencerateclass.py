@@ -31,6 +31,7 @@ class OccurrenceRateclass:
         if compute_detections:
 	    self.fname_out += '_det'
             self.get_planetsearch_results()
+            self.save_ids_detectionsfirst()
             self._pickleobject()
             
         if compute_sens:
@@ -297,6 +298,18 @@ class OccurrenceRateclass:
                     interpolate_grid(self.logagrid, self.logrpgrid,
                                      gaussian_filter(self.Ndeta_tot,0),
                                      agrid, rpgrid).reshape(xlen,ylen)
+
+
+    def save_ids_detectionsfirst(self):
+        '''Save a text file of ID numbers ordered by number of detected 
+        planet candidates. Also useful for seeing what stars are included in 
+        the planet search.'''
+        assert self.Ndetected.size == self.names_planetsearch.size
+        s = np.argsort(self.Ndetected[self.unique_inds])[::-1]
+        IDnums = np.array([int(name.split('_')[-1])
+                           for name in self.names_planetsearch[self.unique_inds][s]])
+        fname = '%s/%s_detectionsfirst.csv'%(self.folder, self.prefix)
+        np.savetxt(fname, IDnums, fmt='%i')
         
 
     def get_simulation_results(self):

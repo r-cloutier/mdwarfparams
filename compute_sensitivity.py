@@ -1,4 +1,4 @@
-from LCclass import *
+sshcitfrom LCclass import *
 from planetsearch import *
 import linear_lnlike as llnl
 
@@ -78,19 +78,19 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
 
 
 
-def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
+def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
     # get data and only run the star if it is of interest
-    if not is_star_of_interest(epicnum, Kep=Kep, K2=K2):
+    if not is_star_of_interest(IDnum, Kep=Kep, K2=K2):
         return None
 
     if K2:
-        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
+        name, star_dict, bjd, f, ef, quarters = read_K2_data(IDnum)
 	prefix, Kep, Nopt = 'EPIC', False, 10
     elif Kep:
-	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(epicnum)
+	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(IDnum)
 	prefix, Nopt = 'KepID', 5
     else:
 	return None
@@ -103,7 +103,7 @@ def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
 
     # remove planets detected by the planet search which should already
     # have been run
-    self.f_noplanets = remove_detected_planets(folder, epicnum, prefix, self.bjd, self.f_orig)
+    self.f_noplanets = remove_detected_planets(folder, IDnum, prefix, self.bjd, self.f_orig)
     
     # sample and inject planet(s)
     Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel = \
@@ -151,7 +151,7 @@ def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
 
 
 
-def do_i_run_this_sim(IDnum, prefix, index, folder='PipelineResults'):
+def do_i_run_this_sim(folder, IDnum, prefix, index):
     # check if planet search has already been run
     fname = '%s/%s_%i/LC_-00099'%(folder, prefix, IDnum)
     if os.path.exists(fname) and loadpickle(fname).DONE:
@@ -169,18 +169,16 @@ def do_i_run_this_sim(IDnum, prefix, index, folder='PipelineResults'):
 
 if __name__ == '__main__':
     startind = int(sys.argv[1])
-    endind = int(sys.argv[2])
-    Nsystems = int(sys.argv[3])
-    starting_index = int(sys.argv[4])
+    Nstars = int(sys.argv[2])
+    Njobs = int(sys.argv[3])
+    Nsystems_per_star = int(sys.argv[4])
     folder = sys.argv[5]
-    #epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    #epics = np.loadtxt('input_data/K2targets/K2Mdwarfs_withdetections.csv', 
-		       #delimiter=',')
-    ids = np.loadtxt('input_data/Keplertargets/KepMdwarfsv9_detectionsfirst.csv',
-                     delimiter=',')
-    for i in range(startind, endind):
+    f = glob.glob('%s/*_detectionsfirst.csv'%folder)
+    ids = np.loadtxt(f[0])
+
+    for i in range(startind, Nstars, Njobs):
         print ids[i]
         for j in range(Nsystems):
-            index = j + starting_index
-            if do_i_run_this_sim(ids[i], 'KepID', index):
+            index = j + 0#starting_index
+            if do_i_run_this_sim(folder, ids[i], 'KepID', index):
                 injected_planet_search(folder, ids[i], index, Kep=True)
