@@ -133,10 +133,10 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
 
     # save depth and SNR for recovered planets plus the SNR of injected
     p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
-    self.SNRtransits, self.depths, self.sigtransits = p
+    self.SNRtransits, self.depths, self.sigtransit = p
     Ntransits = np.array([llnl.compute_Ntransits(self.bjd,Ptrue[i],T0true[i])
                           for i in range(Ptrue.size)])
-    self.SNRtrue = (depthtrue / self.sigtransits[0]) * np.sqrt(Ntransits)
+    self.SNRtrue = (depthtrue / self.sigtransit) * np.sqrt(Ntransits)
     assert self.SNRtrue.size == self.Ptrue.size
     
     # check if planets are detected

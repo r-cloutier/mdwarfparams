@@ -338,12 +338,12 @@ def compute_SNRtransit(bjd, fcorr, params_guess):
     assert bjd.size == fcorr.size
     Nplanets = params_guess.shape[0]
     SNRtransits, depths = np.zeros(Nplanets), np.zeros(Nplanets)
-    sigtransits = np.repeat(llnl.MAD1d(fcorr), Nplanets)
+    sigtransit = llnl.MAD1d(fcorr)
     for i in range(Nplanets):
         P,T0,depths[i],_ = params_guess[i]
         Ntransits = llnl.compute_Ntransits(bjd, P, T0)
-        SNRtransits[i] = (depths[i] / sigtransits[i]) * np.sqrt(Ntransits)
-    return SNRtransits, depths, sigtransits
+        SNRtransits[i] = (depths[i] / sigtransit) * np.sqrt(Ntransits)
+    return SNRtransits, depths, sigtransit
         
 
 def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
@@ -402,7 +402,7 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
 
     # compute transit S/N of planet candidates
     p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
-    self.SNRtransits, self.depths, self.sigtransits = p
+    self.SNRtransits, self.depths, self.sigtransit = p
                            
     # fit transit models to light curve
     run_mcmc(self)
