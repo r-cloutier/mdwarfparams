@@ -56,6 +56,7 @@ class OccurrenceRateclass:
 
         # detected planet params
         self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
+	self.sigtransits = np.zeros(0)
         self.params_optimized = np.zeros((0,5))
         self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
         self.rps, self.ehi_rps, self.elo_rps = np.zeros(0), np.zeros(0), \
@@ -91,6 +92,7 @@ class OccurrenceRateclass:
                                         np.append(self.names_planetsearch,
                                                   d.object_name)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
+		    self.sigtransits = np.append(self.sigtransits, d.sigtransit)
                     self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     self.efs = np.append(self.efs, d.ef.mean())
                     self.Mss = np.append(self.Mss, d.Ms)
@@ -326,6 +328,7 @@ class OccurrenceRateclass:
 
         # stellar params
         self.Nsims = np.zeros(self.Nstars_simulated)
+	self.sigtransits = np.zeros(self.Nstars_simulated)
         self.Kepmags = np.zeros(self.Nstars_simulated)
         self.efs = np.zeros(self.Nstars_simulated)
         self.Mss = np.zeros(self.Nstars_simulated)
@@ -387,6 +390,7 @@ class OccurrenceRateclass:
                 # save stellar params
                 if j == 0:
                     self.Kepmags[i] = d.Kepmag
+		    self.sigtransits[i] = d.sigtransit
                     self.efs[i] = d.ef.mean()
                     self.Mss[i] = d.Ms
                     self.ehi_Mss[i] = d.ehi_Ms
@@ -1089,6 +1093,7 @@ def combine_individual_sens(folder, prefix):
         self.is_FP = np.append(self.is_FP, d.is_FP, 0)
         self.is_rec = np.append(self.is_rec, d.is_rec, 0)
         self.Kepmags = np.append(self.Kepmags, d.Kepmags)
+	self.sigtransits = np.append(self.sigtransits, d.sigtransits)
         self.Lss = np.append(self.Lss, d.Lss)
         self.loggs = np.append(self.loggs, d.loggs)
         self.Mss = np.append(self.Mss, d.Mss)
