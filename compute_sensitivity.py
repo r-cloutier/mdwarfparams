@@ -1,4 +1,4 @@
-sshcitfrom LCclass import *
+from LCclass import *
 from planetsearch import *
 import linear_lnlike as llnl
 
@@ -137,7 +137,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
     Ntransits = np.array([llnl.compute_Ntransits(self.bjd,Ptrue[i],T0true[i])
                           for i in range(Ptrue.size)])
     self.SNRtrue = (depthtrue / self.sigtransits[0]) * np.sqrt(Ntransits)
-    assert SNRtrue.size == Ptrue.size
+    assert self.SNRtrue.size == self.Ptrue.size
     
     # check if planets are detected
     self.is_detected = np.array([int(np.any(np.isclose(params[:,0], Ptrue[i],
@@ -178,7 +178,7 @@ if __name__ == '__main__':
 
     for i in range(startind, Nstars, Njobs):
         print ids[i]
-        for j in range(Nsystems):
+        for j in range(Nsystems_per_star):
             index = j + 0#starting_index
             if do_i_run_this_sim(folder, ids[i], 'KepID', index):
                 injected_planet_search(folder, ids[i], index, Kep=True)
