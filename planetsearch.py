@@ -419,7 +419,7 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     
 
 
-def do_i_run_this_star(ID, folder='PipelineResults', K2=False, Kep=False):
+def do_i_run_this_star(folder, ID, K2=False, Kep=False):
     # first check that the star is available
     if K2:
         epics = np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
@@ -447,9 +447,9 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     folder = sys.argv[3]
-    epics= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    #kepids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
+    #ids= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
+    ids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
     for i in range(startind, endind):
-	print epics[i]#kepids[i] #epics[i]
-	if do_i_run_this_star(epics[i], folder=folder, K2=True):
-            planet_search(folder, epics[i], K2=True)
+	print ids[i]
+	if do_i_run_this_star(folder, ids[i], Kep=True):
+            planet_search(folder, epics[i], Kep=True)

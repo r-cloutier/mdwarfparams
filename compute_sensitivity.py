@@ -58,7 +58,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     rpRs = rvs.Rearth2m(rptrue) / rvs.Rsun2m(Rs)
     aRs = rvs.AU2m(rvs.semimajoraxis(Ptrue, Ms, 0)) / rvs.Rsun2m(Rs)
     assert np.all(aRs > 1)
-    bs = np.random.uniform(-1, 1, Nplanets)
+    bs = np.random.uniform(-.7, .7, Nplanets)
     incs = rvs.inclination(Ptrue, Ms, Rs, bs)
     u1, u2 = llnl.get_LDcoeffs_Kepler(Ms, Rs, Teff)
 
