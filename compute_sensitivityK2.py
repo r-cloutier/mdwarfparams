@@ -114,11 +114,11 @@ def injected_planet_search(folder, epicnum, index, K2=False, Kep=False):
     self.f = self.f_noplanets * fmodel
     self._pickleobject()
     
-    # fit initial GP
-    thetaGPin, thetaGPout = do_optimize_0(bjd, f, ef, quarters, N=Nopt)
-    self.thetaGPin, self.thetaGPout = thetaGPin, thetaGPout
+    # read-in initial GP
+    d = loadpickle('%s/%s/LC_-00099'%(folder, name))
+    self.thetaGPin, self.thetaGPout = d.thetaGPin, d.thetaGPout
     self._pickleobject()
-
+    
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print 'Searching for transit-like events...\n'
