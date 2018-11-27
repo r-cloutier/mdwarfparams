@@ -61,8 +61,6 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
     bs = np.random.uniform(-.7, .7, Nplanets)
     incs = rvs.inclination(Ptrue, Ms, Rs, bs)
     u1, u2 = llnl.get_LDcoeffs_Kepler(Ms, Rs, Teff)
-
-    print '\n', Ptrue, T0true, aRs, rpRs, incs, u1, u2
     
     # compute transit model(s)
     fmodel = np.ones(bjd.size)
@@ -175,10 +173,11 @@ if __name__ == '__main__':
     folder = sys.argv[5]
     f = glob.glob('%s/*_detectionsfirst.csv'%folder)
     ids = np.loadtxt(f[0])
+    prefix, K2, Kep = 'EPIC', True, False
 
     for i in range(startind, Nstars, Njobs):
         print ids[i]
         for j in range(Nsystems_per_star):
             index = j + 0#starting_index
-            if do_i_run_this_sim(folder, ids[i], 'KepID', index):
-                injected_planet_search(folder, ids[i], index, Kep=True)
+            if do_i_run_this_sim(folder, ids[i], prefix, index):
+                injected_planet_search(folder, ids[i], index, Kep=Kep, K2=K2)
