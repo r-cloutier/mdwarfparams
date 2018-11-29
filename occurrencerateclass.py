@@ -1065,15 +1065,16 @@ def interpolate_grid(logxarr, logyarr, zarr, xval, yval):
     return float(zarrout) if zarrout.size == 1 else zarrout
 
 
-def combine_individual_sens(folder, prefix):
+def combine_individual_sens(folder, prefix, label='_0_70'):
     '''sensitivity calculations are done for subsets of all stars to 
     save time. Combine them here.'''
     # get sensitivity objects
     fs = np.sort(np.array(glob.glob('%s/%s_results_*_sens'%(folder, prefix))))
     Nsens = fs.size
+    print Nsens
     self = loadpickle(fs[0])
-    assert '0_75' in self.fname_out
-    self.fname_out = self.fname_out.replace('_0_75','')
+    assert label in self.fname_out
+    self.fname_out = self.fname_out.replace(label,'')
     
     # append all objects together
     for i in range(1,Nsens):
@@ -1180,3 +1181,4 @@ if __name__ == '__main__':
                                compute_detections=False,
                                compute_sens=True,
                                compute_occurrence_rate=False)
+    combine_individual_sens(folder, prefix, '_0_70')
