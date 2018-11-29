@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 global K2Mdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv11.csv'
 KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv11.csv'
+TESSMdwarffile = 'input_data/TESStargets/TESSMdwarfsv11.csv'
 threshBayesfactor = 1e2
 
 
@@ -195,16 +196,75 @@ def read_K2_data(epicnum):
     return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
 
 
+def read_TESS_data(tic):
+    # make directories
+    try:
+	os.mkdir('MAST')
+    except OSError:
+	pass
+    try:
+	os.mkdir('MAST/TESS')
+    except OSError:
+	pass
+    folder2 = 'MAST/TESS/TIC%i'%tic
+    try:
+       	os.mkdir(folder2)
+    except OSError:
+       	pass
+
+
+    TESS/product/tess2018206045859-s0001-0000000025155310-0120-s_lc.fits
+    
+    # download tar file if not already
+    fnames = np.array(glob.glob('%s/hlsp*.fits'%folder2))
+    if fnames.size == 0:
+        sectors = [0,1]
+        for j in range(len(sectors)):
+            folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
+                                             int(str(epicnum)[:4]),
+                                             int(str(epicnum)[4:9]))
+            fname = 'tess_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
+            url = 'https://archive.stsci.edu/TESS/product/%s/%s'%(folder, fname)
+            os.system('wget %s'%url)
+            if os.path.exists(fname):
+                os.system('mv %s %s'%(fname, folder2))
+                break
+
+        # read fits file
+        hdu = fits.open('%s/%s'%(folder2, fname))
+        assert len(hdu) > 1
+
+    # file already downloaded
+    else:
+        hdu = fits.open(fnames[0])
+        assert len(hdu) > 1
+
+    # get data from fits file
+    bjd = hdu[1].data['TIME'] + 2457000
+    f = hdu[1].data['PDCSAP_FLUX']
+    ef = hdu[1].data['PDCSAP_FLUX_ERR']
+    g = f > 0
+    bjd, f, ef = bjd[g], f[g], ef[g]
+    ef /= np.nanmedian(f)
+    f /= np.nanmedian(f)
+
+    name = hdu[0].header['OBJECT'].replace(' ','_')
+    star_dict = get_star(tic, TESS=True)
+    s = np.argsort(bjd)
+    quarters = np.zeros(bjd.size)
+    return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
+
+
 def get_star(IDnum, Kep=False, K2=False, TESS=False):
     if Kep:
         infile = KepMdwarffile
-        IDtype, sector = 'kepid', 'N/A'
+        IDtype, magname = 'kepid', 'Kepmag'
     elif K2:
         infile = K2Mdwarffile
-        IDtype, sector = 'epicnum', 'K2campaign'
+        IDtype, magname = 'epicnum', 'Kepmag'
     elif TESS:
         infile = TESSMdwarffile
-        IDtype, sector = 'ticid', 'TESSsector'
+        IDtype, magname = 'tic', 'TESSmag'
     else:
         raise ValueError('Must select one of Kep, K2, or TESS')
 
@@ -216,7 +276,7 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
     star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
                  'dec': star_info[2], 'GBPmag': star_info[3],
                  'e_GBPmag': star_info[4], 'GRPmag': star_info[5],
-                 'e_GRPmag': star_info[6], 'Kepmag': star_info[7],
+                 'e_GRPmag': star_info[6], 'magname': star_info[7],
                  'Jmag': star_info[8], 'e_Jmag': star_info[9],
                  'Hmag': star_info[10], 'e_Hmag': star_info[11],
                  'Kmag': star_info[12], 'e_Kmag': star_info[13],
@@ -391,9 +451,14 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print '\nSearching for transit-like events...\n'
+    if K2 or Kep:
+        Kep, TESS = True, False
+    else:
+        Kep, TESS = False, True
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
                                                     self.ef, self.quarters,
-                                                    self.thetaGPout)
+                                                    self.thetaGPout, Kep=Kep,
+						    TESS=TESS)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])
@@ -419,7 +484,7 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     
 
 
-def do_i_run_this_star(folder, ID, K2=False, Kep=False):
+def do_i_run_this_star(folder, ID, K2=False, Kep=False, TESS=False):
     # first check that the star is available
     if K2:
         epics = np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
@@ -430,6 +495,10 @@ def do_i_run_this_star(folder, ID, K2=False, Kep=False):
         kepids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
         prefix = 'KepID'
         g = kepids == ID
+    elif TESS:
+	tics = np.loadtxt(TESSMdwarffile, delimiter=',')[:,0]
+	prefix = 'TIC'
+	g = tics == ID
     else:
         return None
 
@@ -447,9 +516,18 @@ if __name__ == '__main__':
     startind = int(sys.argv[1])
     endind = int(sys.argv[2])
     folder = sys.argv[3]
-    #ids= np.loadtxt(K2Mdwarffile, delimiter=',')[:,0]
-    ids = np.loadtxt(KepMdwarffile, delimiter=',')[:,0]
+    if 'KepID' in folder:
+	Kep, K2, TESS = True, False, False
+	fname = KepMdwarffile
+    if 'EPIC' in folder:
+	Kep, K2, TESS = False, True, False
+	fname = K2Mdwarffile
+    if 'TIC' in folder:
+	Kep, K2, TESS = False, False, True
+	fname = TESSMdwarffile
+    
+    ids = np.loadtxt(fname, delimiter=',')[:,0]
     for i in range(startind, endind):
 	print ids[i]
-	if do_i_run_this_star(folder, ids[i], Kep=True):
-            planet_search(folder, epics[i], Kep=True)
+	if do_i_run_this_star(folder, ids[i], Kep=Kep, K2=K2, TESS=TESS):
+            planet_search(folder, ids[i], Kep=Kep, K2=K2, TESS=TESS)

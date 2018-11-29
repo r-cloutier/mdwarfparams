@@ -76,7 +76,7 @@ def sample_planets_uniform(bjd, Ms, Rs, Teff, Plims=(.5,200), rplims=(.5,10)):
 
 
 
-def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
+def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
     planet_search to search for planets.'''
 
@@ -86,10 +86,13 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
 
     if K2:
         name, star_dict, bjd, f, ef, quarters = read_K2_data(IDnum)
-	prefix, Kep, Nopt = 'EPIC', False, 10
+	prefix, Nopt = 'EPIC', 10
     elif Kep:
 	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(IDnum)
 	prefix, Nopt = 'KepID', 5
+    elif TESS:
+	name, star_dict, bjd, f, ef, quarters = read_TESS_data(IDnum)
+	prefix, Nopt = 'TIC', 10
     else:
 	return None
     self = LCclass(folder, name, index)
@@ -120,9 +123,14 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False):
     # search for transits in the corrected LC and get the transit parameters
     # guesses
     print 'Searching for transit-like events...\n'
+    if K2 or Kep:
+	Kep, TESS = True, False
+    else:
+	Kep, TESS = False, True
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
                                                     self.ef, self.quarters,
-						    self.thetaGPout)
+						    self.thetaGPout, Kep=Kep
+						    TESS=TESS)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
                                          'durations [D]'])
@@ -173,11 +181,17 @@ if __name__ == '__main__':
     folder = sys.argv[5]
     f = glob.glob('%s/*_detectionsfirst.csv'%folder)
     ids = np.loadtxt(f[0])
-    prefix, K2, Kep = 'EPIC', True, False
-
+    if 'EPIC' in folder:
+	prefix, K2, Kep, TESS = 'EPIC', True, False, False
+    if 'KepID' in folder:
+	prefix, K2, Kep, TESS = 'KepID', False, True, False
+    if 'TIC' in folder:
+        prefix, K2, Kep, TESS = 'TIC', False, False, True
+        
     for i in range(startind, Nstars, Njobs):
         print ids[i]
         for j in range(Nsystems_per_star):
             index = j + 0#starting_index
             if do_i_run_this_sim(folder, ids[i], prefix, index):
-                injected_planet_search(folder, ids[i], index, Kep=Kep, K2=K2)
+                injected_planet_search(folder, ids[i], index,
+                                       Kep=Kep, K2=K2, TESS=TESS)

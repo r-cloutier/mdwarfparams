@@ -325,7 +325,8 @@ def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
 
     
 
-def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff):
+def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff,
+                          Kep=False, TESS=False):
     '''given periods of interest, fit the transit model and compute lnL 
     for fractions of those periods as they may have been missed in the 
     linear search if 2 adjacent transits are not seen above the SNR 
@@ -347,7 +348,8 @@ def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff):
         while Ps[i]/div >= .1:
             params = np.array([Ps[i]/div, T0s[i], Zs[i], Ds[i]])
             P, T0, Z, D, fmodel,_ = fit_params(params, bjd, fcorr, ef, 
-                                               Ms, Rs, Teff)
+                                               Ms, Rs, Teff, Kep=Kep,
+                                               TESS=TESS)
             Ps2 = np.append(Ps2, P)
             T0s2 = np.append(T0s2, T0)
             Ds2 = np.append(Ds2, D)
@@ -359,7 +361,7 @@ def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff):
 
 
 def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
-                                bjd, fcorr, ef):
+                                bjd, fcorr, ef, Kep=False, TESS=False):
     '''Given the transit parameters and their lnLs, identify transit 
     candidates.'''
     assert Ps.size == T0s.size
@@ -388,7 +390,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
         Ps2[i], T0s2[i], Zs2[i], Ds2[i], fmodel,_ = fit_params(params, bjd,
                                                                fcorr, ef,
 						               self.Ms, self.Rs,
-                                                               self.Teff)
+                                                               self.Teff,
+                                                               Kep=Kep,
+                                                               TESS=TESS)
         lnLs2[i] = lnlike(bjd, fcorr, ef, fmodel)
 
     # remove common periods based on maximum likelihood
@@ -427,7 +431,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  lnLOIs2,
                                                                  self.Ms,
                                                                  self.Rs,
-                                                                 self.Teff)
+                                                                 self.Teff,
+                                                                 Kep=Kep,
+                                                                 TESS=TESS)
     
     # remove duplicates and multiples
     POIs4, T0OIs4, DOIs4, ZOIs4, lnLOIs4 = remove_common_P(POIs3, T0OIs3, DOIs3,
@@ -452,7 +458,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  bjd, fcorr, ef,
                                                                  self.Ms,
                                                                  self.Rs,
-                                                                 self.Teff)
+                                                                 self.Teff,
+                                                                 Kep=Kep,
+                                                                 TESS=TESS)
     self.Ntransits = Ntransits
     self.transit_condition_free_params = np.array([dispersion_sig,
                                                    depth_sig,
@@ -542,15 +550,17 @@ def transit_model_func_curve_fit(u1, u2):
     return transit_model_func_in
 
 
-def fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
+def fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep=False, TESS=False):
     '''Get best-fit parameters.'''
     assert params.shape == (4,)
     P, T0, depth, duration = params
     if depth >= .9:  # sometimes the dimming is passed instead of depth 
 	return np.nan, np.nan, np.nan, np.nan, \
 	       np.repeat(np.nan, bjd.size), np.repeat(np.nan, 7)
-    u1, u2 = get_LDcoeffs_Kepler(Ms, Rs, Teff)
-    #u1, u2 = get_LDcoeffs_TESS(Ms, Rs, Teff)
+    if Kep:
+        u1, u2 = get_LDcoeffs_Kepler(Ms, Rs, Teff)
+    if TESS:
+        u1, u2 = get_LDcoeffs_TESS(Ms, Rs, Teff)
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = P, T0, aRs, rpRs, 90.
@@ -614,7 +624,7 @@ def is_not_autocorrelated(timeseries):
     
     
 def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
-                     minNpnts_intransit=4):
+                     minNpnts_intransit=4, Kep=False, TESS=False):
     '''Look at proposed transits and confirm whether or not a significant 
     dimming is seen.'''
     Nplanets = params.shape[0]
@@ -646,7 +656,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 	    	P, T0, depth1, duration = params[i]
 	    else:
 		P, T0, depth1, duration,_,_ = fit_params(params[i], bjd, fcorr,
-                                                         ef, Ms, Rs, Teff)
+                                                         ef, Ms, Rs, Teff,
+                                                         Kep=Kep, TESS=TESS)
 
 	    # get in and out of transit window
             phase = foldAt(bjd, P, T0)
@@ -769,7 +780,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     fmodel_tot = np.ones(bjd.size)
     for i in range(paramsout.shape[0]):
         _,_,_,_,fmodel,_ = fit_params(paramsout[i], bjd, fcorr,
-                                      ef, Ms, Rs, Teff)
+                                      ef, Ms, Rs, Teff, Kep=Kep, TESS=TESS)
         fmodel_tot *= fmodel
     cond_autocorrs, autocorr_coeffs = np.zeros(2, dtype=bool), np.zeros(2)
     cond_autocorrs[0], autocorr_coeffs[0] = is_not_autocorrelated(fcorr / \

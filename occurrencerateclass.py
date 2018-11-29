@@ -15,7 +15,13 @@ class OccurrenceRateclass:
                  fine_factor=6, Plims=(.5,1e2), Flims=(.1,4e2),
                  smalims=(5e-3,.5), rplims=(.5,10)):
         self.folder, self.prefix = folder, prefix
-	self._startstarind, self._endstarind = int(startstarind), int(endstarind)
+        if 'EPIC' in self.folder:
+            self.Kep, self.K2, self.TESS = True, False, False
+        if 'KepID' in self.folder:
+            self.Kep, self.K2, self.TESS = False, True, False
+        if 'TIC' in self.folder: 
+            self.Kep, self.K2, self.TESS = False, False, True
+        self._startstarind, self._endstarind = int(startstarind), int(endstarind)
         assert self._startstarind < self._endstarind
         self.fname_out = '%s/%s_results_%i_%i'%(self.folder, self.prefix,
                                                 self._startstarind,
@@ -70,7 +76,11 @@ class OccurrenceRateclass:
         self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
 
         # stellar params
-        self.Kepmags, self.efs = np.zeros(0), np.zeros(0)
+        if self.Kep or self.K2:
+            self.Kepmags = np.zeros(0)
+        if self.TESS:
+            self.TESSmags = np.zeros(0)
+        self.efs = np.zeros(0)
         self.Mss,self.ehi_Mss,self.elo_Mss = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Rss,self.ehi_Rss,self.elo_Rss = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Teffs, self.ehi_Teffs, self.elo_Teffs = np.zeros(0), np.zeros(0), \
@@ -93,7 +103,10 @@ class OccurrenceRateclass:
                                                   d.object_name)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
 		    self.sigtransits = np.append(self.sigtransits, d.sigtransit)
-                    self.Kepmags = np.append(self.Kepmags, d.Kepmag)
+                    if self.Kep or self.K2:
+                        self.Kepmags = np.append(self.Kepmags, d.Kepmag)
+                    if self.TESS:
+                        self.TESSmags = np.append(self.TESSmags, d.TESSmag)
                     self.efs = np.append(self.efs, d.ef.mean())
                     self.Mss = np.append(self.Mss, d.Ms)
                     self.ehi_Mss = np.append(self.ehi_Mss, d.ehi_Ms)
@@ -329,7 +342,10 @@ class OccurrenceRateclass:
         # stellar params
         self.Nsims = np.zeros(self.Nstars_simulated)
 	self.sigtransits = np.zeros(self.Nstars_simulated)
-        self.Kepmags = np.zeros(self.Nstars_simulated)
+        if self.Kep or self.K2:
+            self.Kepmags = np.zeros(self.Nstars_simulated)
+        if self.TESS:
+            self.TESSmags = np.zeros(self.Nstars_simulated)
         self.efs = np.zeros(self.Nstars_simulated)
         self.Mss = np.zeros(self.Nstars_simulated)
         self.ehi_Mss = np.zeros(self.Nstars_simulated)
@@ -389,7 +405,10 @@ class OccurrenceRateclass:
 
                 # save stellar params
                 if j == 0:
-                    self.Kepmags[i] = d.Kepmag
+                    if self.Kep or self.K2:
+                        self.Kepmags[i] = d.Kepmag
+                    if self.TESS:
+                        self.TESSmags[i] = d.TESSmag
 		    self.sigtransits[i] = d.sigtransit
                     self.efs[i] = d.ef.mean()
                     self.Mss[i] = d.Ms
@@ -442,7 +461,7 @@ class OccurrenceRateclass:
                     self.cond_free_params_inj[i,j] = np.append(free_params, filler3, 0)
 
 	# get 
-	self.SNRtransit_inj = self.cond_vals_inj[:,:,:,1]
+	self.SNR_inj = self.cond_vals_inj[:,:,:,1]
 
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()
@@ -1064,6 +1083,7 @@ def combine_individual_sens(folder, prefix):
         self.as_inj = np.append(self.as_inj, d.as_inj, 0)
         self.as_rec = np.append(self.as_rec, d.as_rec, 0)
         self.SNR_rec = np.append(self.SNR_rec, d.SNR_rec, 0)
+	self.SNR_inj = np.append(self.SNR_inj, d.SNR_inj, 0)
         self.cond_free_params_inj = np.append(self.cond_free_params_inj,
                                               d.cond_free_params_inj, 0)
         self.cond_vals_inj = np.append(self.cond_vals_inj, 
@@ -1092,7 +1112,10 @@ def combine_individual_sens(folder, prefix):
         self.Fs_rec = np.append(self.Fs_rec, d.Fs_rec, 0)
         self.is_FP = np.append(self.is_FP, d.is_FP, 0)
         self.is_rec = np.append(self.is_rec, d.is_rec, 0)
-        self.Kepmags = np.append(self.Kepmags, d.Kepmags)
+        if self.Kep or self.K2:
+            self.Kepmags = np.append(self.Kepmags, d.Kepmags)
+	if self.TESS:
+            self.TESSmags = np.append(self.TESSmags, d.TESSmags)
 	self.sigtransits = np.append(self.sigtransits, d.sigtransits)
         self.Lss = np.append(self.Lss, d.Lss)
         self.loggs = np.append(self.loggs, d.loggs)
@@ -1130,7 +1153,7 @@ def combine_individual_sens(folder, prefix):
     endPs = int(np.nanmax(self.Nplanets_inj))
     self.cond_vals_inj = self.cond_vals_inj[:,:endfs,:endPs,:]
     self.cond_free_params_inj = self.cond_free_params_inj[:,:endfs,:endPs,:]
-    self.SNRtransit_inj = self.SNRtransit_inj[:,:endfs,:endPs]
+    self.SNR_inj = self.SNR_inj[:,:endfs,:endPs]
     self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
     self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
     self.as_inj = self.as_inj[:,:endfs,:endPs]
@@ -1149,7 +1172,7 @@ def combine_individual_sens(folder, prefix):
         
 
 if __name__ == '__main__':
-    folder = sys.argv[1]  # 'PipelineResults'
+    folder = sys.argv[1]  # 'PipelineResults_KepID'
     prefix = sys.argv[2]  # 'KepID'
     startstarind = int(sys.argv[3])  # 0
     endstarind = int(sys.argv[4])    # 10

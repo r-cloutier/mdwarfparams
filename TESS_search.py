@@ -208,7 +208,7 @@ def _get_GP(thetaGP, x, res, ey):
 
 def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                   Npntsmin=5e2, Npntsmax=1e3, medkernel=9, Nsig=3,
-		  Plims=(.5,1e2)):
+		  Plims=(.5,1e2), Kep=False, TESS=False):
     '''Search for periodic transit-like events.'''
     assert not np.all(ef == 0)
     assert np.unique(quarters).size == thetaGPs.shape[0]
@@ -250,7 +250,7 @@ def find_transits(self, bjd, f, ef, quarters, thetaGPs,
                                                          lnLs_transit,
                                                          durations.size,
                                                          self.Rs, bjd, fcorr,
-                                                         ef)
+                                                         ef, Kep=Kep, TESS=TESS)
     self.POIs, self.T0OIs, self.DOIs, self.ZOIs, self.lnLOIs = POIs, T0OIs, \
                                                                DOIs, ZOIs, \
                                                                lnLOIs
@@ -329,44 +329,3 @@ def is_good_star(hdr):
 	return False
     else:
 	return True
-
-
-def main(fname):
-    # get fits file
-    print 'Downloading fits file...\n'
-    hdu = download_one_fits(fname)
-
-    # get LC
-    hdr, bjd, f, ef = get_lc(hdu)
-
-    # only continue if it's a bright M-dwarf
-    #if not is_good_star(hdr):  TEMP
-#	raise ValueError('Not a star of interest.')
-
-    # fit systematics with a GP
-    print 'Fitting LC with GP alone...\n'
-    fname_short = fname.replace('.fits','')
-    self = Selfitivity(fname_short)
-    samplerGP, samplesGP, resultsGP = do_mcmc_0(self, bjd, f, ef, fname_short)
-    self.add_GPsamples(samplesGP)
-    self.add_GPresults(resultsGP)
-    ##save_fits(samplesGP, 'Results/%s/GP_samples'%fname_short)
-    ##save_fits(resultsGP, 'Results/%s/GP_results'%fname_short)
-
-    # search for transits in the corrected LC and get the transit parameters guesses
-    print 'Searching for transit-like events...\n'
-    params, EBparams = find_transits(self, bjd, f, ef, resultsGP[0], hdr, fname_short)
-    self.params_guess = params
-    self.EBparams_guess = EBparams
-
-    # run full mcmc with GP+transit model
-    # how to do the GP with the full LC??
-    #if Ntransits > 0:
- 	#print 'Fitting LC with GP + %i transit models'%Ntransits
-    	#sampler, samples, results = do_mcmc_N(resultsGP[0], params, bjd, f, ef)
-	#save_fits(samples, 'Results/%s/full_samples'%fname_short)
-
-
-if __name__ == '__main__':
-    fname = sys.argv[1]
-    #main(fname)
