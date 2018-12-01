@@ -138,7 +138,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
     self._pickleobject()
 
     # save depth and SNR for recovered planets plus the SNR of injected
-    p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
+    p  compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)  # TEMP
     self.SNRtransits, self.depths, self.sigtransit = p
     Ntransits = np.array([llnl.compute_Ntransits(self.bjd,Ptrue[i],T0true[i])
                           for i in range(Ptrue.size)])

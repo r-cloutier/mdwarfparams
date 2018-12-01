@@ -62,16 +62,15 @@ class OccurrenceRateclass:
 
         # detected planet params
         self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
-	self.sigtransits = np.zeros(0)
-        self.params_optimized = np.zeros((0,5))
+	self.params_optimized = np.zeros((0,5))
         self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
         self.rps, self.ehi_rps, self.elo_rps = np.zeros(0), np.zeros(0), \
                                                np.zeros(0)
         self.smas, self.ehi_smas, self.elo_smas = np.zeros(0), np.zeros(0), \
                                                   np.zeros(0)
         self.Fs, self.ehi_Fs, self.elo_Fs = np.zeros(0),np.zeros(0),np.zeros(0)
-        self.SNRtransits = np.zeros(0)
-        
+        self.CDPPs, self.depths, self.SNRtransits = np.zeros(0), np.zeros(0), \
+                                                    np.zeros(0)
         # POI params
         self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
 
@@ -102,7 +101,6 @@ class OccurrenceRateclass:
                                         np.append(self.names_planetsearch,
                                                   d.object_name)
                     self.Ndetected = np.append(self.Ndetected, d.Ndet)
-		    self.sigtransits = np.append(self.sigtransits, d.sigtransit)
                     if self.Kep or self.K2:
                         self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     if self.TESS:
@@ -180,7 +178,16 @@ class OccurrenceRateclass:
                     self.Fs = np.append(self.Fs, Fs[0])
                     self.ehi_Fs = np.append(self.ehi_Fs, Fs[1])
                     self.elo_Fs = np.append(self.elo_Fs, Fs[2])
-                    self.SNRtransits = np.append(self.SNRtransits, d.SNRtransits)
+
+                    if j > 0:
+                        depth = d.depths[j-1]
+                        cdpp = d.CDPPs[j-1]
+                        SNRtransit = d.SNRtransits[j-1]
+                    else:
+                        depth, cdpp, SNRtransit = np.repeat(np.nan, 3)
+                    self.depths = np.append(self.depths, depth)
+                    self.CDPPs = np.append(self.CDPPs, cdpp)
+                    self.SNRtransits = np.append(self.SNRtransits, SNRtransit)
                     
                     # save planet samples for MC sampling
                     if j > 0:
@@ -341,7 +348,7 @@ class OccurrenceRateclass:
 
         # stellar params
         self.Nsims = np.zeros(self.Nstars_simulated)
-	self.sigtransits = np.zeros(self.Nstars_simulated)
+	self.CDPPs = np.zeros(self.Nstars_simulated)
         if self.Kep or self.K2:
             self.Kepmags = np.zeros(self.Nstars_simulated)
         if self.TESS:
@@ -400,7 +407,7 @@ class OccurrenceRateclass:
                 print float(j) / fs.size
                 try:
                     d = loadpickle(fs[j])
-                except EOFError, ValueError:
+                except (EOFError, ValueError):
                     pass
 
                 # save stellar params

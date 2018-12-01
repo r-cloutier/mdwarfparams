@@ -5,11 +5,10 @@ import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
 global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff
-# for real K2 LCs
 #dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-#							2.8, 8., .7, .1, .7, .6
+#                                                        2.4, 4.5, .7, .1, .7, .6
 dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-                                                        2.4, 4.5, .7, .1, .7, .6
+                                                        1., 5., .7, .1, .7, .6
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -461,7 +460,6 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  self.Teff,
                                                                  Kep=Kep,
                                                                  TESS=TESS)
-    self.Ntransits = Ntransits
     self.transit_condition_free_params = np.array([dispersion_sig,
                                                    depth_sig,
                                                    bimodalfrac,
@@ -608,6 +606,13 @@ def compute_Ntransits(bjd, P, T0):
     Ntransits = np.sum((possible_T0s >= bjd.min()) & (possible_T0s <= bjd.max()))    
     return Ntransits
 
+
+def estimate_CDPP(bjd, fcorr, ef, Dtransit):
+    '''Make an ad hoc estimate of the combined differential photometric
+    precision to calulate the transit SNR of a planet candidate.'''
+    tb, fb, eb = boxcar(bjd, fcorr, ef, dt=Dtransit)
+    return np.nanmedian(eb)
+
     
 def is_not_autocorrelated(timeseries):
     x = np.ascontiguousarray(timeseries)
@@ -674,21 +679,32 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
             #         'bo'), plt.show()
 
+	    tb, fb, efb = boxcar(bjd, fcorr, ef, dt=duration)
+	    phaseb = foldAt(tb, P, T0)
+	    phaseb[phaseb > .5] -= 1
+	    Dfrac = .25
+	    intransitb = (phaseb*P >= -Dfrac*duration) & \
+                         (phaseb*P <= Dfrac*duration)
+            Dfrac = .55
+            outtransitb = (phaseb*P <= -Dfrac*duration) | \
+                          (phaseb*P >= Dfrac*duration)
+
             # calculate number of transits
             Ntransits[i] = compute_Ntransits(bjd, P, T0)
             
             # check scatter in and out of the proposed transit to see if the
             # transit is real
-            cond1_val = (np.median(fcorr[outtransit]) - \
-                         np.median(fcorr[intransit])) / \
-                         MAD1d(fcorr[outtransit])
+            cond1_val = (np.median(fb[outtransitb]) - \
+                         np.median(fb[intransitb])) / \
+                         MAD1d(fb[outtransitb])
             cond1 = cond1_val > dispersion_sig
             transit_condition_scatterin_val[i] = cond1_val
             transit_condition_scatterin_gtr_scatterout[i] = cond1
 	    # also check that the transit depth is significant relative to
             # the noise
             depth2 = 1-np.median(fcorr[intransit])
-            sigdepth = np.std(fcorr[intransit])
+            #sigdepth = np.std(fcorr[intransit])
+	    sigdepth = estimate_CDPP(bjd, fcorr, ef, duration)
             depth = depth2 #depth1
             cond5 = depth > 0
             cond2_val = depth / sigdepth * np.sqrt(Ntransits[i])
@@ -699,6 +715,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             # (ie. f at depth and at f=1 which would indicate a 
 	    # bad period and hence a FP
             Npnts_intransit = fcorr[intransit].size
+	    sigdepth = np.std(fcorr[intransit])
             Npnts_lt_1sigdepth = (fcorr[intransit] <= 1-depth+sigdepth).sum()
 	    if (Npnts_intransit >= minNpnts_intransit):
                 cond3_val = float(Npnts_lt_1sigdepth) / Npnts_intransit

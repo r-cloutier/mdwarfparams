@@ -298,8 +298,8 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    fout = 'input_data/TESStargets/TESSMdwarfs_sector1.csv'
-    tics = np.loadtxt('input_data/TESStargets/all_targets_S001_v1.csv',
+    fout = 'input_data/TESStargets/TESSMdwarfs_sector2.csv'
+    tics = np.loadtxt('input_data/TESStargets/all_targets_S002_v1.csv',
                       delimiter=',', skiprows=6)[:,0]
     tics = tics[0:200000]
     get_stellar_data_TIC(tics, fout, overwrite=True)

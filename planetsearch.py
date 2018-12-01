@@ -393,18 +393,20 @@ def get_planet_detections(evidence_ratios, params_guess):
     return params_guess_out[s]
 
 
-def compute_SNRtransit(bjd, fcorr, params_guess):
-    '''Compute the transit SNR.'''
-    assert bjd.size == fcorr.size
-    Nplanets = params_guess.shape[0]
-    SNRtransits, depths = np.zeros(Nplanets), np.zeros(Nplanets)
-    sigtransit = llnl.MAD1d(fcorr)
-    for i in range(Nplanets):
-        P,T0,depths[i],_ = params_guess[i]
-        Ntransits = llnl.compute_Ntransits(bjd, P, T0)
-        SNRtransits[i] = (depths[i] / sigtransit) * np.sqrt(Ntransits)
-    return SNRtransits, depths, sigtransit
-        
+
+def compute_depths(transit_params, u1, u2):
+    assert len(transit_params.shape) == 2
+    Np = transit_params.shape[0]
+    func = llnl.transit_model_func_curve_fit(u1,u2)
+    depths = np.zeros(Np)
+    for i in range(Np):
+        P,T0 = transit_params[i,:2]
+        tarr = np.linspace(T0-P/5, T0+P/5, 1000)
+        fmodel = func(tarr, *transit_params[i])
+        depths[i] = 1. - np.nanmin(fmodel)
+    return depths
+
+
 
 def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     '''Run a planet search on an input Kepler or K2 light curve using the 
@@ -465,12 +467,19 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
-    # compute transit S/N of planet candidates
-    p = compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)
-    self.SNRtransits, self.depths, self.sigtransit = p
-                           
-    # fit transit models to light curve
+    # fit transit models to light curve and compute diagnostics
     run_mcmc(self)
+
+    # compute transit S/N of planet candidates
+    Np = self.params_optimized.shape[0]
+    self.CDPPs = np.array([llnl.estimate_CDPP(self.bjd,self.fcorr,self.ef,
+                                              self.params_guess[i,3])
+                           for i in range(Np)])
+    self.depths = compute_depths(self.params_optimized, self.u1, self.u2)
+    self.Ntransits=np.array([llnl.compute_Ntransits(self.bjd,
+                                                    *self.params_optimized[i,:2]) 
+			       for i in range(Np)])
+    self.SNRtransits = self.depths / self.CDPPs * np.sqrt(self.Ntransits)
 
     # compute model evidences for 0-Ndet planet models
     #self.lnevidences = compute_model_evidences(self.params_samples,
