@@ -704,12 +704,12 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
  
             # check scatter in and out of the proposed transit to see if the
             # transit is real
-            #cond1_val = (np.median(fb[outtransitb]) - \
-            #             np.median(fb[intransitb])) / \
-            #             MAD1d(fb[outtransitb])
-            cond1_val = (np.median(fcorr[outtransit]) - \
-                         np.median(fcorr[intransit])) / \
-                         MAD1d(fcorr[outtransit])
+            cond1_val = (np.median(fb[outtransitb]) - \
+                         np.median(fb[intransitb])) / \
+                         MAD1d(fb[outtransitb])
+            #cond1_val = (np.median(fcorr[outtransit]) - \
+            #             np.median(fcorr[intransit])) / \
+            #             MAD1d(fcorr[outtransit])
             cond1 = cond1_val > dispersion_sig
             transit_condition_scatterin_val[i] = cond1_val
             transit_condition_scatterin_gtr_scatterout[i] = cond1
