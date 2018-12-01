@@ -307,7 +307,7 @@ def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
 	(star_dict['Teff']-star_dict['elo_Teff'] <= 4000)
 
 
-def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
+def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400, Kep=False, TESS=False):
     '''Run an MCMC on the detrended light curve for 1 planet models to obtain
     the posterior PDFs and model parameter uncertainties.'''
     self.Ndet = self.params_guess.shape[0]
@@ -323,7 +323,8 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400):
 
         _,_,_,_,fmodel,theta = llnl.fit_params(self.params_guess[i], self.bjd,
                                                self.fcorr, self.ef, self.Ms,
-                                               self.Rs, self.Teff)
+                                               self.Rs, self.Teff, Kep=Kep,
+					       TESS=TESS)
         self.params_optimized[i] = theta[:5]
 	self.fmodels[i] = fmodel
         self.u1, self.u2 = theta[-2:]
@@ -468,7 +469,7 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     self._pickleobject()
 
     # fit transit models to light curve and compute diagnostics
-    run_mcmc(self)
+    run_mcmc(self, Kep=Kep, TESS=TESS)
 
     # compute transit S/N of planet candidates
     Np = self.params_optimized.shape[0]
