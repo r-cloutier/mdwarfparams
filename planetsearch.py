@@ -315,8 +315,8 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400, Kep=False, TESS=False):
     self.params_optimized_labels = np.array(['P','T0','a/Rs','rp/Rs','inc'])
     self.fmodels = np.zeros((self.Ndet, self.bjd.size))
     nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
-    self.params_lnprobs = np.zeros((self.Ndet, 2, nwalkers*nsteps))
-    #self.params_samples = np.zeros((self.Ndet, 2, nwalkers*nsteps, 5))
+    self.params_lnprobs = np.zeros((self.Ndet, nwalkers*nsteps))
+    #self.params_samples = np.zeros((self.Ndet, nwalkers*nsteps, 5))
     self.params_results = np.zeros((self.Ndet, 3, 5))
 
     for i in range(self.Ndet):
@@ -327,26 +327,20 @@ def run_mcmc(self, nwalkers=100, burnin=200, nsteps=400, Kep=False, TESS=False):
 					       TESS=TESS)
         self.params_optimized[i] = theta[:5]
 	self.fmodels[i] = fmodel
-        self.u1, self.u2 = theta[-2:]
+        u1, u2 = theta[-2:]
 
-        # do 0 and 1-planet models
-        for j in range(2):
-
-            zeroplanetmodel = True if j == 0 else False        
-            initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
-            print 'Running MCMC on %i-planet model with P=%.3f days'%(j,
-                                                                      theta[0])
-            sampler,samples = run_emcee(self.params_optimized[i], self.bjd,
-                                        self.fcorr, self.ef, initialize,
-                                        self.u1, self.u2, self.Ms, self.Rs,
-                                        a=2, nwalkers=nwalkers, burnin=burnin,
-                                        nsteps=nsteps,
-                                        zeroplanetmodel=zeroplanetmodel)
-            #self.params_samples[i,j] = samples
-            self.params_lnprobs[i,j] = sampler.lnprobability.flatten()
-            if j == 1:
-                results = get_results(samples)
-                self.params_results[i] = results
+	# run MCMC on transit LC
+        initialize = [1e-3, 1e-3, 1e-1, 1e-2, 1e-2]
+        print 'Running MCMC on 1-planet model with P=%.3f days'%(theta[0])
+        sampler,samples = run_emcee(self.params_optimized[i], self.bjd,
+                                    self.fcorr, self.ef, initialize,
+                                    u1, u2, self.Ms, self.Rs,
+                                    a=2, nwalkers=nwalkers, burnin=burnin,
+                                    nsteps=nsteps, zeroplanetmodel=False)
+        #self.params_samples[i] = samples
+        self.params_lnprobs[i] = sampler.lnprobability.flatten()
+        results = get_results(samples)
+        self.params_results[i] = results
 
 
 def compute_model_evidences(samples, lnprobs):
@@ -456,8 +450,10 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
     print '\nSearching for transit-like events...\n'
     if K2 or Kep:
         Kep, TESS = True, False
+	self.u1, self.u2 = llnl.get_LDcoeffs_Kepler(self.Ms, self.Rs, self.Teff)
     else:
         Kep, TESS = False, True
+        self.u1, self.u2 = llnl.get_LDcoeffs_TESS(self.Ms, self.Rs, self.Teff)
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
                                                     self.ef, self.quarters,
                                                     self.thetaGPout, Kep=Kep,
