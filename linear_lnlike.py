@@ -7,8 +7,8 @@ from scipy.interpolate import LinearNDInterpolator as lint
 global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff
 #dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
 #                                                        2.4, 4.5, .7, .1, .7, .6
-dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-                                                        2.4, 5., .7, .1, .7, .6
+minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
+                                                        5, 2.4, 5., .7, .1, .7, .6
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -460,7 +460,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  self.Teff,
                                                                  Kep=Kep,
                                                                  TESS=TESS)
-    self.transit_condition_free_params = np.array([dispersion_sig,
+    self.transit_condition_free_params = np.array([minNpnts_intransit,
+						   dispersion_sig,
                                                    depth_sig,
                                                    bimodalfrac,
                                                    T0tolerance,
@@ -469,7 +470,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    min_autocorr_coeff])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
-    self.transit_condition_labels = np.array(['scatterin_gtr_scatterout',
+    self.transit_condition_labels = np.array(['Npntsintransit_gtr_min',
+					      'scatterin_gtr_scatterout',
                                               'depth_gtr_rms',
                                               'no_bimodal_flux_intransit',
                                               'flux_symmetric_in_time',
@@ -629,13 +631,15 @@ def is_not_autocorrelated(timeseries):
     
     
 def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
-                     minNpnts_intransit=4, Kep=False, TESS=False):
+                     Kep=False, TESS=False):
     '''Look at proposed transits and confirm whether or not a significant 
     dimming is seen.'''
     Nplanets = params.shape[0]
     assert lnLs.size == Nplanets
     paramsout, to_remove_inds = np.zeros((Nplanets,4)), np.zeros(0)
     Ntransits = np.zeros((Nplanets))
+    transit_condition_Npntsintransit_val = np.zeros(Nplanets)
+    transit_condition_Npntsintransit_bool = np.zeros(Nplanets, dtype=bool)
     transit_condition_scatterin_val = np.zeros(Nplanets)
     transit_condition_scatterin_gtr_scatterout = np.zeros(Nplanets, dtype=bool)
     transit_condition_depth_val = np.zeros(Nplanets)
@@ -673,11 +677,12 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             intransit = (phase*P >= -Dfrac*duration) & \
                         (phase*P <= Dfrac*duration)
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
+	    print P, intransit.sum()
 	    Dfrac = .55
             outtransit = (phase*P <= -Dfrac*duration) | \
                          (phase*P >= Dfrac*duration)
-            #plt.plot(phase, fcorr, 'ko', phase[intransit], fcorr[intransit],
-            #         'bo'), plt.show()
+            #plt.plot(phase, fcorr, 'k.', phase[intransit], fcorr[intransit],
+            #         'b.'), plt.show()
 
 	    tb, fb, efb = boxcar(bjd, fcorr, ef, dt=duration)
 	    phaseb = foldAt(tb, P, T0)
@@ -691,12 +696,21 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 
             # calculate number of transits
             Ntransits[i] = compute_Ntransits(bjd, P, T0)
-            
+
+	    # ensure that there are sufficient measurements in transit
+	    cond0_val = intransit.sum()
+	    cond0 = cond0_val >= minNpnts_intransit
+	    transit_condition_Npntsintransit_val[i] = cond0_val
+	    transit_condition_Npntsintransit_bool[i] = cond0
+ 
             # check scatter in and out of the proposed transit to see if the
             # transit is real
             cond1_val = (np.median(fb[outtransitb]) - \
                          np.median(fb[intransitb])) / \
                          MAD1d(fb[outtransitb])
+            #cond1_val = (np.median(fcorr[outtransit]) - \
+            #             np.median(fcorr[intransit])) / \
+            #             MAD1d(fcorr[outtransit])
             cond1 = cond1_val > dispersion_sig
             transit_condition_scatterin_val[i] = cond1_val
             transit_condition_scatterin_gtr_scatterout[i] = cond1
@@ -777,7 +791,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                     (P < bjd.max()-bjd.min())
             transit_condition_ephemeris_fits_in_WF[i] = cond6
             paramsout[i] = P, T0, depth, duration
-            if cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
+            if cond0 and cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
 	        j += 2
 	        pass
             else:
@@ -810,7 +824,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
         paramsout, lnLsout = np.zeros((0,4)), np.zeros(0)
  
     # combine conditions
-    cond_vals = np.array([transit_condition_scatterin_val, \
+    cond_vals = np.array([transit_condition_Npntsintransit_val, \
+			  transit_condition_scatterin_val, \
                           transit_condition_depth_val, \
                           transit_condition_no_bimodal_val, \
                           transit_condition_timesym_val, \
@@ -818,7 +833,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           #transit_condition_indiv_transit_frac_val, \
                           transit_condition_autocorr_val]).T
     
-    cond_bool = np.array([transit_condition_scatterin_gtr_scatterout, \
+    cond_bool = np.array([transit_condition_Npntsintransit_bool, \
+			  transit_condition_scatterin_gtr_scatterout, \
                           transit_condition_depth_gtr_rms, \
                           transit_condition_no_bimodal_flux_intransit, \
                           transit_condition_timesym, \

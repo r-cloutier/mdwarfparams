@@ -72,7 +72,7 @@ class OccurrenceRateclass:
         self.CDPPs, self.depths, self.SNRtransits = np.zeros(0), np.zeros(0), \
                                                     np.zeros(0)
         # POI params
-        self.cond_vals, self.cond_free_params = np.zeros((0,6)), np.zeros((0,6))
+        self.cond_vals, self.cond_free_params = np.zeros((0,7)), np.zeros((0,7))
 
         # stellar params
         if self.Kep or self.K2:
@@ -147,13 +147,13 @@ class OccurrenceRateclass:
                         g = abs(Pss-P) == np.min(abs(Pss-P))
                         assert g.sum() in range(2)
                         cond_vals = d.transit_condition_values[g] if j > 0 \
-                                    else np.repeat(np.nan,6)
+                                    else np.repeat(np.nan,7)
                     else:
-                        cond_vals = np.repeat(np.nan, 6)
+                        cond_vals = np.repeat(np.nan, 7)
 		    self.cond_vals = np.append(self.cond_vals,
-                                               cond_vals.reshape(1,6), axis=0)
+                                               cond_vals.reshape(1,7), axis=0)
                     self.cond_free_params = np.append(self.cond_free_params,
-                                d.transit_condition_free_params.reshape(1,6),
+                                d.transit_condition_free_params.reshape(1,7),
                                                       axis=0)
 
                     # save planet params
@@ -206,7 +206,7 @@ class OccurrenceRateclass:
         self.Nstars = self.unique_inds.size
         self.Nplanets_detected = self.Ndetected[self.unique_inds].sum()
         self.fs_planetsearch = np.array(self.fs_planetsearch)
-	self.SNRtransit_cond = self.cond_vals[:,1]
+	self.SNRtransit_cond = self.cond_vals[:,2]
 
         # compute map of planet detections via MC simulations
         self.compute_Ndet_map()
@@ -372,8 +372,8 @@ class OccurrenceRateclass:
         Nmaxfs, NmaxPs = 700, 20
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
-        self.cond_vals_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
-        self.cond_free_params_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 6))+np.nan
+        self.cond_vals_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 7))+np.nan
+        self.cond_free_params_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 7))+np.nan
         self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -477,9 +477,9 @@ class OccurrenceRateclass:
                     
                     # save vetting results for diagnostic purposes
                     NPOIs = d.params_guess_priorto_confirm.shape[0]
-                    filler3 = np.repeat(np.nan, 6*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,6)
+                    filler3 = np.repeat(np.nan, 7*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,7)
                     self.cond_vals_inj[i,j] = np.append(d.transit_condition_values, filler3, 0)
-                    free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,6)
+                    free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,7)
                     self.cond_free_params_inj[i,j] = np.append(free_params, filler3, 0)
 
 
