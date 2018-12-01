@@ -348,7 +348,6 @@ class OccurrenceRateclass:
 
         # stellar params
         self.Nsims = np.zeros(self.Nstars_simulated)
-	self.CDPPs = np.zeros(self.Nstars_simulated)
         if self.Kep or self.K2:
             self.Kepmags = np.zeros(self.Nstars_simulated)
         if self.TESS:
@@ -386,6 +385,14 @@ class OccurrenceRateclass:
         self.SNR_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.rps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.is_FP = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.depths_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.CDPPs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.Ntransits_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.SNRtransits_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.depths_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.CDPPs_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.Ntransits_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
+        self.SNRtransits_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         
         for i in range(self.Nstars_simulated):
 
@@ -445,7 +452,11 @@ class OccurrenceRateclass:
                     self.Fs_inj[i,j]  = np.append(F, filler) 
             	    self.rps_inj[i,j] = np.append(d.rptrue, filler)
             	    self.is_rec[i,j]  = np.append(d.is_detected, filler)
-
+                    self.depths_inj[i,j] = np.append(d.depths_inj, filler)
+                    self.CDPPs_inj[i,j] = np.append(d.CDPPs_inj, filler)
+                    self.Ntransits_inj[i,j] = np.append(d.Ntransits_inj, filler)
+                    self.SNRtransits_inj[i,j] = np.append(d.SNRtransits_inj, filler)
+                    
                     # get false positives 
             	    params = d.params_guess
 		    self.Nplanets_rec[i,j] = params.shape[0]
@@ -459,7 +470,11 @@ class OccurrenceRateclass:
                     self.Fs_rec[i,j]  = np.append(F, filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
-
+                    self.depths_rec[i,j] = np.append(d.depths_rec, fille2)
+                    self.CDPPs_rec[i,j] = np.append(d.CDPPs_rec, filler2)
+                    self.Ntransits_rec[i,j] = np.append(d.Ntransits_rec, filler2)
+                    self.SNRtransits_rec[i,j] = np.append(d.SNRtransits_rec, filler2)
+                    
                     # save vetting results for diagnostic purposes
                     NPOIs = d.params_guess_priorto_confirm.shape[0]
                     filler3 = np.repeat(np.nan, 6*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,6)
@@ -467,8 +482,6 @@ class OccurrenceRateclass:
                     free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,6)
                     self.cond_free_params_inj[i,j] = np.append(free_params, filler3, 0)
 
-	# get 
-	self.SNR_inj = self.cond_vals_inj[:,:,:,1]
 
         # compute sensitivity and transit probability maps
         self.compute_sens_maps()

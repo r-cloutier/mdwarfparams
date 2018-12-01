@@ -137,13 +137,25 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
     self.EBparams_guess, self.maybeEBparams_guess = EBparams, maybeEBparams
     self._pickleobject()
 
-    # save depth and SNR for recovered planets plus the SNR of injected
-    p  compute_SNRtransit(self.bjd, self.fcorr, self.params_guess)  # TEMP
-    self.SNRtransits, self.depths, self.sigtransit = p
-    Ntransits = np.array([llnl.compute_Ntransits(self.bjd,Ptrue[i],T0true[i])
-                          for i in range(Ptrue.size)])
-    self.SNRtrue = (depthtrue / self.sigtransit) * np.sqrt(Ntransits)
-    assert self.SNRtrue.size == self.Ptrue.size
+    # compute depths and transit S/N of injected and recovered planets
+    Nptrue, Nprec = Ptrue.size, self.params_guess.shape[0]
+    self.CDPPs_rec = np.array([llnl.estimate_CDPP(self.bjd,self.fcorr,self.ef,
+                                                  self.params_guess[i,3])
+                               for i in range(Nprec)])
+    self.CDPPs_inj = np.array([llnl.estimate_CDPP(self.bjd,self.fcorr,self.ef,
+                                                  durationtrue)
+                               for i in range(Nptrue)])
+    self.depths_rec = self.params_guess[:,2]
+    self.depths_inj = depthtrue
+    self.Ntransits_rec = np.array([llnl.compute_Ntransits(self.bjd,
+                                                          *self.params_guess[i,:2])
+                                   for i in range(Nprec)])
+    self.Ntransits_inj = np.array([llnl.compute_Ntransits(self.bjd,
+                                                          Ptrue[i], T0true[i])
+                                   for i in range(Nptrue)])
+    self.SNRtransits_rec = self.depths_rec / self.CDPPs_rec * np.sqrt(self.Ntransits_rec)
+    self.SNRtransits_inj = self.depths_inj / self.CDPPs_inj * np.sqrt(self.Ntransits_inj)
+    
     
     # check if planets are detected
     self.is_detected = np.array([int(np.any(np.isclose(params[:,0], Ptrue[i],
