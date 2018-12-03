@@ -8,7 +8,7 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min
 #dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
 #                                                        2.4, 4.5, .7, .1, .7, .6
 minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-                                                        5, 2.4, 5., .7, .1, .7, .6
+                                                        5, 2.4, 15., .7, .1, .7, .6
 
 
 def lnlike(bjd, f, ef, fmodel):

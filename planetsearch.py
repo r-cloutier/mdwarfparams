@@ -276,7 +276,7 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
     star_dict = {IDtype: int(star_info[0]), 'ra': star_info[1],
                  'dec': star_info[2], 'GBPmag': star_info[3],
                  'e_GBPmag': star_info[4], 'GRPmag': star_info[5],
-                 'e_GRPmag': star_info[6], 'magname': star_info[7],
+                 'e_GRPmag': star_info[6], magname: star_info[7],
                  'Jmag': star_info[8], 'e_Jmag': star_info[9],
                  'Hmag': star_info[10], 'e_Hmag': star_info[11],
                  'Kmag': star_info[12], 'e_Kmag': star_info[13],

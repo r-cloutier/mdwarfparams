@@ -129,7 +129,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
 	Kep, TESS = False, True
     params, EBparams, maybeEBparams = find_transits(self, self.bjd, self.f,
                                                     self.ef, self.quarters,
-						    self.thetaGPout, Kep=Kep
+						    self.thetaGPout, Kep=Kep,
 						    TESS=TESS)
     self.params_guess = params
     self.params_guess_labels = np.array(['Ps', 'T0s', 'depths [Z]', \
@@ -143,7 +143,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
                                                   self.params_guess[i,3])
                                for i in range(Nprec)])
     self.CDPPs_inj = np.array([llnl.estimate_CDPP(self.bjd,self.fcorr,self.ef,
-                                                  durationtrue)
+                                                  durationtrue[i])
                                for i in range(Nptrue)])
     self.depths_rec = self.params_guess[:,2]
     self.depths_inj = depthtrue
