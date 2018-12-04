@@ -11,11 +11,11 @@ import requests
 from bs4 import BeautifulSoup
 
 
-global K2Mdwarffile, threshBayesfactor
+global K2Mdwarffile, KepMdwarffile, TESSMdwarffile, threshBayesfactor
 K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv11.csv'
 KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv11.csv'
-TESSMdwarffile = 'input_data/TESStargets/TESSMdwarfsv11.csv'
-threshBayesfactor = 1e2
+TESSMdwarffile = 'input_data/TESStargets/TESSMdwarfs_sector1_v2.csv'
+#threshBayesfactor = 1e2
 
 
 def read_Kepler_data(Kepid):

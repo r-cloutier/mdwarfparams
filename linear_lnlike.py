@@ -9,6 +9,9 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min
 #                                                        2.4, 4.5, .7, .1, .7, .6
 minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
                                                         5, 2.4, 12.7, .7, .1, .7, .6
+## could change 12.7 to 14 get a more reasonable number of planets but this may hurt sensitivity
+## to small planets and it may be worth it to keep that sensitivity in return for having more FPs
+## which I should be able to correct for when computing occurrences
 
 
 def lnlike(bjd, f, ef, fmodel):
@@ -325,7 +328,7 @@ def remove_common_P(Ps, T0s, Ds, Zs, lnLs, rP=.2):
     
 
 def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff,
-                          Kep=False, TESS=False):
+                          Plims=(.5,1e2), Kep=False, TESS=False):
     '''given periods of interest, fit the transit model and compute lnL 
     for fractions of those periods as they may have been missed in the 
     linear search if 2 adjacent transits are not seen above the SNR 
@@ -344,7 +347,7 @@ def consider_fractional_P(bjd, fcorr, ef, Ps, T0s, Ds, Zs, lnLs, Ms, Rs, Teff,
         Zs2 = np.append(Zs2, Zs[i])
         lnLs2 = np.append(lnLs2, lnLs[i])
         div = 2.
-        while Ps[i]/div >= .1:
+        while Ps[i]/div >= np.min(Plims):
             params = np.array([Ps[i]/div, T0s[i], Zs[i], Ds[i]])
             P, T0, Z, D, fmodel,_ = fit_params(params, bjd, fcorr, ef, 
                                                Ms, Rs, Teff, Kep=Kep,
