@@ -212,47 +212,51 @@ def read_TESS_data(tic):
     except OSError:
        	pass
 
+    # setup directories to fetch the data
+    tic_str = '%.16d'%int(tic)
+    tid1 = tic_str[:4]
+    tid2 = tic_str[4:8]
+    tid3 = tic_str[8:12]
+    tid4 = tic_str[12:]
 
-    TESS/product/tess2018206045859-s0001-0000000025155310-0120-s_lc.fits
-    
     # download tar file if not already
-    fnames = np.array(glob.glob('%s/hlsp*.fits'%folder2))
+    fnames = np.array(glob.glob('%s/tess*.fits'%folder2))
     if fnames.size == 0:
-        sectors = [0,1]
+        sectors = [1,2]
         for j in range(len(sectors)):
-            folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
-                                             int(str(epicnum)[:4]),
-                                             int(str(epicnum)[4:9]))
-            fname = 'tess_%.9d-c%.2d_kepler_v1_llc.fits'%(int(epicnum), campaigns[j])
-            url = 'https://archive.stsci.edu/TESS/product/%s/%s'%(folder, fname)
-            os.system('wget %s'%url)
-            if os.path.exists(fname):
-                os.system('mv %s %s'%(fname, folder2))
-                break
+            sctr = 's%.4d'%sectors[j]
+            url = 'https://archive.stsci.edu/missions/tess/tid/'
+            folder = '%s/%s/%s/%s/%s/'%(sctr,tid1,tid2,tid3,tid4)
+            fs = listFD(url+folder, ext='_lc.fits')
+            for i in range(fs.size):
+                os.system('wget %s'%fs[i])
+                fname = str(fs[i]).split('/')[-1]
+                if os.path.exists(fname):
+                    os.system('mv %s %s'%(fname, folder2))
 
-        # read fits file
-        hdu = fits.open('%s/%s'%(folder2, fname))
-        assert len(hdu) > 1
+    # get data from fits files
+    fnames = np.sort(np.array(glob.glob('%s/tess*_lc.fits'%folder2)))
+    bjd, f, ef, quarters = np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
+    for i in range(fnames.size):
+        hdus = fits.open(fnames[i])
+        bjd = np.append(bjd, hdus[1].data['TIME'] + 2457000)
+        ftmp = hdus[1].data['PDCSAP_FLUX']
+        eftmp = hdus[1].data['PDCSAP_FLUX_ERR']
+        eftmp /= np.nanmedian(ftmp)
+        ftmp /= np.nanmedian(ftmp)
+        f = np.append(f, ftmp)
+        ef = np.append(ef, eftmp)
+        quarters = np.append(quarters, np.zeros(ftmp.size)+i)
 
-    # file already downloaded
-    else:
-        hdu = fits.open(fnames[0])
-        assert len(hdu) > 1
-
-    # get data from fits file
-    bjd = hdu[1].data['TIME'] + 2457000
-    f = hdu[1].data['PDCSAP_FLUX']
-    ef = hdu[1].data['PDCSAP_FLUX_ERR']
-    g = f > 0
-    bjd, f, ef = bjd[g], f[g], ef[g]
-    ef /= np.nanmedian(f)
-    f /= np.nanmedian(f)
-
-    name = hdu[0].header['OBJECT'].replace(' ','_')
+    # get stellar data
+    name = hdus[0].header['OBJECT'].replace(' ','_')
     star_dict = get_star(tic, TESS=True)
     s = np.argsort(bjd)
     quarters = np.zeros(bjd.size)
-    return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
+    bjd, f, ef, quarters = bjd[s], f[s], ef[s], quarters[s]
+    g = np.isfinite(bjd) & np.isfinite(f) & np.isfinite(ef) 
+    return name, star_dict, bjd[g], f[g], ef[g], quarters[g]
+
 
 
 def get_star(IDnum, Kep=False, K2=False, TESS=False):
@@ -430,7 +434,8 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
 
     # stop if bad time-series (e.g. sometimes baseline is too short)
     if np.any(np.isnan(bjd)):
-	return None
+        print 'bad bjds'
+        return None
 
     # save stellar data and time-series
     self = LCclass(folder, name, -99)  # -99 is unique to planet_search

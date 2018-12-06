@@ -200,6 +200,9 @@ class OccurrenceRateclass:
                         np.savetxt(fname, outarr, header=hdr, delimiter=',',
                                    fmt='%.8e')
 
+        # get confirmed planets from the NASA exoplanet archive
+        self.flag_confirmed_planets_KepK2()
+                        
         # save stuff
         _, self.unique_inds = np.unique(self.names_planetsearch,
                                         return_index=True)
@@ -211,7 +214,46 @@ class OccurrenceRateclass:
         # compute map of planet detections via MC simulations
         self.compute_Ndet_map()
 
+
+
+    def flag_confirmed_planets_KepK2(self):
+        '''Flag planets that are found in the planet search, with confirmed 
+        exoplanets from Kepler or K2 based on the NASA exoplanet archive.'''
+        # get confirmed planets
+        if self.Kep:
+            fname = 'input_data/Keplertargets/NASAarchive_confirmed_and_candidates_Kepler_Mdwarf_planets.csv'
+            confirmed_IDs, confirmed_Ps = np.loadtxt(fname, delimiter=',', usecols=(1,4),
+                                                     skiprows=45).T
+        elif self.K2:
+            fname = 'input_data/K2targets/NASAarchive_confirmed_and_candidates_K2_Mdwarf_planets.csv'
+            epics, Ps = np.genfromtxt(fname, delimiter=',', usecols=(1,5), skip_header=46,
+                                      dtype='|S20').T
+            confirmed_IDs = np.array([int(s.split(' ')[-1]) for s in epics])
+            confirmed_Ps = Ps.astype(float)
+        else:
+            raise ValueError('Planet search must come from Kepler or K2.')
+
+        # flag confirmed planets in the planetsearch results
+        planetsearch_IDs = np.array([int(s.split('_')[-1])
+                                     for s in self.names_planetsearch])
+        N = planetsearch_IDs.size
+        self.confirmed_planet = np.zeros(N) + np.nan
+        for i in range(N):
+            if self.Ndetected[i] > 0:
+                g = confirmed_IDs == planetsearch_IDs[i]
+                if g.sum() > 0:  # there is a confirmed planet around this star
+                    isconfirmed = np.any(np.isclose(confirmed_Ps[g], self.Ps[i],
+                                                    rtol=.05))
+                    self.confirmed_planet[i] = float(isconfirmed) if np.isfinite(self.Ps[i]) else np.nan
+                else:  # there is no confirmed planet around this star (i.e. FP)
+                    self.confirmed_planet[i] = 0.
         
+        # revise planet detections
+        self.Ndetected_putative = np.copy(self.Ndetected)
+        self.Ndetected = something
+        
+            
+    
     def compute_Ndet_map(self, Ntrials=1e3):
         '''Compute the map of planet detections over P and rp using MC 
         simulations over the measurement uncertainties.'''
