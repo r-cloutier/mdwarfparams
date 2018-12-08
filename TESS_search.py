@@ -65,7 +65,7 @@ def initialize_GP_hyperparameters(bjd, f, ef, Pindex=0,
     return lna, lnl, lnG, lnP#, s
 
 
-def do_optimize_0(bjd, f, ef, quarters, N=10,
+def do_optimize_0(bjd, f, ef, quarters, durations=[1.2,2.4,4.8], N=10,
                   Npntsmin=5e2, Npntsmax=1e3, Nsig=3, medkernel=9):
     '''First fit the PDC LC with GP and a no planet model using an optimization 
     routine and tested with N different initializations.'''
@@ -86,13 +86,14 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
        
         pvalues = np.zeros(N) 
         for j in range(N):
+            
             # get initial GP parameters (P, and l from periodogram)
-            thetaGPs_in_tmp[i,j] = initialize_GP_hyperparameters(bjd[g1], f[g1],
-                                                                 ef[g1],
-                                                                 Pindex=j)
+            thetaGPs_in_tmp_0 = initialize_GP_hyperparameters(bjd[g1], f[g1],
+                                                              ef[g1],
+                                                              Pindex=j)
             Npnts_per_timescale = 8.
             inds = np.array([1,3])
-            timescale_to_resolve = np.exp(thetaGPs_in_tmp[i,j,inds]).min() / \
+            timescale_to_resolve = np.exp(thetaGPs_in_tmp_0[inds]).min() / \
                                    Npnts_per_timescale
             # bin the light curve
             Ttot = bjd[g1].max() - bjd[g1].min()
@@ -107,8 +108,52 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
             g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
             tbin, fbin, efbin = llnl.boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
                                             ef[g1][g], dt=dt)
-            gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
-                                                       tbin, fbin, efbin)
+
+            # fit a GP with no planets 
+            gp,mu0,sig,thetaGPs_out_tmp_0 = fit_GP_0(thetaGPs_in_tmp_0,
+                                                     tbin, fbin, efbin)
+            lnL0 = llnl.lnlike(tbin, fbin, efbin, mu0)
+            
+            # fit a GP with a transit box at one of 3 durations
+            Ndur = len(durations)
+            lnL1s = np.zeros(Ndur)
+            for k in range(Ndur):
+                theta = estimate_box_params(thetaGPs_out_tmp_0, bjd[g1], tbin, mu0)
+                theta = np.append(theta, durations[k]/24.)
+                fin = f - llnl.box_transit_model(theta, bjd)
+                thetaGPs_in_tmp_1 = initialize_GP_hyperparameters(bjd[g1], fin[g1],
+                                                                  ef[g1],
+                                                                  Pindex=j)
+                tbin1, fbin1, efbin1 = llnl.boxcar(bjd[g1][g], medfilt(fin[g1][g],medkernel),
+                                                   ef[g1][g], dt=dt)
+                gp,mu1,sig,thetaGPs_out_tmp_1 = fit_GP_0(thetaGPs_in_tmp_1,
+                                                         tbin1, fbin1, efbin1)
+                lnL1s[k] = llnl.lnlike(tbin1, fbin1, efbin1, mu1)
+
+            # use best duration based on its lnL
+            g = np.where(lnL1s == lnL1s.max())[0][0]
+            theta = estimate_box_params(thetaGPs_out_tmp_0, bjd[g1], tbin, mu0)
+            theta = np.append(theta, durations[g]/24.)
+            fin = f - llnl.box_transit_model(theta, bjd)
+            thetaGPs_in_tmp_1 = initialize_GP_hyperparameters(bjd[g1], fin[g1],
+                                                              ef[g1],
+                                                              Pindex=j)
+            tbin1, fbin1, efbin1 = llnl.boxcar(bjd[g1][g], medfilt(fin[g1][g],medkernel),
+                                               ef[g1][g], dt=dt)
+            gp,mu1,sig,thetaGPs_out_tmp_1 = fit_GP_0(thetaGPs_in_tmp_1,
+                                                     tbin1, fbin1, efbin1)
+            lnL1 = float(lnL1s[g])
+                
+            # save the GP parameters of the favoured model
+            if lnL1 > lnL0:
+                thetaGPs_in_tmp[i,j] = thetaGPs_in_tmp_1
+                thetaGPs_out_tmp[i,j] = thetaGPs_out_tmp_1
+                fbin, mu = fbin1, mu1
+            else:
+                thetaGPs_in_tmp[i,j] = thetaGPs_in_tmp_0
+                thetaGPs_out_tmp[i,j] = thetaGPs_out_tmp_0
+                fbin, mu = fbin, mu0
+                
             # compute residuals and the normality test p-value
             _,pvalues[j] = normaltest(fbin-mu)
             
@@ -118,6 +163,7 @@ def do_optimize_0(bjd, f, ef, quarters, N=10,
         thetaGPs_out[i] = thetaGPs_out_tmp[i,g]
 
     return thetaGPs_in, thetaGPs_out
+
 
 
 def fit_GP_0(thetaGP, tbin, fbin, efbin):
@@ -136,8 +182,25 @@ def fit_GP_0(thetaGP, tbin, fbin, efbin):
     mu, cov = gp.predict(fbin, tbin)
     sig = np.sqrt(np.diag(cov))
     return gp, mu, sig, results[0]
-    
 
+
+
+def estimate_box_params(thetaGP, bjd, tbin, mubin):
+    assert thetaGP.size == 4
+    assert tbin.size == mubin.size
+    P = np.exp(thetaGP[3])
+    # interpolate GP model
+    fint = interp1d(tbin, mubin)
+    g = (bjd > tbin.min) & (bjd < tbin.max())
+    mu = fint(bjd[g])
+    # isolate one wavelett
+    g = range(1000:1000+int(np.round(P/np.median(np.diff(bjd)))))
+    bjd_tmp, mu_tmp = bjd[g], mu[g]
+    T0 = bjd_tmp.min()
+    a = mu.max() - mu.min()
+    return P, T0, a
+
+                        
 
 def do_mcmc_N(thetaGP, params, bjd, f, ef, Nmcmc_pnts=3e2,
               nwalkers=100, burnin=200, nsteps=400, a=2):
