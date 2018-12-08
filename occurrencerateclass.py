@@ -91,7 +91,10 @@ class OccurrenceRateclass:
 
             print float(i)/fs.size, fs[i]
 	    self._conditional_pickleobject(self._t0, time.time())
-            d = loadpickle(fs[i])
+            try:
+             	d = loadpickle(fs[i])
+            except (EOFError, ValueError):
+                pass
 	    if d.DONE:
                 
 		for j in range(d.Ndet+1):
