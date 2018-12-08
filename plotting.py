@@ -2,10 +2,11 @@ from GAIAMdwarfs import *
 import matplotlib.gridspec as gridspec
 import matplotlib
 from occurrencerateclass import *
+import linear_lnlike as llnl
 
 
-matplotlib.rcParams.update({'ytick.labelsize': 11})
-matplotlib.rcParams.update({'xtick.labelsize': 11})
+matplotlib.rcParams.update({'ytick.labelsize': 9})
+matplotlib.rcParams.update({'xtick.labelsize': 9})
 
 
 def plot_distance_scatter(self, pltt=True, label=False):
@@ -158,6 +159,159 @@ def plot_detected_population_rphist(occurrencerateclass, pltt=True,
     
     if label:
         plt.savefig('plots/Ndet_rphist_all.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+
+def plot_1_planet_candidate_summary(self, SNRoffset=10, pltt=True, label=False):
+    assert self.Ndet == 1
+
+    # setup stuff
+    cols = ['k','b','b','g']
+    cols_linear = ['b','g','r']
+    Z = self.params_guess[0,2]
+    P, T0, aRs, rpRs, inc = self.params_optimized[0]
+    rp = rvs.m2Rearth(rvs.Rsun2m(rpRs*self.Rs))
+    b = rvs.impactparam_inc(P, self.Ms, self.Rs, inc)
+    D = rvs.transit_width(P, self.Ms, self.Rs, rp, b)
+    title_nums = self.tic, np.round(self.TESSmag,3), np.round(self.Teff), \
+                 np.round(self.ehi_Teff), np.round(self.logg,3), \
+                 np.round(self.ehi_logg,3), np.round(self.Rs,3), \
+                 np.round(self.ehi_Rs,3)
+    title = 'TIC %i\nT$_{mag}$ = %.3f,\tT$_{eff}$ = %i $\pm$ %i K,\t$\log{g}$ = %.3f $\pm$ %.3f,\tR$_s$ = %.3f $\pm$ %.3f R$_{\odot}$'%title_nums
+    
+    # plot the extracted 2 minute pdcsap light curve
+    fig = plt.figure(figsize=(6.5,8.5))
+    #gs = gridspec.GridSpec(10,5)
+    ax1 = fig.add_axes([.13,.83,.83,.12])
+    t0 = 2457000
+    bjdlim = self.bjd.min()-t0-.3, self.bjd.max()-t0+.3
+    ax1.plot(self.bjd-t0, self.f, 'o', c=cols[0], ms=1, alpha=.5)
+    ax1.fill_between(self.bjd-t0, self.mu-self.sig, self.mu+self.sig, alpha=.3,
+                     color=cols[1])
+    ax1.plot(self.bjd-t0, self.mu, '-', c=cols[1], lw=.9)
+    for i in range(-50,50):
+        ax1.axvline(T0-t0+i*P, ymax=.03, lw=3, color=cols[2])
+        ax1.axvline(T0-t0+i*P, ymin=.9, lw=3, color=cols[2])
+    ax1.set_xlim(bjdlim)
+    ax1.set_xticklabels('')
+    ax1.set_ylabel('Normalized PDCSAP\nextracted flux', fontsize=9)
+    ax1.set_title(title, fontsize=9, y=1)
+
+    # plot the detrended light curve
+    ax2 = fig.add_axes([.13,.7,.83,.12])
+    ax2.plot(self.bjd-t0, self.fcorr, 'o', c=cols[0], ms=1, alpha=.5)
+    for i in range(-50,50):
+        ax2.axvline(T0-t0+i*P, ymax=.03, lw=3, color=cols[2])
+        ax2.axvline(T0-t0+i*P, ymin=.9, lw=3, color=cols[2])
+    ax2.set_xlim(bjdlim)
+    ax2.set_xticklabels('')
+    ax2.set_ylabel('Normalized\nde-trended flux', fontsize=9)
+
+    # plot linear transit search
+    ax3 = fig.add_axes([.13,.45,.83,.24])
+    for i in range(3):
+        ax3.plot(self.transit_times-t0, self.SNRs_linearsearch[:,i]-i*SNRoffset,
+                 '-', lw=.9, c=cols_linear[i])
+        ax3.axhline(-i*SNRoffset+5, lw=.9, ls='--', c=cols_linear[i])
+        ax3.text(self.bjd.min()-t0+1, -i*SNRoffset+6,
+                 'D = %.1f hrs'%(self.durations[i]*24), fontsize=7,
+                 color=cols_linear[i], weight='semibold')
+    for i in range(-50,50):
+        ax3.axvline(T0-t0+i*P, ymax=.03, lw=3, color=cols[2])
+        ax3.axvline(T0-t0+i*P, ymin=.95, lw=3, color=cols[2])
+    ax3.set_xlim(bjdlim)
+    ax3.set_xlabel('Time [BJD - 2,457,000]', fontsize=9)
+    ax3.set_ylabel('Linear search S/N =\n($\ln{\mathcal{L}}$ - median($\ln{\mathcal{L}}$)) / MAD($\ln{\mathcal{L}}$)', fontsize=9)
+    
+    # plot phase-folded light curve
+    phase = foldAt(self.bjd, P, T0)
+    phase[phase > .5] -= 1
+    s = np.argsort(phase)
+    tb, fb, efb = llnl.boxcar(phase[s], self.fcorr[s], self.ef[s], dt=.2*D/P)
+    ax4 = fig.add_axes([.13,.24,.45,.15])
+    ax4.plot(phase, self.fcorr, 'o', c=cols[0], ms=1, alpha=.5)
+    ax4.plot(tb, fb, '-', c=cols[2], lw=1)
+    ax4.set_xlim((-.5,.5))
+    ax4.set_ylim((np.round(1-2.5*Z,3), np.round(1+2.5*Z,3)))
+    ax4.set_ylabel('Normalized\nde-trended flux', fontsize=9)
+
+    # zoom-in on transit
+    ax5 = fig.add_axes([.13,.05,.45,.15])
+    ax5.plot(phase, self.fcorr, 'o', c=cols[0], ms=1, alpha=.5)
+    ax5.errorbar(tb, fb, efb, fmt='o', c=cols[2], ms=4, elinewidth=1)
+    ax5.plot(phase[s], self.fmodels[0][s], '-', c=cols[3], lw=2)
+    ax5.set_xlim((-2.9*D/P,2.9*D/P))
+    ax5.set_ylim((np.round(1-2.5*Z,3), np.round(1+2.5*Z,3)))
+    ax5.set_xlabel('Orbital Phase', fontsize=9)
+    ax5.set_ylabel('Normalized\nde-trended flux', fontsize=9)
+
+    # data info
+    ax4.text(1.48, .96, 'Reduced light curve parameters', fontsize=8,
+             weight='semibold', transform=ax4.transAxes,
+             horizontalalignment='center')
+    rms = np.std(self.fcorr)*1e6
+    ax4.text(1.05, .84, 'Total LC rms = %i [ppm]'%rms, fontsize=8,
+             transform=ax4.transAxes)
+    cdpp = np.round(self.CDPPs[0]*1e6)
+    D = np.round(self.params_guess[0,3]*24,1)
+    ax4.text(1.05, .72, 'CDPP$_{transit}$ = %i [ppm] (D = %.1f hrs)'%(cdpp,D),
+             fontsize=8, transform=ax4.transAxes)
+    ax4.text(1.05, .6, 'S/N$_{transit}$ = %.1f'%(np.round(self.SNRtransits[0],
+                                                          1)), fontsize=8,
+             transform=ax4.transAxes)
+
+    # GP parameters
+    ax4.text(1.48, .46, 'Systematic GP model parameters', fontsize=8,
+             weight='semibold', transform=ax4.transAxes,
+             horizontalalignment='center')
+    ax4.text(1.05, .34, '$\ln$a = %.3f'%(np.round(self.thetaGPout[0,0],3)),
+             fontsize=8, transform=ax4.transAxes)
+    ax4.text(1.05, .22, '$\ln{\lambda}$/days = %.3f'%(np.round(self.thetaGPout[0,1],3)), fontsize=8, transform=ax4.transAxes)
+    ax4.text(1.05, .1, '$\ln{\Gamma}$ = %.3f'%(np.round(self.thetaGPout[0,2],3)), fontsize=8, transform=ax4.transAxes)
+    ax4.text(1.05, -.02, '$\ln$P$_{GP}$/days = %.3f'%(np.round(self.thetaGPout[0,3],3)), fontsize=8, transform=ax4.transAxes)
+             
+    # planet info
+    e_P,e_T0,e_aRs,e_rpRs,e_inc = np.mean(self.params_results[0,1:],0)
+    ax5.text(1.48, 1.1, 'Measured planet parameters', fontsize=8,
+             weight='semibold', transform=ax5.transAxes,
+             horizontalalignment='center')
+    ax5.text(1.05, .98, 'P = %.5f $\pm$ %.5f [days]'%(P,e_P), fontsize=8,
+             transform=ax5.transAxes)
+    ax5.text(1.05, .86, 'T$_0$ = %.5f $\pm$ %.5f [BJD-2,457,000]'%(T0-t0,e_T0),
+             fontsize=8, transform=ax5.transAxes)
+    ax5.text(1.05, .74, 'a/R$_s$ = %.2f $\pm$ %.2f'%(np.round(aRs,2),
+                                                     np.round(e_aRs,2)),
+             fontsize=8, transform=ax5.transAxes)
+    ax5.text(1.05, .62, 'rp/R$_s$ = %.4f $\pm$ %.4f'%(np.round(rpRs,4),
+                                                      np.round(e_rpRs,4)),
+             fontsize=8, transform=ax5.transAxes)
+    ax5.text(1.05, .5, 'i = %.2f $\pm$ %.2f [deg]'%(np.round(inc,2),
+                                                    np.round(e_inc,2)),
+             fontsize=8, transform=ax5.transAxes)
+    ax5.text(1.05, .38, 'a$_{LDC}$ = %.3f (fixed)'%np.round(self.u1,3),
+             fontsize=8, transform=ax5.transAxes)
+    ax5.text(1.05, .26, 'b$_{LDC}$ = %.3f (fixed)'%np.round(self.u2,3),
+             fontsize=8, transform=ax5.transAxes)
+    e_rp = unp.std_devs(rvs.m2Rearth(rvs.Rsun2m(unp.uarray(rpRs,e_rpRs) * \
+                                            unp.uarray(self.Rs,self.ehi_Rs))))
+    ax5.text(1.48, .12, 'Derived parameters', fontsize=8, weight='semibold',
+             transform=ax5.transAxes, horizontalalignment='center')
+    ax5.text(1.05, 0,'r$_p$ = %.2f $\pm$ %.2f [R$_{\oplus}$]'%(np.round(rp,2),
+                                                            np.round(e_rp,2)),
+             fontsize=8, transform=ax5.transAxes)
+    sma = rvs.semimajoraxis(unp.uarray(P,e_P),unp.uarray(self.Ms,self.ehi_Ms),0)
+    Teq = unp.uarray(self.Teff,self.ehi_Teff) * \
+          unp.sqrt(rvs.Rsun2m(unp.uarray(self.Rs,self.ehi_Rs)) / \
+                   rvs.AU2m((2*sma))) * (1-.3)**(.25)
+    Teq, e_Teq = unp.nominal_values(Teq), unp.std_devs(Teq)
+    ax5.text(1.05,-.12,'T$_{eq}$ = %i $\pm$ %i [K] (Earth-like albedo; 0.3)'%(np.round(Teq),np.round(e_Teq)), fontsize=8, transform=ax5.transAxes)
+
+    #fig.subplots_adjust(top=.93, right=.96, hspace=.2)
+    if label:
+        plt.savefig('plots/planetcandidatesummary_1_%i.png'%self.tic)
     if pltt:
         plt.show()
     plt.close('all')

@@ -201,7 +201,7 @@ class OccurrenceRateclass:
                                    fmt='%.8e')
 
         # get confirmed planets from the NASA exoplanet archive
-        self.flag_confirmed_planets_KepK2()
+        #self.flag_confirmed_planets_KepK2()
                         
         # save stuff
         _, self.unique_inds = np.unique(self.names_planetsearch,
