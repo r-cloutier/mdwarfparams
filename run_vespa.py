@@ -42,7 +42,7 @@ def run_vespa_on_a_TIC(self, FWHMarcsec=0):
         FPPs[i] = fpp.FPP()
         
     # save FPPs
-    np.save('%s/FPPs'%self.folder, FPPs)
+    np.save('%s/FPPs'%self.folder_full, FPPs)
 
     return FPPs
 
