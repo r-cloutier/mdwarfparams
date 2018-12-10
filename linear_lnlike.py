@@ -1,6 +1,6 @@
 from imports import *
 from scipy.optimize import curve_fit
-import vetting as vett
+import EBvetting as vett
 import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
@@ -626,6 +626,7 @@ def is_not_autocorrelated(timeseries):
     result = np.correlate(norm, norm, mode='same')
     acorr = result[n//2 + 1:] / (x.var() * np.arange(n-1, n//2, -1))
     lag = np.abs(acorr).argmax() + 1
+    print lag
     r = acorr[lag-1]        
     if np.abs(r) <= min_autocorr_coeff:
         return True, np.abs(r)
@@ -845,35 +846,3 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_autocorr_leq_max]).T
 
     return paramsout, Ntransits, lnLsout, cond_vals, cond_bool
-
-
-def identify_EBs(params, bjd, fcorr, ef, Rs, SNRthresh=3., rpmax=30):
-    '''For each proposed planet in params, check if there is a clearly-defined 
-    secondary eclipse as is indicative of a secondary eclipse. Could also have 
-    a V-shaped "transit" but so highly inclined transiting planets.'''
-    Nplanets = params.shape[0]
-    notEB = np.ones(Nplanets)
-    for i in range(Nplanets):
-	# check for significant eclipse depths at two times in case T0 is near an edge of the WF
-	P, T0, depth, duration = params[i]
-	eclipse1 = (bjd >= T0+.5*P-.5*duration) & (bjd <= T0+.5*P+.5*duration)
-	eclipse2 = (bjd >= T0-.5*P-.5*duration) & (bjd <= T0-.5*P+.5*duration)	
-	outeclipse1 = (bjd >= T0+.5*P-2*duration) & (bjd <= T0+.5*P-duration)
-        outeclipse2 = (bjd >= T0-.5*P-2*duration) & (bjd <= T0-.5*P-duration)
-
-	rms_ineclipse1  = fcorr[eclipse1].std()
-	rms_outeclipse1 = fcorr[outeclipse1].std()
-        rms_ineclipse2  = fcorr[eclipse2].std()
-        rms_outeclipse2 = fcorr[outeclipse2].std()
-        if (rms_ineclipse1 >= SNRthresh*rms_outeclipse1) or (rms_ineclipse2 >= SNRthresh*rms_outeclipse2):
-            notEB[i] = 0.
-
-    # check that planets are not too big
-    rpRss = np.sqrt(params[:,2])
-    rps = rvs.m2Rearth(rvs.Rsun2m(rpRss*Rs))
-    notEB[(rpRss > .5) | (rps > rpmax)] = 0
-
-    # save planet and EB parameters
-    notEB = notEB.astype(bool)
-    params, EBparams = params[notEB], params[np.invert(notEB)]
-    return params, EBparams 

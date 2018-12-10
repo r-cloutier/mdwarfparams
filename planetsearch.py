@@ -252,7 +252,6 @@ def read_TESS_data(tic):
     name = hdus[0].header['OBJECT'].replace(' ','_')
     star_dict = get_star(tic, TESS=True)
     s = np.argsort(bjd)
-    quarters = np.zeros(bjd.size)
     bjd, f, ef, quarters = bjd[s], f[s], ef[s], quarters[s]
     g = np.isfinite(bjd) & np.isfinite(f) & np.isfinite(ef) 
     return name, star_dict, bjd[g], f[g], ef[g], quarters[g]

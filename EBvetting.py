@@ -4,9 +4,10 @@ from scipy.interpolate import LinearNDInterpolator as lint
 
 
 def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
-                 SNRthresh=3., rpmax=30, detthresh=5):
+                 SNRthresh=3., rpmax=30, detthresh=5, Kep=False, TESS=False):
     '''For each proposed planet in params, run through a variety of checks to 
     vetting the planetary candidates and identify EB false positives.'''
+    assert len(params.shape) == 2
     Nplanets = params.shape[0]
     paramsout, isEB, maybeEB = np.zeros_like(params), np.zeros(Nplanets), \
                                np.zeros(Nplanets)
@@ -18,7 +19,8 @@ def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
     for i in range(Nplanets):
 
         # get best fit parameters
-        paramsout[i] = _fit_params(params[i], bjd, fcorr, ef, Ms, Rs, Teff)
+        paramsout[i] = _fit_params(params[i], bjd, fcorr, ef, Ms, Rs, Teff,
+                                   Kep, TESS)
         
         # ensure the planet is not too big
         rpRs = np.sqrt(params[i,2])
@@ -39,7 +41,8 @@ def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
         # how can I do this without knowing the parameters of the binary?
 
         # flag V-shaped transits (does not implies an EB)
-        Vshaped, duration = _is_Vshaped(params[i], bjd, fcorr, ef, Ms, Rs, Teff)
+        Vshaped, duration = _is_Vshaped(params[i], bjd, fcorr, ef, Ms, Rs, Teff,
+                                        Kep, TESS)
         maybeEB[i] = 1 if Vshaped else maybeEB[i]
         EBconditions[i,3] = True if Vshaped else False
 
@@ -57,11 +60,15 @@ def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
 
 
 
-def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
+def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep, TESS):
     '''Get best-fit parameters.'''
     assert params.shape == (4,)
     P, T0, depth, duration = params
-    u1, u2 = _get_LDcoeffs(Ms, Rs, Teff)
+    if Kep:
+        u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
+    elif TESS:
+        u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
+
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = aRs, rpRs, 90.
@@ -78,6 +85,41 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff):
         return P, T0, depth, duration
     except RuntimeError:
         return params
+
+
+def _get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
+    '''Interpolate Claret+2012 grid of limb darkening coefficients to a
+    given star.'''
+    # get LD coefficient grid (Z is always 0 for some reason)
+    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
+                                    np.loadtxt('LDcoeffs/claret12.tsv',
+                                               delimiter=';', skiprows=40,
+                                               usecols=(0,1,2,4,5)).T
+
+    # interpolate to get the stellar LD coefficients
+    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
+    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
+    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
+
+    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
+
+
+
+def _get_LDcoeffs_TESS(Ms, Rs, Teff, Z=0):
+    '''Interpolate Claret 2017 grid of limb darkening coefficients to a
+    given star.'''
+    # get LD coefficient grid (Z is always 0 for some reason)
+    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
+                                    np.loadtxt('LDcoeffs/claret17.tsv',
+                                               delimiter=';', skiprows=37).T
+
+    # interpolate to get the stellar LD coefficients
+    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
+    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
+    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
+
+    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
+
 
 
 def _box_transit_model(theta, bjd):
@@ -99,9 +141,9 @@ def lnlike(theta, bjd, fcorr, ef):
     return -0.5*(np.sum((fcorr - fmodel)**2 * inv_sigma2 - np.log(inv_sigma2)))
 
 
-def _is_eclipse(params, bjd, fcorr, ef, DT):
+def _is_eclipse(params, bjd, fcorr, ef, DT, Nsamp=1e3, min_eclipse_frac=.5):
     '''check for secondary eclipses in the light curve and return True if the 
-    signal is detmerined to be from an EB'''
+    signal is determined to be from an EB.'''
     assert params.shape == (4,)
     P, T0, depth, duration = params
 
@@ -109,38 +151,35 @@ def _is_eclipse(params, bjd, fcorr, ef, DT):
     phase = foldAt(bjd, P, T0)
     phase[phase > .5] -= 1
     intransit = (phase >= -.5*duration/P) & (phase <= .5*duration/P)
-    inoccultation = (phase <= .5*(duration/P - 1)) | \
-                    (phase >= -.5*(duration/P - 1))
 
-    # define EB criteria
-    depth_transit, var_transit = depth, np.std(fcorr[intransit])**2
-    depth_occultation = 1-np.median(fcorr[inoccultation])
-    var_occultation = np.std(fcorr[inoccultation])**2
-    return (depth_occultation / np.sqrt(var_occultation) > DT) & \
-        ((depth_transit - depth_occultation) / np.sqrt(var_transit + \
-                                                       var_occultation) > DT)
-
+    # sample duty cycles(fractions of the orbit in occultation)
+    # from the simulated M+M binary population from Shan+2015
+    # https://arxiv.org/pdf/1509.04189.pdf
+    #inoccultation = (phase <= .5*(duration/P - 1)) | \
+    #                (phase >= -.5*(duration/P - 1))
+    D_Ps, probs = np.loadtxt('input_data/Shan15_EBdutycycle_PDF.csv',delimiter=',').T
+    Nsamp = int(Nsamp)
+    is_eclipse = np.zeros(Nsamp, dtype=bool)
+    for i in range(Nsamp):
+        D_P = np.random.choice(D_Ps, p=probs/probs.sum()) * np.random.normal(1,.01)
+        inoccultation = (phase <= .5*(D_P - 1)) | (phase >= -.5*(D_P - 1))
+                
+        # define EB criteria
+        depth_transit, var_transit = depth, np.std(fcorr[intransit])**2
+        depth_occultation = 1-np.median(fcorr[inoccultation])
+        var_occultation = np.std(fcorr[inoccultation])**2
+        cond1 = (depth_occultation / np.sqrt(var_occultation) > DT)
+        cond2 = ((depth_transit - depth_occultation) / np.sqrt(var_transit + \
+                                                               var_occultation) > DT)
+        is_eclipse[i] = cond1 & cond2
+    return is_eclipse.sum() > min_eclipse_frac
+        
 
 def _is_ellipsoidal():
     '''check for ellipsoidal variations that are indicative of a close binary. 
     see sect 8.1 Sullivan+2015'''
     return None
 
-
-def _get_LDcoeffs(Ms, Rs, Teff, Z=0):
-    '''Interpolate Claret 2017 grid of limb darkening coefficients to a
-    given star.'''
-    # get LD coefficient grid (Z is always 0 for some reason)
-    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
-                                    np.loadtxt('LDcoeffs/claret17.tsv',
-                                               delimiter=';', skiprows=37).T
-
-    # interpolate to get the stellar LD coefficients
-    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
-    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
-    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
-
-    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
 
 
 def transit_model_func_curve_fit(P, T0, u1, u2):
@@ -156,13 +195,17 @@ def transit_model_func_curve_fit(P, T0, u1, u2):
     return transit_model_func_in
     
 
-def _is_Vshaped(params, bjd, fcorr, ef, Ms, Rs, Teff):
+def _is_Vshaped(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep, TESS, duration_frac=.05):
     '''check if transit is V-shaped although this does not imply an EB 
     because inclined transiting planets can look like this as well.'''
     # fit transit model
     assert params.shape == (4,)
     P, T0, depth = params[:3]
-    u1, u2 = _get_LDcoeffs(Ms, Rs, Teff)
+    if Kep:
+        u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
+    elif TESS:
+        u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
+
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = aRs, rpRs, 90.
@@ -194,7 +237,7 @@ def _is_Vshaped(params, bjd, fcorr, ef, Ms, Rs, Teff):
     # V-shaped if T2==T3 or if ingress+egress time is the same as the duration 
     if T2 == T3:
         return True, duration
-    elif (Tedge >= duration*.99) & (Tedge <= duration*1.01):
+    elif np.isclose(Tedge, duration, rtol=duration_frac):
         return True, duration
     else:
         return False, duration

@@ -117,6 +117,7 @@ def query_one_TIC(theta, radius_arcsec=10):
         FBP = rG['phot_bp_mean_flux'][i]
         eFBP = rG['phot_bp_mean_flux_error'][i]
         eGBPmag = -2.5*np.log10(FBP / (FBP+eFBP))
+
         GRPmag = rG['phot_rp_mean_mag'][i]
         FRP = rG['phot_rp_mean_flux'][i]
         eFRP = rG['phot_rp_mean_flux_error'][i]
@@ -155,7 +156,7 @@ def query_one_TIC(theta, radius_arcsec=10):
                              unp.uarray(Jmag, e_Jmag),
                              unp.uarray(Hmag, e_Hmag))
             Ms = MK2Ms(MK)
-            return [par,epar], [GRPmag,eGRPmag], [GBPmag,eGBPmag], \
+            return [par,epar], [GBPmag,eGBPmag], [GRPmag,eGRPmag], \   # gbp and grp used to have switched positions here
                 [unp.nominal_values(dist), unp.std_devs(dist)], \
                 [unp.nominal_values(mu), unp.std_devs(mu)], \
                 [unp.nominal_values(AK), unp.std_devs(AK)], \
