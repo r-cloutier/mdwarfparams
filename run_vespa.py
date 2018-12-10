@@ -2,15 +2,17 @@ from LCclass import *
 import requests
 from bs4 import BeautifulSoup
 
+print('Ensure to load python v3.6 ($ source activate py36)')
+
 global TESS_pixel_scale_arcsec
 TESS_pixel_scale_arcsec = 20.69369686271056
 
 
-def run_vespa_on_a_TIC(self, Nsamp=1e4):
+def run_vespa_on_a_TIC(self, FWHMarcsec=0):
     # setup star file
     _setup_star_input(self)
-    print '\nComputing the maximum separation to search for blends...' 
-    maxrad = get_EB_maxrad_condition(self)
+    print('\nComputing the maximum separation to search for blends...')
+    maxrad = get_EB_maxrad_condition(self) if FWHMarcsec == 0 else FWHMarcsec
     
     # run vespa on each planet candidate
     Nplanets = self.Ndet
@@ -28,16 +30,16 @@ def run_vespa_on_a_TIC(self, Nsamp=1e4):
         _setup_fpp_input(self, name, P, rpRs, maxrad, maxoccdepth)  
 
         # run vespa
-        print '\nRunning vespa on TIC %i...'%self.tic
-        '''cwd = os.getcwd()
-        os.chdir('%s'%self.folder_full)
-        os.system('starfit --all .')
-        os.system('calcfpp -n %i'%Nsamp)
+        print('\nRunning vespa on TIC %i...'%self.tic)
+        cwd = os.getcwd()
+        #os.chdir('%s'%self.folder_full)
+        os.system('starfit --all %s'%self.folder_full)
+        os.system('calcfpp %s'%self.folder_full)
 
         # get vespa results
         vespa_results[i] = np.loadtxt('results.txt', skiprows=1)
         FPPs[i] = vespa_results[i,-1]
-        os.chdir(cwd)'''
+        #os.chdir(cwd)
         
     return vespa_results, FPPs
 
@@ -211,7 +213,8 @@ def _listFD(url, ext=''):
                      if node.get('href').endswith(ext)])
 
 
-def gaussian2D((xarr,yarr), A, mux, muy, sigx, sigy):
+def gaussian2D(arrs, A, mux, muy, sigx, sigy):
+    xarr, yarr = arrs
     f = A*np.exp(-0.5*(((mux-xarr) / sigx)**2 + ((muy-yarr) / sigy)**2))
     return f.ravel()
 
@@ -239,6 +242,3 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
     maxoccdepth = np.percentile(depths_out_transit[:,g].flatten(),
                                 occdepth_upper_percentile)
     return maxoccdepth
-
-
-

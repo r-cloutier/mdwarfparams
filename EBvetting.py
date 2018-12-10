@@ -20,7 +20,7 @@ def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
 
         # get best fit parameters
         paramsout[i] = _fit_params(params[i], bjd, fcorr, ef, Ms, Rs, Teff,
-                                   Kep, TESS)
+                                   Kep=Kep, TESS=TESS)
         
         # ensure the planet is not too big
         rpRs = np.sqrt(params[i,2])
@@ -60,7 +60,7 @@ def identify_EBs(params, bjd, fcorr, ef, Ms, Rs, Teff,
 
 
 
-def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep, TESS):
+def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep=False, TESS=False):
     '''Get best-fit parameters.'''
     assert params.shape == (4,)
     P, T0, depth, duration = params

@@ -3,7 +3,10 @@ import pylab as plt
 from astropy.io import fits
 from astropy.stats import LombScargle
 from PyAstronomy.pyasl import foldAt
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ModuleNotFoundError:
+    import _pickle as pickle
 import time, george, emcee, corner, os, sys, glob
 from scipy.stats import gaussian_kde
 from scipy.ndimage import gaussian_filter1d

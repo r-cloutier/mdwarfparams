@@ -492,7 +492,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     params, EBparams, maybeEBparams, EBconditions, EBcondition_labels = \
                                     vett.identify_EBs(params, bjd, fcorr, ef,
                                                       self.Ms, self.Rs, 
-						      self.Teff)
+						      self.Teff, Kep=Kep,
+						      TESS=TESS)
     self.EBconditions, self.EBcondition_labels = EBconditions, \
                                                  EBcondition_labels
     
