@@ -74,6 +74,9 @@ class OccurrenceRateclass:
         # POI params
         self.cond_vals, self.cond_free_params = np.zeros((0,7)), np.zeros((0,7))
 
+        # are EBs detected
+        self.isEB = np.zeros(0, dtype=int)
+        
         # stellar params
         if self.Kep or self.K2:
             self.Kepmags = np.zeros(0)
@@ -127,6 +130,10 @@ class OccurrenceRateclass:
                     self.ehi_Lss = np.append(self.ehi_Lss, Lss[1])
                     self.elo_Lss = np.append(self.elo_Lss, Lss[2])
 
+                    isEB = int(np.all(d.EBconditions[j-1])) if j > 0 \
+                           else np.nan
+                    self.isEB = np.append(self.isEB, isEB)
+                
                     # save parameter guesses of detected planets
                     params = d.params_guess[j-1] if j > 0 \
                              else np.repeat(np.nan,4)
