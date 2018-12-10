@@ -1,4 +1,5 @@
 from LCclass import *
+from vespa import FPPCalculation
 import requests
 from bs4 import BeautifulSoup
 
@@ -16,7 +17,7 @@ def run_vespa_on_a_TIC(self, FWHMarcsec=0):
     
     # run vespa on each planet candidate
     Nplanets = self.Ndet
-    vespa_results = np.zeros((Nplanets, 24))
+    #vespa_results = np.zeros((Nplanets, 24))
     FPPs = np.zeros(Nplanets)
     for i in range(Nplanets):
 
@@ -31,18 +32,19 @@ def run_vespa_on_a_TIC(self, FWHMarcsec=0):
 
         # run vespa
         print('\nRunning vespa on TIC %i...'%self.tic)
-        cwd = os.getcwd()
-        #os.chdir('%s'%self.folder_full)
         os.system('starfit --all %s'%self.folder_full)
         os.system('calcfpp %s'%self.folder_full)
 
-        # get vespa results
-        vespa_results[i] = np.loadtxt('results.txt', skiprows=1)
-        FPPs[i] = vespa_results[i,-1]
-        #os.chdir(cwd)
+        # get read in results and compute the FPP of the planet candidate
+        #vespa_results[i] = np.loadtxt('results.txt', skiprows=1)
+        #FPPs[i] = vespa_results[i,-1]
+        fpp = FPPCalculation.load(self.folder_full)
+        FPPs[i] = fpp.FPP()
         
-    return vespa_results, FPPs
+    # save FPPs
+    np.save('%s/FPPs'%self.folder, FPPs)
 
+    return FPPs
 
 
 def _setup_star_input(self):
@@ -174,6 +176,21 @@ def get_EB_maxrad_condition(self):
 
 
 def _read_TESS_TPF(tic):
+    # make directories
+    try:
+        os.mkdir('MAST')
+    except OSError:
+        pass
+    try:
+        os.mkdir('MAST/TESS')
+    except OSError:
+        pass
+    folder2 = 'MAST/TESS/TIC%i'%tic
+    try:
+        os.mkdir(folder2)
+    except OSError:
+        pass
+    
     # setup directories to fetch the data
     tic_str = '%.16d'%int(tic)
     tid1 = tic_str[:4]
@@ -182,7 +199,6 @@ def _read_TESS_TPF(tic):
     tid4 = tic_str[12:]
 
     # download tar file if not already
-    folder2 = 'MAST/TESS/TIC%i'%tic
     fnames = np.array(glob.glob('%s/tess*tp.fits'%folder2))
     if fnames.size == 0:
         sectors = [1,2]
@@ -242,3 +258,13 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
     maxoccdepth = np.percentile(depths_out_transit[:,g].flatten(),
                                 occdepth_upper_percentile)
     return maxoccdepth
+
+
+if __name__ == '__main__':
+    fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099'))
+    for i in range(fs.size):
+        self = loadpickle(fs[i])
+        print(i, self.tic)
+        fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
+        FWHMarcsec = np.nanmedian(np.load(fwhm_fname)) if os.path.exists(fwhm_fname) else 0
+        FPPs = run_vespa_on_a_TIC(self, FWHMarcsec=FWHMarcsec)
