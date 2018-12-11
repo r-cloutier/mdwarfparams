@@ -563,3 +563,120 @@ def _get_GP_model(thetaGP, tbin, fbin, efbin, tmodel):
     mu, cov = gp.predict(fbin, tmodel)
     sig = np.sqrt(np.diag(cov))
     return tmodel, mu, sig
+
+
+def plot_stellar_corner(dTIC, dTIC_sect1, dTIC_sect2, pltt=True, label=False):
+    assert dTIC.shape == (93090,89)  #np.genfromtxt('input_data/TESStargets/TICv7_Mdwarfsv1.csv', delimiter=',', skip_header=5)
+    assert dTIC_sect1.shape == (905, 39) #np.loadtxt('input_data/TESStargets/TESSMdwarfs_sector1_v2.csv', delimiter=',')
+    assert dTIC_sect2.shape == (1062,39) #np.loadtxt('input_data/TESStargets/TESSMdwarfs_sector2_v2.csv', delimiter=',')
+
+    cols = ['b','k']
+    
+    # setup arrays for pre and post GAIA stellar parameters
+    inds1 = np.array([60,64,70,72])
+    TESSmag1, Teff1, Rs1, Ms1 = dTIC[:,inds1].T
+    list1 = [TESSmag1, Teff1, Rs1, Ms1]
+
+    inds2 = np.array([0,7,27,30,33])
+    TICs21, TESSmag21, Rs21, Teff21, Ms21 = dTIC_sect1[:,inds2].T
+    TICs22, TESSmag22, Rs22, Teff22, Ms22 = dTIC_sect2[:,inds2].T
+    _,inds = np.unique(np.append(TICs21,TICs22), return_index=True)
+    TESSmag2 = np.append(TESSmag21,TESSmag22)[inds]
+    Teff2 = np.append(Teff21,Teff22)[inds]
+    Rs2 = np.append(Rs21,Rs22)[inds]
+    Ms2 = np.append(Ms21,Ms22)[inds]
+    list2 = [TESSmag2, Teff2, Rs2, Ms2]
+
+    labels = ['$T$','$T_{eff}$ [K]','$R_s$ [R$_{\odot}$]','$M_s$ [M$_{\odot}$]']
+    lims = [(5,16),(2700,4100),(.1,.65),(.1,.65)]
+    titles1 = ['%.1f,','%i,','%.2f,','%.2f,']
+    titles2 = ['%.1f','%i K','%.2f R$_{\odot}$','%.2f M$_{\odot}$']
+    tickvals = [range(6,16,2),np.arange(28,41,4)*1e2,np.arange(.2,.7,.2),
+                np.arange(.2,.7,.2)]
+    ticklabels = [['6','8','10','12','14'], ['2800','3200','3600','4000'],
+                  ['0.2','0.4','0.6'], ['0.2','0.4','0.6']]
+    bins = [np.linspace(7,16,20), np.linspace(2700,4050,20),
+            np.linspace(.1,.65,20), np.linspace(.1,.65,20)]
+    
+    fig = plt.figure(figsize=(3.7,4))
+    subplot = 1
+    for i in range(4):
+        for j in range(4):
+
+            ax = fig.add_subplot(4,4,subplot)
+            subplot += 1
+            
+            # plot 1d histogram
+            if i == j:
+                y1,_,_=ax.hist(list1[i], bins=bins[i], color=cols[0], normed=1,
+                              histtype='step',lw=1)
+                ax.hist(list1[i], bins=bins[i], color=cols[0], normed=1, alpha=.3)
+                y2,_,_=ax.hist(list2[i], bins=bins[i], color=cols[1], normed=1,
+                               histtype='step',lw=1.5)
+                ax.hist(list2[i], bins=bins[i], color=cols[1], normed=1, alpha=.5)
+                ax.set_xlim(lims[i])
+                if j < 3: ax.set_xticklabels('')
+                if j == 3:
+                    ax.set_xlabel(labels[j], fontsize=7, labelpad=1)
+                    ax.set_xticks(tickvals[j])
+                    ax.set_xticklabels(ticklabels[j], fontsize=5)
+                ax.set_yticklabels('')
+                ax.plot(np.repeat(np.nanmedian(list1[i]),2),[0,np.max([y1,y2])], '--',
+                        lw=.8,c=cols[0])
+                ax.plot(np.repeat(np.nanmedian(list2[i]),2),[0,np.max([y1,y2])], '--',
+                        lw=.8, c=cols[1])
+                ax.text(.49, 1.05, titles1[i]%np.nanmedian(list1[i]), fontsize=7,
+                        transform=ax.transAxes, horizontalalignment='right',
+                        weight='semibold', color=cols[0])
+                ax.text(.51, 1.05, titles2[i]%np.nanmedian(list2[i]), fontsize=7,
+                        transform=ax.transAxes, horizontalalignment='left',
+                        weight='semibold', color=cols[1])
+                
+            # 2d histogram
+            elif i > j:
+                ax.plot(list1[j], list1[i], '.', c=cols[0], ms=1, alpha=.1)
+                ax.plot(list2[j], list2[i], '.', c=cols[1], ms=1.5, alpha=.9)
+                ax.set_xlim(lims[j]), ax.set_ylim(lims[i])
+                if i < 3: ax.set_xticklabels('')
+                if j > 0: ax.set_yticklabels('')
+                if j == 0:
+                    ax.set_ylabel(labels[i], fontsize=7, labelpad=1.5)
+                    ax.set_yticks(tickvals[i])
+                    ax.set_yticklabels(ticklabels[i], fontsize=5)
+                if i == 3:
+                    ax.set_xlabel(labels[j], fontsize=7, labelpad=1.5)
+                    ax.set_xticks(tickvals[j])
+                    ax.set_xticklabels(ticklabels[j], fontsize=5, rotation=45)
+                    
+            # no plot
+            else:
+                ax.axis('off')
+
+    fig.subplots_adjust(top=.96, right=.98, left=.1, bottom=.09, hspace=.05, wspace=.05)
+    if label:
+        plt.savefig('plots/stellar_corner.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+    
+
+
+def plot_planet_population(self, pltt=True, label=False):
+    assert hasattr(self, self.isTESSalert)
+    g = self.disposition_human >= 0 
+    g0 = self.disposition_human[g] == 0
+    g1 = self.disposition_human[g] == 1
+    
+    cols = ['b','k']
+
+    # plot planet candidates that passed human vetting (and maybe vespa?)
+    fig = plt.figure(figsize=(6.5,3))
+
+    # plot P
+    ax1 = fig.add_subplot(131)
+    ax1.errorbar(self.Ps[g0], self.rps[g0], self.ehi_rps[g0], fmt='o', ms=2,
+                 color=cols[0], elinewidth=1, capsize=0)
+    ax1.errorbar(self.Ps[g1], self.rps[g1], self.ehi_rps[g1], fmt='o', ms=2,
+                 color=cols[1], elinewidth=1, capsize=0)
+    ax1.set_xscale('log'), ax.set_yscale('log')

@@ -163,10 +163,15 @@ def get_EB_maxrad_condition(self):
                 p0 = np.nanmax(img), float(gx), float(gy), 2, 2
                 bnds_low = 0, 0, 0, 0, 0
                 bnds_upp = p0[0]*10, NpixX, NpixY, NpixX, NpixY
-                popt,_ = curve_fit(gaussian2D, (x,y), img.ravel(), p0=p0,
-                                   bounds=(bnds_low,bnds_upp))
-                sig = np.nanmean(popt[-2:])
-                FWHMs = np.append(FWHMs, sig*2*np.sqrt(2*np.log(2)))
+                try:
+                    popt,_ = curve_fit(gaussian2D, (x,y), img.ravel(), p0=p0,
+                                       bounds=(bnds_low,bnds_upp))
+                    sig = np.nanmean(popt[-2:])
+                    FWHMs = np.append(FWHMs, sig*2*np.sqrt(2*np.log(2)))
+                except RuntimeError:
+                    fwhm = np.nanmedian(FWHMs) if np.any(np.isfinite(FWHMs)) \
+                           else 50.
+                    FWHMs = np.append(FWHMs, fwhm)
 
     # set maximum search radius to 1 PSF FWHM in arcseconds 
     FWHMs *= TESS_pixel_scale_arcsec
@@ -262,7 +267,7 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
 
 if __name__ == '__main__':
     fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099'))
-    for i in range(fs.size):
+    for i in range(8,fs.size): # TEMP
         self = loadpickle(fs[i])
         print(i, self.tic)
         fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
