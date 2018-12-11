@@ -673,10 +673,49 @@ def plot_planet_population(self, pltt=True, label=False):
     # plot planet candidates that passed human vetting (and maybe vespa?)
     fig = plt.figure(figsize=(6.5,3))
 
-    # plot P
+    # plot rp vs P
     ax1 = fig.add_subplot(131)
-    ax1.errorbar(self.Ps[g0], self.rps[g0], self.ehi_rps[g0], fmt='o', ms=2,
-                 color=cols[0], elinewidth=1, capsize=0)
-    ax1.errorbar(self.Ps[g1], self.rps[g1], self.ehi_rps[g1], fmt='o', ms=2,
-                 color=cols[1], elinewidth=1, capsize=0)
-    ax1.set_xscale('log'), ax.set_yscale('log')
+    ax1.errorbar(self.Ps[g0], self.rps[g0], xerr=self.e_Ps[g0], yerr=self.ehi_rps[g0],
+                 fmt='o', ms=2, color=cols[0], elinewidth=1, capsize=0)
+    ax1.errorbar(self.Ps[g1], self.rps[g1], xerr=self.e_Ps[g1], yerr=self.ehi_rps[g1],
+                 fmt='o', ms=2, color=cols[1], elinewidth=1, capsize=0)
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlabel('Orbital Period [days]', fontsize=10)
+    ax1.set_ylabel('Planet Radius [R$_{\oplus}]', fontsize=10)
+    ax1.set_xlim((.5,30))
+    ax1.set_ylim((.1,20))
+    
+    # plot rp vs sma
+    ax2 = fig.add_subplot(132)
+    ax2.errorbar(self.smas[g0], self.rps[g0], xerr=self.ehi_smas[g0],
+                 yerr=self.ehi_rps[g0], fmt='o', ms=2, color=cols[0], elinewidth=1,
+                 capsize=0)
+    ax2.errorbar(self.smas[g1], self.rps[g1], xerr=self.ehi_smas[g1],
+                 yerr=self.ehi_rps[g1], fmt='o', ms=2, color=cols[1], elinewidth=1,
+                 capsize=0)
+    ax2.set_xscale('log')
+    ax2.set_yscale('log')
+    ax2.set_xlabel('Semimajor axis [AU]', fontsize=10)
+
+    # plot rp vs F
+    ax3 = fig.add_subplot(133)
+    ax3.errorbar(self.Fs[g0], self.rps[g0], xerr=self.ehi_Fs[g0], yerr=self.ehi_rps[g0],
+                 fmt='o', ms=2, color=cols[0], elinewidth=1, capsize=0)
+    ax3.errorbar(self.Fs[g1], self.rps[g1], xerr=self.ehi_Fs[g1], yerr=self.ehi_rps[g1],
+                 fmt='o', ms=2, color=cols[1], elinewidth=1, capsize=0)
+    ax3.set_xscale('log')
+    ax3.set_yscale('log')
+    ax3.set_xlabel('Insolation [S$_{\oplus}$]', fontsize=10)
+    ax3.set_xlim((1e3,30))
+    ax3.set_ylim((.1,20))
+
+    if label:
+        plt.savefig('plots/planetsample.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+def plot_transit_LCs(self, pltt=True, label=False):
+    return None

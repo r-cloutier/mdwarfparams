@@ -266,10 +266,11 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
 
 
 if __name__ == '__main__':
-    fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099'))
-    for i in range(8,fs.size): # TEMP
-        self = loadpickle(fs[i])
-        print(i, self.tic)
-        fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
-        FWHMarcsec = np.nanmedian(np.load(fwhm_fname)) if os.path.exists(fwhm_fname) else 0
-        FPPs = run_vespa_on_a_TIC(self, FWHMarcsec=FWHMarcsec)
+    fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099*'))
+    for i in range(fs.size):
+        print(i, fs[i].split('/')[1].split('_')[-1])
+        if not os.path.exists('/'.join(fs[i].split('/')[:2])+'/FPPs.npy'):
+            self = loadpickle(fs[i])
+            fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
+            FWHMarcsec = np.nanmedian(np.load(fwhm_fname)) if os.path.exists(fwhm_fname) else 0
+            FPPs = run_vespa_on_a_TIC(self, FWHMarcsec=FWHMarcsec)

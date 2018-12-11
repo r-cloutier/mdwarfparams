@@ -1250,7 +1250,7 @@ if __name__ == '__main__':
     startstarind = int(sys.argv[3])  # 0
     endstarind = int(sys.argv[4])    # 10
     self = OccurrenceRateclass(folder, prefix, startstarind, endstarind,
-                               compute_detections=False,
-                               compute_sens=True,
+                               compute_detections=True,
+                               compute_sens=False,
                                compute_occurrence_rate=False)
-    combine_individual_sens(folder, prefix, '_0_70')
+    #combine_individual_sens(folder, prefix, '_0_70')
