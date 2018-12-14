@@ -72,7 +72,7 @@ class OccurrenceRateclass:
         self.CDPPs, self.depths, self.SNRtransits = np.zeros(0), np.zeros(0), \
                                                     np.zeros(0)
         # POI params
-        self.cond_vals, self.cond_free_params = np.zeros((0,9)), np.zeros((0,9))
+        self.cond_vals, self.cond_free_params = np.zeros((0,9)), np.zeros((0,11))
 
         # are EBs detected
         self.isEB = np.zeros(0, dtype=int)
@@ -163,7 +163,7 @@ class OccurrenceRateclass:
 		    self.cond_vals = np.append(self.cond_vals,
                                                cond_vals.reshape(1,9), axis=0)
                     self.cond_free_params = np.append(self.cond_free_params,
-                                d.transit_condition_free_params.reshape(1,9),
+                                d.transit_condition_free_params.reshape(1,11),
                                                       axis=0)
 
                     # save planet params
@@ -425,7 +425,7 @@ class OccurrenceRateclass:
         self.Nplanets_inj = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.Nplanets_rec = np.zeros((self.Nstars_simulated, Nmaxfs)) + np.nan
         self.cond_vals_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 9))+np.nan
-        self.cond_free_params_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 9))+np.nan
+        self.cond_free_params_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs, 11))+np.nan
         self.Ps_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -531,8 +531,9 @@ class OccurrenceRateclass:
                     NPOIs = d.params_guess_priorto_confirm.shape[0]
                     filler3 = np.repeat(np.nan, 9*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,9)
                     self.cond_vals_inj[i,j] = np.append(d.transit_condition_values, filler3, 0)
-                    free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,9)
-                    self.cond_free_params_inj[i,j] = np.append(free_params, filler3, 0)
+                    free_params = np.array(list(d.transit_condition_free_params)*NPOIs).reshape(NPOIs,11)
+                    filler4 = np.repeat(np.nan, 11*(NmaxPs-NPOIs)).reshape(NmaxPs-NPOIs,11)
+                    self.cond_free_params_inj[i,j] = np.append(free_params, filler4, 0)
 
 
         # compute sensitivity and transit probability maps

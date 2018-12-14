@@ -6,6 +6,8 @@ import linear_lnlike as llnl
 from TESS_search import *
 from matplotlib.ticker import NullFormatter
 import matplotlib.colors as colors
+import matplotlib.patches as patches
+
 
 matplotlib.rcParams.update({'ytick.labelsize': 9})
 matplotlib.rcParams.update({'xtick.labelsize': 9})
@@ -1041,5 +1043,600 @@ def _normF2ppt(Farr):
 
 
 # try: 25200252
-def plot_flare_LC(self, pltt=True, label=False):
+def plot_flare_LC(self, medkernel=9,
+                   sector=0):
+    #assert np.all(self.quarters==0)
+    thetaGPin_final, thetaGPout_final = self.thetaGPin[0], self.thetaGPout[0]
+    cols = ['k','#bd0026','#fed976','#800026','#fc4e2a']
+    t0 = 2457000
+    Nsects = np.unique(self.quarters).size
+    #Nsects = 1 # TEMP
     
+    # get thetaGPs
+    if compute_thetaGP:
+        #g = (self.bjd-self.bjd.min()<=21.88)|(self.bjd-self.bjd.min()>=24.119)
+        thetain_comp2final, thetaout_comp2final, thetaGPsin, thetaGPsout = \
+            _do_optimize_0_custom(self.bjd, self.f, self.ef, self.quarters)
+        np.save('PipelineResults_TIC/thetain_comp2final_%i'%self.tic,
+                thetain_comp2final)
+        np.save('PipelineResults_TIC/thetaout_comp2final_%i'%self.tic,
+                thetaout_comp2final)
+        np.save('PipelineResults_TIC/thetaGPsin_%i'%self.tic, thetaGPsin)
+        np.save('PipelineResults_TIC/thetaGPsout_%i'%self.tic, thetaGPsout)
+    else:
+        thetain_comp2final = \
+            np.load('PipelineResults_TIC/thetain_comp2final_%i.npy'%self.tic)
+        thetaout_comp2final = \
+            np.load('PipelineResults_TIC/thetaout_comp2final_%i.npy'%self.tic)
+        #thetaout_comp2finalv2 = \
+        #    np.load('PipelineResults_TIC/thetaout_comp2final_%iv2.npy'%self.tic)
+        thetaGPsin = np.load('PipelineResults_TIC/thetaGPsin_%i.npy'%self.tic)
+        thetaGPsout = np.load('PipelineResults_TIC/thetaGPsout_%i.npy'%self.tic)
+        #thetaGPsoutv2 = np.load('PipelineResults_TIC/thetaGPsout_%iv2.npy'%self.tic)
+
+        
+    #thetaGPout_finalv2 = np.load('PipelineResults_TIC/thetaout_comp2final_%iv2.npy'%self.tic)[0]
+
+    fig = plt.figure(figsize=(7,4.2))
+    ax = fig.add_axes([.1,.3,.88,.66])
+    ax2 = fig.add_axes([.1,.1,.88,.2])
+    dts = np.zeros(Nsects)
+    for j in range(Nsects):
+        # get time binning from best-fit P_GP
+        Npnts_per_timescale = 8.
+        timescale_to_resolve = np.exp(thetaGPsout[j,0,3]) / \
+                               Npnts_per_timescale
+        # bin the light curve
+        s = self.quarters == j
+        Ttot = self.bjd[s].max() - self.bjd[s].min()
+        if Ttot/timescale_to_resolve < Npntsmin:
+            dt = Ttot / Npntsmin
+        elif Ttot/timescale_to_resolve > Npntsmax:
+            dt = Ttot / Npntsmax
+        else:
+            dt = timescale_to_resolve
+
+        # trim outliers and median filter to avoid fitting deep transits
+        dts[j] = dt*24
+        g = abs(self.f[s]-np.median(self.f[s])) <= Nsig*np.std(self.f[s])
+        tbin, fbin, efbin = llnl.boxcar(self.bjd[s][g],
+                                        medfilt(self.f[s][g],medkernel),
+                                        self.ef[s][g], dt=dt)
+
+        # plot best GP models
+        ax.plot(self.bjd[s]-t0, self.f[s], 'o', c=cols[0], ms=1, alpha=.15)
+
+        # cover up bad point
+        g3 = np.in1d(np.arange(tbin.size), np.where(np.diff(tbin) > .5)[0][-1],
+                     invert=True)
+        ax.plot(tbin[g3]-t0, fbin[g3], 'o', ms=3, markerfacecolor=cols[2],
+                markeredgecolor='k', markeredgewidth=.4)
+
+        # plot gp model
+        tmodel, mu, sig = _get_GP_model(thetaGPout_final, tbin, fbin, efbin,
+                                        np.linspace(self.bjd[s].min(),
+                                                    self.bjd[s].max(), 1000))
+        ax.fill_between(tmodel-t0, mu-sig, mu+sig, color=cols[1], alpha=.3)
+        ax.plot(tmodel-t0, mu, '-', c=cols[1])
+        ax.set_xticklabels('')
+        ax.set_title('TIC %i (sector %i)'%(self.tic,sector), fontsize=8,
+                     weight='semibold', y=.98)
+        
+        # plot GP models from other iterations
+        '''
+        NGP = thetaGPsin.shape[1]
+        assert NGP >= 9
+        for i in range(9):
+            tmodel, mu, sig = _get_GP_model(thetaGPsout[j,i], tbin, fbin,
+                                            efbin, tmodel)
+            if i == 0:
+                ax.plot(tmodel-t0, mu, '-', c=cols[3], lw=.4,
+                        label='remaining GP models ')
+            else:
+                ax.plot(tmodel-t0, mu, '-', c=cols[3], lw=.4)
+        '''
+        # plot residuals
+        trbin, rbin, erbin = llnl.boxcar(self.bjd[s][g],
+                            medfilt((self.f[s]-self.mu[s])[g]*1e6,medkernel),
+                                        self.ef[s][g], dt=dt)
+        ax2.plot(self.bjd[s]-t0, (self.f[s]-self.mu[s])*1e6, 'o', c=cols[0],
+                 ms=1, alpha=.15) 
+        ax2.plot(trbin-t0, rbin, 'o', ms=3, markerfacecolor=cols[2],
+                 markeredgecolor='k', markeredgewidth=.4)
+        # cover up pnt in second sector
+        if j == 0:
+            g3 = np.where(np.diff(trbin) > .5)[0][-1]
+            ax2.plot(trbin[g3]-t0, rbin[g3], 'wo', ms=4)
+        
+    if Nsects > 1:
+        x = self.bjd.mean()-t0+.2
+        ax.axvline(x, ls='--', color='k', lw=2)
+        ax2.axvline(x, ls='--', color='k', lw=2)
+        ax.text(x-.7, 1.0052, 'sector 1', horizontalalignment='right',
+                fontsize=6, weight='semibold')
+        ax.text(x+.7, 1.0052, 'sector 2', horizontalalignment='left',
+                fontsize=6, weight='semibold')
+        
+    ax2.set_xlabel('Time [BJD - 2,457,000]', fontsize=9)
+    ax.set_ylabel('Normalized flux', fontsize=9)
+    ax2.set_ylabel('De-trended Flux\n[ppm]', fontsize=9, labelpad=0)
+    ax.set_ylim(ylim)
+    bjdlim = self.bjd.min()-t0-.3, self.bjd.max()-t0+.3
+    ax.set_xlim(bjdlim)
+    ax2.set_xlim(bjdlim)
+    ax2.set_ylim(ylimres)
+    ax2.set_yticklabels(['','10$^{-5}$','1','10$^{5}$'])
+
+    # plot transit ticks
+    if P != 0 and T0 != 0:
+        for i in range(-27,27):
+            ax.axvline(T0-t0+P*i, ls='-', lw=1.5, c=cols[4], ymax=.05)
+            ax2.axvline(T0-t0+P*i, ls='-', lw=1.5, c=cols[4], ymax=.1)
+    
+    # custom legend
+    ax.plot(.05, .94, 'o', c=cols[0], ms=2, alpha=.8, transform=ax.transAxes)
+    ax.text(.07, .94, 'raw photometry', fontsize=7, transform=ax.transAxes,
+            verticalalignment='center', weight='semibold')
+    ax.plot(.05, .88, 'o', markerfacecolor=cols[2], markeredgecolor='k',
+            markeredgewidth=.5, ms=5, transform=ax.transAxes)
+    endings = [')',')']
+    dt_labels = ''.join(['dt$_%i$ = %.1f min%s'%(i+1,dts[i]*60,endings[i])
+                         for i in range(Nsects)])
+    ax.text(.07, .88, 'binned photometry (%s'%dt_labels, fontsize=7,
+            transform=ax.transAxes, verticalalignment='center',
+            weight='semibold')
+    
+    ax.fill_between([.63,.67], [.92,.92], [.94,.94], color=cols[1], alpha=.3,
+                    transform=ax.transAxes)
+    ax.plot([.63,.67], [.93,.93], '-', color=cols[1], lw=2,
+            transform=ax.transAxes)
+    ax.text(.69, .93,
+            'max($\ln{\mathcal{L}}$) GP models mean and\nstandard deviation',
+            fontsize=7, transform=ax.transAxes, verticalalignment='center',
+            weight='semibold')
+    if P != 0 and T0 != 0:
+        ax.plot([.655,.655], [.84,.88], '-', color=cols[4], lw=1.5,
+                transform=ax.transAxes)
+        ax.text(.69,.86, 'transit markers (P = %.3f days)'%P, fontsize=7,
+                transform=ax.transAxes, verticalalignment='center',
+                weight='semibold')
+    
+    fig.subplots_adjust(bottom=.1, top=.96, right=.98, left=.05)
+    if label:
+        plt.savefig('plots/GPdetrend_%i.png'%self.tic)
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+
+def _do_optimize_0_custom(bjd, f, ef, quarters, N=10,
+                          Npntsmin=5e2, Npntsmax=1e3, Nsig=3, medkernel=9):
+    '''First fit the PDC LC with GP and a no planet model using an optimization
+    routine and tested with N different initializations.'''
+    # fit GP separately to each quarter (or K2 campaign)
+    assert bjd.size == f.size
+    assert bjd.size == ef.size
+    assert bjd.size == quarters.size
+    NGP = np.unique(quarters).size
+
+    # test various hyperparameter initializations and keep the one resulting
+    # in the most gaussian-like residuals
+    N = int(N)
+    thetaGPs_in_tmp, thetaGPs_out_tmp = np.zeros((NGP,N,4)), \
+                                        np.zeros((NGP,N,4))
+    thetaGPs_in, thetaGPs_out = np.zeros((NGP,4)), np.zeros((NGP,4))
+    for i in range(NGP):
+        g1 = quarters == i
+
+        #pvalues = np.zeros(N)
+        lnLs = np.zeros(N)
+        for j in range(N):
+            # get initial GP parameters (P, and l from periodogram)
+            thetaGPs_in_tmp[i,j] = initialize_GP_hyperparameters(bjd[g1], f[g1],
+                                                                 ef[g1],
+                                                                 Pindex=j)
+            Npnts_per_timescale = 8.
+            inds = np.array([1,3])
+            timescale_to_resolve = np.exp(thetaGPs_in_tmp[i,j,inds]).min() / \
+                                   Npnts_per_timescale
+            # bin the light curve
+            Ttot = bjd[g1].max() - bjd[g1].min()
+            if Ttot/timescale_to_resolve < Npntsmin:
+                dt = Ttot / Npntsmin
+            elif Ttot/timescale_to_resolve > Npntsmax:
+                dt = Ttot / Npntsmax
+            else:
+                dt = timescale_to_resolve
+
+            # trim outliers and median filter to avoid fitting deep transits
+            g = abs(f[g1]-np.median(f[g1])) <= Nsig*np.std(f[g1])
+            tbin, fbin, efbin = llnl.boxcar(bjd[g1][g], medfilt(f[g1][g],medkernel),
+                                            ef[g1][g], dt=dt)
+            gp,mu,sig,thetaGPs_out_tmp[i,j] = fit_GP_0(thetaGPs_in_tmp[i,j],
+                                                       tbin, fbin, efbin)
+            # compute residuals and the normality test p-value
+            #_,pvalues[j] = normaltest(fbin-mu)
+            lnLs[j] = llnl.lnlike(tbin, fbin, efbin, mu)
+            
+        # select the most gaussian-like residuals
+        g = np.argsort(lnLs)[-1]
+        thetaGPs_in[i]  = thetaGPs_in_tmp[i,g]
+        thetaGPs_out[i] = thetaGPs_out_tmp[i,g]
+
+    return thetaGPs_in, thetaGPs_out, thetaGPs_in_tmp, thetaGPs_out_tmp
+
+
+def _get_GP_model(thetaGP, tbin, fbin, efbin, tmodel):
+    assert len(thetaGP) == 4
+    a, l, G, Pgp = np.exp(thetaGP)
+    k1 = george.kernels.ExpSquaredKernel(l)
+    k2 = george.kernels.ExpSine2Kernel(G,Pgp)
+    gp = george.GP(a*(k1+k2))
+    try:
+        gp.compute(tbin, efbin)
+    except (ValueError, np.linalg.LinAlgError):
+        return np.repeat(None,4)
+    mu, cov = gp.predict(fbin, tmodel)
+    sig = np.sqrt(np.diag(cov))
+    return tmodel, mu, sig
+
+
+def plot_stellar_corner(dTIC, dTIC_sect1, dTIC_sect2, pltt=True, label=False):
+    assert dTIC.shape == (93090,89)  #np.genfromtxt('input_data/TESStargets/TICv7_Mdwarfsv1.csv', delimiter=',', skip_header=5)
+    assert dTIC_sect1.shape == (905, 39) #np.loadtxt('input_data/TESStargets/TESSMdwarfs_sector1_v2.csv', delimiter=',')
+    assert dTIC_sect2.shape == (1062,39) #np.loadtxt('input_data/TESStargets/TESSMdwarfs_sector2_v2.csv', delimiter=',')
+
+    cols = ['#fc4e2a','#800026','#e31a1c','#bd0026','#fed976']
+    
+    # setup arrays for pre and post GAIA stellar parameters
+    inds1 = np.array([60,64,70,72])
+    TESSmag1, Teff1, Rs1, Ms1 = dTIC[:,inds1].T
+    list1 = [TESSmag1, Teff1, Rs1, Ms1]
+
+    inds2 = np.array([0,7,27,30,33])
+    TICs21, TESSmag21, Rs21, Teff21, Ms21 = dTIC_sect1[:,inds2].T
+    TICs22, TESSmag22, Rs22, Teff22, Ms22 = dTIC_sect2[:,inds2].T
+    _,inds = np.unique(np.append(TICs21,TICs22), return_index=True)
+    TESSmag2 = np.append(TESSmag21,TESSmag22)[inds]
+    Teff2 = np.append(Teff21,Teff22)[inds]
+    Rs2 = np.append(Rs21,Rs22)[inds]
+    Ms2 = np.append(Ms21,Ms22)[inds]
+    list2 = [TESSmag2, Teff2, Rs2, Ms2]
+
+    labels = ['$T$','$T_{eff}$ [K]','$R_s$ [R$_{\odot}$]','$M_s$ [M$_{\odot}$]']
+    lims = [(5,16),(2700,4100),(.1,.65),(.1,.65)]
+    titles1 = ['%.1f,','%i,','%.2f,','%.2f,']
+    titles2 = ['%.1f','%i K','%.2f R$_{\odot}$','%.2f M$_{\odot}$']
+    tickvals = [range(6,16,2),np.arange(28,41,4)*1e2,np.arange(.2,.7,.2),
+                np.arange(.2,.7,.2)]
+    ticklabels = [['6','8','10','12','14'], ['2800','3200','3600','4000'],
+                  ['0.2','0.4','0.6'], ['0.2','0.4','0.6']]
+    bins = [np.linspace(7,16,20), np.linspace(2700,4050,20),
+            np.linspace(.1,.65,20), np.linspace(.1,.65,20)]
+    
+    fig = plt.figure(figsize=(3.7,4))
+    subplot = 1
+    for i in range(4):
+        for j in range(4):
+
+            ax = fig.add_subplot(4,4,subplot)
+            subplot += 1
+            
+            # plot 1d histogram
+            if i == j:
+                y1,_,_=ax.hist(list1[i], bins=bins[i], color=cols[0], normed=1,
+                              histtype='step',lw=1)
+                ax.hist(list1[i], bins=bins[i], color=cols[0], normed=1, alpha=.3)
+                y2,_,_=ax.hist(list2[i], bins=bins[i], color=cols[1], normed=1,
+                               histtype='step',lw=1.5)
+                ax.hist(list2[i], bins=bins[i], color=cols[1], normed=1, alpha=.5)
+                ax.set_xlim(lims[i])
+                if j < 3: ax.set_xticklabels('')
+                if j == 3:
+                    ax.set_xlabel(labels[j], fontsize=7, labelpad=1)
+                    ax.set_xticks(tickvals[j])
+                    ax.set_xticklabels(ticklabels[j], fontsize=5)
+                ax.set_yticklabels('')
+                ax.plot(np.repeat(np.nanmedian(list1[i]),2),[0,np.max([y1,y2])], '--',
+                        lw=.8,c=cols[0])
+                ax.plot(np.repeat(np.nanmedian(list2[i]),2),[0,np.max([y1,y2])], '--',
+                        lw=.8, c=cols[1])
+                ax.text(.49, 1.05, titles1[i]%np.nanmedian(list1[i]), fontsize=7,
+                        transform=ax.transAxes, horizontalalignment='right',
+                        weight='semibold', color=cols[0])
+                ax.text(.51, 1.05, titles2[i]%np.nanmedian(list2[i]), fontsize=7,
+                        transform=ax.transAxes, horizontalalignment='left',
+                        weight='semibold', color=cols[1])
+                
+            # 2d histogram
+            elif i > j:
+                ax.plot(list1[j], list1[i], '.', c=cols[0], ms=1, alpha=.1)
+                ax.plot(list2[j], list2[i], '.', c=cols[1], ms=1.5, alpha=.8)
+                ax.set_xlim(lims[j]), ax.set_ylim(lims[i])
+                if i < 3: ax.set_xticklabels('')
+                if j > 0: ax.set_yticklabels('')
+                if j == 0:
+                    ax.set_ylabel(labels[i], fontsize=7, labelpad=1.5)
+                    ax.set_yticks(tickvals[i])
+                    ax.set_yticklabels(ticklabels[i], fontsize=5)
+                if i == 3:
+                    ax.set_xlabel(labels[j], fontsize=7, labelpad=1.5)
+                    ax.set_xticks(tickvals[j])
+                    ax.set_xticklabels(ticklabels[j], fontsize=5, rotation=45)
+                    
+            # no plot
+            else:
+                ax.axis('off')
+
+    fig.subplots_adjust(top=.96, right=.98, left=.1, bottom=.09, hspace=.05, wspace=.05)
+    if label:
+        plt.savefig('plots/stellar_corner.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+    
+
+
+def plot_planet_population(self, pltt=True, label=False):
+    assert hasattr(self, 'isTESSalert')
+    ta = (self.isTESSalert==1) & np.in1d(self.disposition_human, range(2)) 
+    g0 = self.disposition_human == 0
+    g1 = self.disposition_human == 1
+    g2 = self.disposition_human == 2
+    
+    cols = ['b','k','g','r','c']
+    rplim = (1,7)
+    ms = 4
+
+    # undetected TOIs
+    tois_UD = [203.01,237.01,221.01,175.02,175.03]
+    assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
+    tics = [259962054,305048087,316937670,307210830,307210830]
+    gt = np.in1d(self.tics, tics)
+    Ls_UD = compute_Ls(self.Rss[gt], self.Teffs[gt])
+    Ps_UD = [52,5.43,.624,7.45,2.25]
+    Fs_UD = compute_F(Ls_UD, rvs.semimajoraxis(np.array(Ps_UD),self.Mss[gt],0))
+    rps_UD = [1.22,1.74,1.67,1.43,.794]
+    
+    # plot planet candidates that passed human vetting (and maybe vespa?)
+    fig = plt.figure(figsize=(6.5,3.5))
+
+    # plot rp vs P
+    ax1 = fig.add_subplot(121)
+    ax1.errorbar(self.Ps[g0], self.rps[g0], xerr=self.e_Ps[g0],
+                 yerr=self.ehi_rps[g0], fmt='o', ms=ms, color=cols[0],
+                 elinewidth=1, capsize=0, label='pPC')
+    ax1.errorbar(self.Ps[g1], self.rps[g1], xerr=self.e_Ps[g1],
+                 yerr=self.ehi_rps[g1], fmt='o', ms=ms, color=cols[1],
+                 elinewidth=1, capsize=0, label='PC')
+    ax1.errorbar(self.Ps_singletransit[g2], self.rps[g2],
+                 xerr=[self.elo_Ps_singletransit[g2],
+                       self.ehi_Ps_singletransit[g2]],
+		 yerr=self.ehi_rps[g2], fmt='o', ms=ms, color=cols[2],
+                 elinewidth=1, capsize=0, label='single transit')
+    ax1.plot(self.Ps[ta], self.rps[ta], 'd', c=cols[3], ms=ms*2,
+             label='TESS alert')
+    # labels
+    dx = [2,.16,.23,3,.4,.5]
+    dy = [.2,.05,-.13,0,.05,.15]
+    for i in range(ta.sum()):
+        ax1.text(self.Ps[ta][i]+dx[i], self.rps[ta][i]+dy[i],
+                 'TOI-%.2f'%self.tois[ta][i], fontsize=3, weight='semibold')
+
+        
+    ax1.plot(Ps_UD, rps_UD, 'd', c=cols[4], ms=ms*1.5)
+        
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.set_xlabel('Orbital Period [days]', fontsize=10)
+    ax1.set_ylabel('Planet Radius [R$_{\oplus}$]', fontsize=10)
+    ax1.set_xlim((.5,2e2))
+    ax1.set_ylim(rplim)
+    ax1.yaxis.set_major_formatter(NullFormatter())
+    ax1.yaxis.set_minor_formatter(NullFormatter())
+    ax1.set_xticks([1,10,100])
+    ax1.set_xticklabels(['1','10','100'])
+    ax1.set_yticks(range(1,7))
+    ax1.set_yticklabels(['%i'%i for i in range(1,7)])
+    
+    # plot rp vs F
+    ax2 = fig.add_subplot(122)
+    ax2.errorbar(self.Fs[g0], self.rps[g0], xerr=self.ehi_Fs[g0],
+                 yerr=self.ehi_rps[g0], fmt='o', ms=ms, color=cols[0],
+                 elinewidth=1, capsize=0)
+    ax2.errorbar(self.Fs[g1], self.rps[g1], xerr=self.ehi_Fs[g1],
+                 yerr=self.ehi_rps[g1], fmt='o', ms=ms, color=cols[1],
+                 elinewidth=1, capsize=0)
+    ax2.errorbar(self.Fs_singletransit[g2], self.rps[g2],
+                 xerr=[self.elo_Fs_singletransit[g2],
+                       self.ehi_Fs_singletransit[g2]],
+		 yerr=self.ehi_rps[g2], fmt='o', ms=ms, color=cols[2],
+                 elinewidth=1, capsize=0, label='single transit')
+    ax2.fill_between([.2,1.5], np.repeat(np.min(rplim),2),
+                     np.repeat(np.max(rplim),2), color='b', alpha=.3)
+    ax2.fill_between([.22,.9], np.repeat(np.min(rplim),2),
+                     np.repeat(np.max(rplim),2), color='b', alpha=.3)
+    ax2.plot(self.Fs[ta], self.rps[ta], 'd', ms=ms*2, c=cols[3])
+    ax2.set_xscale('log')
+    ax2.set_yscale('log')
+    ax2.set_xlabel('Insolation [S$_{\oplus}$]', fontsize=10)
+    ax2.set_xlim((2e2,.1))
+    ax2.set_ylim(rplim)
+    ax2.yaxis.set_major_formatter(NullFormatter())
+    ax2.yaxis.set_minor_formatter(NullFormatter())
+    ax2.set_xticks([.1,1,10,100])
+    ax2.set_xticklabels(['0.1','1','10','100'])
+    ax2.set_yticks(range(1,7))
+    ax2.set_yticklabels('')
+
+    # custom legend
+    #ax1.legend(loc='upper left', fontsize=7)
+    ax1.plot(.07, .93, 'o', c=cols[1], ms=ms, transform=ax1.transAxes)
+    ax1.text(.11, .93, 'PC', fontsize=5, transform=ax1.transAxes,
+             verticalalignment='center', weight='semibold')
+    ax1.plot(.07, .87, 'o', c=cols[0], ms=ms, transform=ax1.transAxes)
+    ax1.text(.11, .87, 'pPC', fontsize=5, transform=ax1.transAxes,
+             verticalalignment='center', weight='semibold')
+    ax1.plot(.07, .81, 'o', c=cols[2], ms=ms, transform=ax1.transAxes)
+    ax1.text(.11, .81, 'ST', fontsize=5, transform=ax1.transAxes,
+             verticalalignment='center', weight='semibold')
+    ax1.plot(.07, .75, 'd', c=cols[3], ms=ms, transform=ax1.transAxes)
+    ax1.text(.11, .75, 'detected TOI', fontsize=5, transform=ax1.transAxes,
+             verticalalignment='center', weight='semibold')
+    ax1.plot(.07, .69, 'd', c=cols[4], ms=ms, transform=ax1.transAxes)
+    ax1.text(.11, .69, 'undetected TOI', fontsize=5, transform=ax1.transAxes,
+             verticalalignment='center', weight='semibold')
+    
+    fig.subplots_adjust(bottom=.15, top=.97, right=.97, left=.06, wspace=.05)
+    if label:
+        plt.savefig('plots/planetsample.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+    
+def plot_transit_LCs(self, ticswPCs, folder='PipelineResults_TIC',
+                     pltt=True, label=False):
+    ticswPCs = np.unique(ticswPCs)
+    assert ticswPCs.size > 0
+    Nticswdet = ticswPCs.size
+    
+    cols = ['k','b','g','r']
+    limits = {12421862:{'xlim':[(-5,5)],'ylim':[(.997,1.003)],'dt':[.35]},
+              33734143:{'xlim':[(-5,5)],'ylim':[(.997,1.003)],'dt':[.35]},
+              47484268:{'xlim':[(-7,7),(-6,6)],'ylim':[(.986,1.012),(.984,1.014)],
+                        'dt':[.2,.3]},
+              55652063:{'xlim':[(-11,11)],'ylim':[(.995,1.005)],'dt':[.3]},
+              92444219:{'xlim':[(-8,8)],'ylim':[(.99,1.009)],'dt':[.35]},
+              100103200:{'xlim':[(-6,6)],'ylim':[(.996,1.003)],'dt':[.23]},
+              100103201:{'xlim':[(-8,8)],'ylim':[(.997,1.003)],'dt':[.3]},
+              141708335:{'xlim':[(-5,5)],'ylim':[(.992,1.008)],'dt':[.16]},
+              231279823:{'xlim':[(-7,7)],'ylim':[(.997,1.0025)],'dt':[.2]},
+              234994474:{'xlim':[(-3,3)],'ylim':[(.998,1.002)],'dt':[.2]},
+              235037759:{'xlim':[(-8,8)],'ylim':[(.91,1.08)],'dt':[.2]},
+              238027971:{'xlim':[(-7,7)],'ylim':[(.995,1.005)],'dt':[.5]},
+              262530407:{'xlim':[(-3.5,3.5)],'ylim':[(.997,1.003)],'dt':[.2]},
+              278661431:{'xlim':[(-11,11)],'ylim':[(.984,1.015)],'dt':[.4]},
+              307210830:{'xlim':[(-4,4)],'ylim':[(.997,1.003)],'dt':[.18]},
+              415969908:{'xlim':[(-8,8),(-8,8)],'ylim':[(.994,1.006),(.994,1.006)],
+                         'dt':[.2,.2]},
+              441026957:{'xlim':[(-2,2)],'ylim':[(.998,1.002)],'dt':[.2]}}
+    
+    fig = plt.figure(figsize=(6.5,6))
+    subplot = 1
+    for i in range(Nticswdet):
+        
+        tic = ticswPCs[i]
+        print i, tic
+        assert np.any(np.in1d(self.disposition_human[self.tics==tic], [0,1,2]))
+        d = loadpickle('%s/TIC_%i/LC_-00099'%(folder, tic))
+
+        for j in range(d.Ndet):
+            P,T0 = d.params_optimized[j,:2]
+            aRs,rpRs,inc = d.params_results[j,0,2:]
+            func = llnl.transit_model_func_curve_fit(d.u1, d.u2)
+            fmodel = func(d.bjd, P, T0, aRs, rpRs, inc)
+            isalert = np.any(self.isTESSalert[self.tics==tic])
+            disposition = self.disposition_human[self.tics==tic][j+1]
+            if j == 0: PCind = 1
+            
+            # is this planet a candidate or FP?
+            if self.disposition_human[(self.tics==d.tic) & \
+                                      np.isclose(self.Ps,P,rtol=.01)] in [0,1,2]:
+
+                phase = foldAt(d.bjd, P, T0)
+                phase[phase > .5] -= 1
+                phase_hrs = phase*P*24  # phase in hours
+                s = np.argsort(phase_hrs)
+                tb, fb, efb = llnl.boxcar(phase_hrs[s], d.fcorr[s], d.ef[s],
+                                          dt=limits[tic]['dt'][PCind-1])
+                
+                ax = fig.add_subplot(5,4,subplot)
+                subplot += 1
+                ax.plot(phase_hrs, d.fcorr, 'o', ms=1, c=cols[0], alpha=.1)
+                cs = ('r','^') if isalert else ('b','o')
+                disp = 'PC' if disposition == 1 else 'pPC' 
+                ax.plot(tb, fb, cs[1], ms=3, c=cs[0])
+                ax.plot(phase_hrs[s], fmodel[s], '-', c=cols[0])
+                ax.text(.95,.92,disp,fontsize=7, horizontalalignment='right',
+                        verticalalignment='top',transform=ax.transAxes,weight='semibold')
+                ax.set_title('TIC = %i'%tic, fontsize=8, weight='semibold', y=.98)
+                ax.set_xlim(limits[tic]['xlim'][PCind-1])
+                ax.set_ylim(limits[tic]['ylim'][PCind-1])
+                yticks = ax.get_yticks()
+                ax.set_yticks(yticks)
+                ax.set_yticklabels(['%i'%i for i in _normF2ppt(yticks)])
+                ax.set_ylim(limits[tic]['ylim'][PCind-1])
+                
+                PCind += 1
+
+    fig.text(.01, .5, 'Transit depth [ppm] x 10$^{-3}$', rotation=90,
+             verticalalignment='center')
+    fig.text(.5, .01, 'Orbital Phase [hours]', horizontalalignment='center')
+    fig.subplots_adjust(right=.98, top=.95)
+    if label:
+        plt.savefig('plots/transitLC_PCs.png')
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+def _normF2ppt(Farr):
+    return np.round(1e3*(np.array(Farr)-1.))
+
+
+# try: 25200252
+def plot_flare_LC(self, medkernel=9, Nsig_flare=8, pltt=True, label=False):
+
+    cols = ['k','#bd0026','#fed976','#800026','#fc4e2a']
+    t0 = 2457000
+    
+    tb, fb, ef = llnl.boxcar(self.bjd, medfilt(self.fcorr,medkernel),
+                             self.ef, dt=30./24/60)
+    inflare=self.fcorr>=np.median(self.fcorr)+Nsig_flare*llnl.MAD1d(self.fcorr)
+
+    fig = plt.figure(figsize=(3.7,2.7))
+    ax = fig.add_subplot(111)    
+    ax.plot(self.bjd-t0, self.fcorr, '.', c=cols[0], ms=1, alpha=.6)
+    ax.plot(self.bjd[inflare]-t0, self.fcorr[inflare], '.', c=cols[4], ms=1,
+            alpha=.9)
+    #ax.plot(tb-t0, fb, 'o', ms=3, markerfacecolor=cols[2],
+    #        markeredgecolor='k', markeredgewidth=.4)
+
+    ax1 = fig.add_axes([.55,.53,.3,.3])
+    t0_flare = 1332.212
+    dxi, dxf = -60, 120
+    yi, yf = .95, 1.8
+    ax1.plot((self.bjd-t0-t0_flare)*24*60, self.fcorr, '.', ms=3, alpha=.9,
+             c=cols[0])
+    ax1.plot((self.bjd-t0-t0_flare)*24*60, self.fcorr, '-', lw=.5, c=cols[0])
+    ax1.plot((self.bjd[inflare]-t0-t0_flare)*24*60, self.fcorr[inflare], '.',
+             ms=3, alpha=.9, markerfacecolor=cols[4], markeredgecolor='k',
+             markeredgewidth=.2)
+    #rect = patches.Rectangle((t0_flare-dxi/60./24,yi), (dxf-dxi)/60./24, yf-yi,
+    #                         lw=1, edgecolor='k', facecolor='none')
+    #ax.add_patch(rect)
+    ax.fill_between(np.array([dxi,dxf])/60./24+t0_flare, [yi,yi], [yf,yf],
+                    color=cols[0], alpha=.5)
+    
+    ax1.set_xlim((dxi, dxf))
+    ax1.set_ylim((yi,yf))
+    ax.set_ylim((yi,yf))
+    ax1.set_ylabel('De-trended Flux', fontsize=7, labelpad=.9)
+    ax1.set_xlabel('Time from flare\npeak [minutes]', fontsize=7, labelpad=.1)
+    ax1.set_xticks(range(dxi,dxf+1,60))
+    ax1.set_xticklabels(['%i'%i for i in range(dxi,dxf+1,60)], fontsize=7)
+    ax1.set_yticks(np.arange(1,1.9,.4))
+    ax1.set_yticklabels(np.arange(1,1.9,.4), fontsize=7)
+    
+    ax.set_xlabel('Time [BJD - 2,4570,000]', fontsize=8)
+    ax.set_ylabel('De-trended Flux', fontsize=8)
+    
+    if label:
+        plt.savefig('plots/flareLC_%i.png'%self.tic)
+    if pltt:
+        plt.show()
+    plt.close('all')
