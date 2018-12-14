@@ -484,7 +484,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    #transitlikefrac,
                                                    min_autocorr_coeff,
                                                    cutedges_hrs,
-                                                   Ndur_flare,
+                                                   Ndurs_nearT0,
+                                                   flare_dur_days,
                                                    Nsig_flare])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
@@ -497,7 +498,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                               #'indiv_transit_fraction',
                                               'not_autocorrelated_residuals',
                                               'neglect_edges',
-                                              'ensure_no_flux_jumps_within_few_durs'])
+                                              'no_flares_nearT0'])
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
