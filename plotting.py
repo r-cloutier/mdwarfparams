@@ -1038,3 +1038,8 @@ def plot_transit_LCs(self, ticswPCs, folder='PipelineResults_TIC',
 
 def _normF2ppt(Farr):
     return np.round(1e3*(np.array(Farr)-1.))
+
+
+# try: 25200252
+def plot_flare_LC(self, pltt=True, label=False):
+    

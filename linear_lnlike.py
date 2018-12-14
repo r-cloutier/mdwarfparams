@@ -9,7 +9,7 @@ global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min
 #                                                        2.4, 4.5, .7, .1, .7, .6
 minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
                                                         5, 2.4, 12., .7, .1, .7, .6
-cutedges_hrs, Ndurs_nearT0, flare_dur_days, Nsig_flare = 4.8, 4, 30./60/24, 10 
+cutedges_hrs, Ndurs_nearT0, flare_dur_days, Nsig_flare = 4.8, 4, 30./60/24, 15
 ## could change 12.7 to 14 get a more reasonable number of planets but this may hurt sensitivity
 ## to small planets and it may be worth it to keep that sensitivity in return for having more FPs
 ## which I should be able to correct for when computing occurrences
@@ -791,7 +791,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
 
             # check for flares within a few durations of T0
             inflare = fcorr >= np.median(fcorr) + Nsig_flare*MAD1d(fcorr)
-            Nflares = (np.diff(bjd[inflare]) > flare_dur_days).sum()
+	    Nflares = (np.diff(np.where(np.diff(bjd[inflare]) > flare_dur_days)[0]) > 1).sum()
             frac_in_flare = flare_dur_days*Nflares / (bjd.max() - bjd.min()) 
             inflare = fcorr > np.percentile(fcorr, 1e2*(1-frac_in_flare))
             near_T0 = (phase*P >= -Ndurs_nearT0*duration) & (phase*P <= Ndurs_nearT0*duration)
