@@ -8,6 +8,15 @@ from send_email import *
 from uncertainties import unumpy as unp
 from planetsearch import *
 import mwdust
+from run_vespa import read_TESS_TPF
+from matplotlib.patches import Rectangle
+import matplotlib.colors as colors
+
+
+def truncate_colormap(cmap, minval=0, maxval=1, n=100):
+    return colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f},)'.format(n=cmap.name,a=minval,b=maxval),
+        cmap(np.linspace(minval, maxval, n)))
 
 
 def get_stellar_data_K2(epicnums, fout, radius_arcsec=10, overwrite=False):
@@ -383,6 +392,80 @@ def MK2Ms(MK):
         return unp.uarray(np.nan, np.nan)
     
     
+def query_nearby_gaia(tic, ra_deg, dec_deg, Npixsearch=5, Npixplt=3, pltt=True):
+    '''Search nearby stars within some number of TESS pixels.'''
+    # download TPF file
+    bjds, tpfs = read_TESS_TPF(tic)
+    TPFfname = glob.glob('MAST/TESS/TIC%i/tess*_tp.fits'%tic)
+    assert len(TPFfname) > 0
+    hdu = fits.open(TPFfname[0])
+
+    # get reference pixel and pixelscale
+    pixscale_ra, pixscale_dec = abs(hdu[1].header['1CDLT4']), \
+                                abs(hdu[1].header['2CDLT4'])
+    refra, refdec = hdu[1].header['1CRVL4'], hdu[1].header['2CRVL4']
+    #R = np.matrix([[hdu[1].header['11PC4'],hdu[1].header['12PC4']],
+    #               [hdu[1].header['21PC4'],hdu[1].header['22PC4']]])
+    
+    # search gaia data
+    coord = SkyCoord(ra=ra_deg, dec=dec_deg,
+                     unit=(u.degree, u.degree), frame='icrs')
+    radius_arcsec = float(Npixsearch*pixscale_ra*3600)
+    rad = u.Quantity(radius_arcsec, u.arcsec)
+    rG = Gaia.query_object_async(coordinate=coord, radius=rad)
+    assert len(rG) > 0
+
+    # get source data
+    ras = np.array(rG['ra'])
+    e_ras = np.array(rG['ra_error'])
+    decs = np.array(rG['dec'])
+    e_decs = np.array(rG['dec_error'])
+    Gmags = np.array(rG['phot_g_mean_mag'])
+
+    # plotting
+    if pltt:
+        fig,ax = plt.subplots(1)
+        ax.plot(ra_deg, dec_deg, 'bd', ms=8, label='Input source position')
+        cax = ax.scatter(ras, decs, c=Gmags, s=50*10**(-.4*(Gmags-15)),
+                         edgecolor='k',
+                         cmap=truncate_colormap(plt.get_cmap('hot_r'),.1,.9))
+        ax.plot(ras, decs, 'k.')
+        cbar_axes = fig.add_axes([.1,.1,.85,.04])
+        cbar = fig.colorbar(cax, cax=cbar_axes, orientation='horizontal')
+        cbar.set_label('GAIA mag')
+        ax.set_xlabel('RA [deg]'), ax.set_ylabel('Dec [deg]')
+
+        # plot search annulus
+        r = np.repeat(radius_arcsec, 100) / 3600
+        theta = np.linspace(0,2*np.pi,r.size)
+        ax.plot(r*np.cos(theta)+ra_deg, r*np.sin(theta)+dec_deg, 'k--', lw=.9)
+        
+        # add patches of a TESS pixels
+        assert Npixplt % 2 == 1
+        Xcorners = range(-int(np.floor(Npixplt/2.)),
+                         int(np.floor(Npixplt/2.))+1)
+        Ycorners = range(-int(np.floor(Npixplt/2.)),
+                         int(np.floor(Npixplt/2.))+1)
+        for i in Xcorners:
+            for j in Ycorners:
+                lowercorner_ra,lowercorner_dec = (-.5+i)*pixscale_ra + refra, \
+                                                 (-.5+j)*pixscale_dec + refdec
+                rect = Rectangle((lowercorner_ra,lowercorner_dec), pixscale_ra,
+                                 pixscale_dec, lw=1, edgecolor='k',
+                                 facecolor='none')
+                ax.add_patch(rect)
+        ax.set_xlim((ras.min()-pixscale_ra, ras.max()+pixscale_ra))
+        ax.set_ylim((decs.min()-pixscale_dec, decs.max()+pixscale_dec))
+        ax.set_title('TIC %i (%i sources found)'%(tic,len(rG)), fontsize=10)
+        ax.legend(loc='upper left', fontsize=10)
+        fig.subplots_adjust(bottom=.22, top=.95)
+        plt.savefig('plots/gaiasources_tic%i.png'%tic)
+        #plt.show()
+        plt.close('all')
+        
+    return ras, e_ras, decs, e_decs, Gmags
+
+
 
 if __name__ == '__main__':
     #fname = 'input_data/K2targets/K2Mdwarfsv1_leq3300.csv' 
@@ -394,7 +477,7 @@ if __name__ == '__main__':
     #print 'Took %.3f min'%((time.time()-t0)/60.)
     #send_email()
 
-    fname = 'input_data/Keplertargets/kic10_search.csv'
+    '''fname = 'input_data/Keplertargets/kic10_search.csv'
     fout = 'input_data/Keplertargets/KepMdwarfsv1.csv'
     Kepids = np.loadtxt(fname, delimiter=',', usecols=range(1))
 
@@ -402,4 +485,4 @@ if __name__ == '__main__':
     t0 = time.time()
     get_stellar_data_Kep(Kepids, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
-    send_email()
+    send_email()'''

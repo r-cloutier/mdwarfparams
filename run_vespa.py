@@ -38,8 +38,11 @@ def run_vespa_on_a_TIC(self, FWHMarcsec=0):
         # get read in results and compute the FPP of the planet candidate
         #vespa_results[i] = np.loadtxt('results.txt', skiprows=1)
         #FPPs[i] = vespa_results[i,-1]
-        fpp = FPPCalculation.load(self.folder_full)
-        FPPs[i] = fpp.FPP()
+        try:
+            fpp = FPPCalculation.load(self.folder_full)
+            FPPs[i] = fpp.FPP()
+        except FileNotFoundError:
+            FPPs[i] = np.nan
         
     # save FPPs
     np.save('%s/FPPs'%self.folder_full, FPPs)
@@ -151,7 +154,7 @@ def get_EB_maxrad_condition(self):
     for vespa to consider when searching for blended stars.
     '''
     # read in target pixel files to find the average PSF FWHM
-    bjds, tpfs = _read_TESS_TPF(self.tic)
+    bjds, tpfs = read_TESS_TPF(self.tic)
     Ntimes, NpixX, NpixY = tpfs.shape
     x, y = np.meshgrid(np.arange(NpixX), np.arange(NpixY))
     FWHMs = np.zeros(0)
@@ -180,7 +183,7 @@ def get_EB_maxrad_condition(self):
     return maxrad
 
 
-def _read_TESS_TPF(tic):
+def read_TESS_TPF(tic):
     # make directories
     try:
         os.mkdir('MAST')
@@ -267,7 +270,7 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
 
 if __name__ == '__main__':
     fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099*'))
-    for i in range(fs.size):
+    for i in range(82,fs.size): # TEMP
         print(i, fs[i].split('/')[1].split('_')[-1])
         if not os.path.exists('/'.join(fs[i].split('/')[:2])+'/FPPs.npy'):
             self = loadpickle(fs[i])

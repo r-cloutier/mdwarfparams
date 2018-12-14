@@ -4,11 +4,12 @@ import EBvetting as vett
 import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
-global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff
+global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff, cutedges_hrs, Ndepths_2dur
 #dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
 #                                                        2.4, 4.5, .7, .1, .7, .6
 minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
                                                         5, 2.4, 12.7, .7, .1, .7, .6
+cutedges_hrs, Ndurs_nearT0, flare_dur_days, Nsig_flare = 4.8, 4, 30./60/24, 10 
 ## could change 12.7 to 14 get a more reasonable number of planets but this may hurt sensitivity
 ## to small planets and it may be worth it to keep that sensitivity in return for having more FPs
 ## which I should be able to correct for when computing occurrences
@@ -400,6 +401,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     # remove common periods based on maximum likelihood
     POIs1, T0OIs1, DOIs1, ZOIs1, lnLOIs1 = \
                                     remove_common_P(Ps2, T0s2, Ds2, Zs2, lnLs2)
+    print POIs1[np.argsort(lnLOIs1)[::-1]]
 
     # update Z manually
     ZOIs2 = np.zeros(POIs1.size)
@@ -424,7 +426,8 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
     params2 = np.array([POIs2, T0OIs2, ZOIs2, DOIs2]).T[g]
     params2, lnLOIs2 = trim_planets(params2, lnLOIs2[g])
     POIs2, T0OIs2, ZOIs2, DOIs2 = params2.T
-    
+    print POIs2[np.argsort(lnLOIs2)[::-1]]
+
     # consider integer fractions of Ps which may have been missed by
     # the linear search but should be 'detectable' when phase folded
     POIs3, T0OIs3, DOIs3, ZOIs3, lnLOIs3 = consider_fractional_P(bjd, fcorr, ef,
@@ -436,15 +439,24 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  self.Teff,
                                                                  Kep=Kep,
                                                                  TESS=TESS)
-    
+
+    # save POIs and lnLs for plotting if desired (a very specific requirement)
+    savePOIs = 1
+    if savePOIs:
+	lnL0 = lnlike(bjd, fcorr, ef, np.ones(bjd.size))
+	np.save('input_data/POIs_lnLOIs_tic%i'%self.tic, np.array([np.append(POIs3,0),
+								   np.append(lnLOIs3,lnL0)]).T)
+
     # remove duplicates and multiples
     POIs4, T0OIs4, DOIs4, ZOIs4, lnLOIs4 = remove_common_P(POIs3, T0OIs3, DOIs3,
                                                            ZOIs3, lnLOIs3)
+    print POIs4[np.argsort(lnLOIs4)[::-1]]
     POIs5, T0OIs5, DOIs5, ZOIs5, lnLOIs5 = remove_multiple_on_lnLs(bjd, ef,
                                                                    POIs4,
                                                                    T0OIs4,
                                                                    DOIs4, ZOIs4,
                                                                    lnLOIs4)
+    print POIs5[np.argsort(lnLOIs5)[::-1]]
 
     # do not consider too many planets to limit FPs
     g = ZOIs5 > 0
@@ -470,7 +482,10 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                    T0tolerance,
 						   np.nan,
                                                    #transitlikefrac,
-                                                   min_autocorr_coeff])
+                                                   min_autocorr_coeff,
+                                                   cutedges_hrs,
+                                                   Ndur_flare,
+                                                   Nsig_flare])
     self.transit_condition_values = cond_vals
     self.transit_condition_bool = conds
     self.transit_condition_labels = np.array(['Npntsintransit_gtr_min',
@@ -480,7 +495,9 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                               'flux_symmetric_in_time',
                                               'good_ephemeris',
                                               #'indiv_transit_fraction',
-                                              'not_autocorrelated_residuals'])
+                                              'not_autocorrelated_residuals',
+                                              'neglect_edges',
+                                              'ensure_no_flux_jumps_within_few_durs'])
 
     # re-remove multiple transits based on refined parameters
     p,t0,d,z,lnLs = remove_common_P(params6[:,0], params6[:,1], params6[:,3],
@@ -656,6 +673,10 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
     transit_condition_indiv_transit_frac_val = np.zeros(Nplanets)
     transit_condition_indiv_transit_frac_gt_min = np.zeros(Nplanets, dtype=bool)
     transit_condition_ephemeris_fits_in_WF = np.zeros(Nplanets, dtype=bool)
+    transit_condition_notedgeeffect_val = np.zeros(Nplanets)
+    transit_condition_notedgeeffect = np.zeros(Nplanets,dtype=bool)
+    transit_condition_noflarenearT0_val = np.zeros(Nplanets)
+    transit_condition_noflarenearT0 = np.zeros(Nplanets,dtype=bool)
 
     print 'Confirming proposed transits...'
     for i in range(Nplanets):
@@ -682,18 +703,21 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             intransit = (phase*P >= -Dfrac*duration) & \
                         (phase*P <= Dfrac*duration)
             intransitfull = (phase*P >= -duration/2) & (phase*P <= duration/2)
-	    Dfrac = .55
+            Dfrac = .55
             outtransit = (phase*P <= -Dfrac*duration) | \
                          (phase*P >= Dfrac*duration)
             #plt.plot(phase, fcorr, 'k.', phase[intransit], fcorr[intransit],
             #         'b.'), plt.show()
 
-	    tb, fb, efb = boxcar(bjd, fcorr, ef, dt=duration)
+	    tb, fb, efb = boxcar(bjd, fcorr, ef, dt=duration/2)
 	    phaseb = foldAt(tb, P, T0)
 	    phaseb[phaseb > .5] -= 1
 	    Dfrac = .25
-	    intransitb = (phaseb*P >= -Dfrac*duration) & \
-                         (phaseb*P <= Dfrac*duration)
+            intransitb = np.zeros(tb.size)
+            while intransitb.sum() == 0:
+	        intransitb = (phaseb*P >= -Dfrac*duration) & \
+                             (phaseb*P <= Dfrac*duration)
+                Dfrac += .01
             Dfrac = .55
             outtransitb = (phaseb*P <= -Dfrac*duration) | \
                           (phaseb*P >= Dfrac*duration)
@@ -755,37 +779,27 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             transit_condition_timesym_val[i] = cond4_val
 	    transit_condition_timesym[i] = cond4
 
-            # check that most individual transits look like transits
-            '''Dfrac = .5
-            events_BJD = np.arange(-1000,1000)*P + T0
-            g = (events_BJD >= bjd.min()) & (events_BJD <= bjd.max())
-            events_BJD = events_BJD[g]
-            depth_gtr_sig = np.zeros(events_BJD.size)
-            aretransits = np.zeros(events_BJD.size, dtype=bool)
-            for k in range(depth_gtr_sig.size):
-                t0 = events_BJD[k]
-                phase = foldAt(bjd, P, t0)
-                phase[phase>.5] -= 1
-                intransit = (bjd >= t0-Dfrac*duration) & \
-                            (bjd <= t0+Dfrac*duration)
-                outtransit1 = (bjd >= t0-10*duration) & \
-                              (bjd <= t0-8*duration)
-                outtransit2 = (bjd <= t0+10*duration) & \
-                              (bjd >= t0+8*duration)
-                plt.plot(bjd, fcorr, 'o', bjd[outtransit1],
-                         fcorr[outtransit1], 'o'), plt.show()
-                fin = np.median(fcorr[intransit])
-                sigdepth = np.std(fcorr[intransit]) if intransit.sum() > 1 \
-                           else np.median(ef[intransit])
-                fout = np.median(np.append(fcorr[outtransit1],
-                                           fcorr[outtransit2]))
-                aretransits[k] = fin+sigdepth < fout
+            # ensure that the transit is not close to the edge
+            T0s = np.arange(-Ntransits[i], Ntransits[i]+1)*P + T0
+            T0s = T0s[(T0s >= bjd.min()) & (T0s <= bjd.max())]
+            nearedge = np.any((T0s <= bjd.min()+cutedges_hrs/24.) | \
+                              (T0s >= bjd.max()-cutedges_hrs/24.)) 
+            cond7 = not nearedge
+            transit_condition_notedgeeffect[i] = cond7
+            transit_condition_notedgeeffect_val[i] = np.nan
 
-            cond6_val = aretransits.sum() / float(aretransits.size)
-            cond6 = cond6_val >= transitlikefrac
-            transit_condition_indiv_transit_frac_val[i] = cond6_val
-            transit_condition_indiv_transit_frac_gt_min[i] = cond6
-            '''
+            # check for flares within a few durations of T0
+            inflare = fcorr >= np.median(fcorr) + Nsig_flare*MAD1d(fcorr)
+            Nflares = (np.diff(bjd[inflare]) > flare_dur_days).sum()
+            frac_in_flare = flare_dur_days*Nflares / (bjd.max() - bjd.min()) 
+            inflare = fcorr > np.percentile(fcorr, 1e2*(1-frac_in_flare))
+            near_T0 = (phase*P >= -Ndurs_nearT0*duration) & (phase*P <= Ndurs_nearT0*duration)
+            inflare_nearT0 = np.in1d(phase[near_T0], phase[inflare])
+            Npnts_inflare_nearT0 = inflare_nearT0.sum()
+            Npnts_inflare_nearT0_min = int(np.round(flare_dur_days / np.median(np.diff(bjd))))
+            cond8 = Npnts_inflare_nearT0 < Npnts_inflare_nearT0_min 
+            transit_condition_noflarenearT0_val[i] = Npnts_inflare_nearT0
+            transit_condition_noflarenearT0[i] = cond8
 
             # ensure that at least two transits will fit within the observing
             # window otherwise its just a
@@ -795,7 +809,7 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                     (P < bjd.max()-bjd.min())
             transit_condition_ephemeris_fits_in_WF[i] = cond6
             paramsout[i] = P, T0, depth, duration
-            if cond0 and cond1 and cond2 and cond3 and cond4 and cond5 and cond6:
+            if cond0 and cond1 and cond2 and cond3 and cond4 and cond5 and cond6 and cond7 and cond8:
 	        j += 2
 	        pass
             else:
@@ -835,7 +849,9 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_timesym_val, \
                           transit_condition_ephemeris_fits_in_WF, \
                           #transit_condition_indiv_transit_frac_val, \
-                          transit_condition_autocorr_val]).T
+                          transit_condition_autocorr_val, \
+                          transit_condition_notedgeeffect_val,
+                          transit_condition_noflarenearT0_val]).T
     
     cond_bool = np.array([transit_condition_Npntsintransit_bool, \
 			  transit_condition_scatterin_gtr_scatterout, \
@@ -844,6 +860,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
                           transit_condition_timesym, \
                           transit_condition_ephemeris_fits_in_WF, \
                           #transit_condition_indiv_transit_frac_gt_min, \
-                          transit_condition_autocorr_leq_max]).T
+                          transit_condition_autocorr_leq_max, \
+                          transit_condition_notedgeeffect,
+                          transit_condition_noflarenearT0]).T
 
     return paramsout, Ntransits, lnLsout, cond_vals, cond_bool
