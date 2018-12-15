@@ -460,7 +460,7 @@ def query_nearby_gaia(tic, ra_deg, dec_deg, Npixsearch=5, Npixplt=3, pltt=True):
         ax.legend(loc='upper left', fontsize=10)
         fig.subplots_adjust(bottom=.22, top=.95)
         plt.savefig('plots/gaiasources_tic%i.png'%tic)
-        #plt.show()
+        plt.show()
         plt.close('all')
         
     return ras, e_ras, decs, e_decs, Gmags

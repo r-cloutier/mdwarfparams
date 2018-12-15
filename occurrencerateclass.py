@@ -82,6 +82,12 @@ class OccurrenceRateclass:
             self.Kepmags = np.zeros(0)
         if self.TESS:
             self.TESSmags = np.zeros(0)
+
+        self.GBPmags, self.e_GBPmags = np.zeros(0), np.zeros(0)
+        self.GRPmags, self.e_GRPmags = np.zeros(0), np.zeros(0)
+        self.Jmags, self.e_Jmags = np.zeros(0), np.zeros(0)
+        self.Hmags, self.e_Hmags = np.zeros(0), np.zeros(0)
+        self.Kmags, self.e_Kmags = np.zeros(0), np.zeros(0)
         self.efs = np.zeros(0)
         self.Mss,self.ehi_Mss,self.elo_Mss = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Rss,self.ehi_Rss,self.elo_Rss = np.zeros(0),np.zeros(0),np.zeros(0)
@@ -111,6 +117,18 @@ class OccurrenceRateclass:
                         self.Kepmags = np.append(self.Kepmags, d.Kepmag)
                     if self.TESS:
                         self.TESSmags = np.append(self.TESSmags, d.TESSmag)
+
+                    self.GBPmags = np.append(self.GBPmags, d.GBPmag)
+                    self.e_GBPmags = np.append(self.e_GBPmags, d.e_GBPmag)
+                    self.GRPmags = np.append(self.GRPmags, d.GRPmag)
+                    self.e_GRPmags = np.append(self.e_GRPmags, d.e_GRPmag)
+                    self.Jmags = np.append(self.Jmags, d.Jmag)
+                    self.e_Jmags = np.append(self.e_Jmags, d.e_Jmag)
+                    self.Hmags = np.append(self.Hmags, d.Hmag)
+                    self.e_Hmags = np.append(self.e_Hmags, d.e_Hmag)
+                    self.Kmags = np.append(self.Kmags, d.Kmag)
+                    self.e_Kmags = np.append(self.e_Kmags, d.e_Kmag)
+                    
                     self.efs = np.append(self.efs, d.ef.mean())
                     self.Mss = np.append(self.Mss, d.Ms)
                     self.ehi_Mss = np.append(self.ehi_Mss, d.ehi_Ms)
