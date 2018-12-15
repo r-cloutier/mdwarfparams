@@ -213,17 +213,23 @@ class OccurrenceRateclass:
                     self.T0s = np.append(self.T0s, params_opt[1])
                     self.e_T0s = np.append(self.e_T0s,
                                            get_1sigma(params_res[:,1]))
-                    _,_,samp_aRs = get_samples_from_percentiles(*params_res[:,2])
+                    if j > 0:
+		 	_,_,samp_aRs = get_samples_from_percentiles(*params_res[:,2])
+                    	_,_,samp_rpRs = get_samples_from_percentiles(*params_res[:,3])
+                    	_,_,samp_inc = get_samples_from_percentiles(*params_res[:,4])
+		    else:
+			samp_aRs = np.repeat(np.nan, 1000)
+			samp_rpRs = np.repeat(np.nan, 1000)
+                        samp_incs = np.repeat(np.nan, 1000)
+
                     v = np.percentile(samp_aRs, (16,50,84))
                     self.aRss = np.append(self.aRss, v[1])
                     self.ehi_aRss = np.append(self.ehi_aRss, v[2]-v[1])
                     self.elo_aRss = np.append(self.elo_aRss, v[1]-v[0])
-                    _,_,samp_rpRs = get_samples_from_percentiles(*params_res[:,3])
                     v = np.percentile(samp_rpRs, (16,50,84))
                     self.rpRss = np.append(self.rpRss, v[1])
                     self.ehi_rpRss = np.append(self.ehi_rpRss, v[2]-v[1])
                     self.elo_rpRss = np.append(self.elo_rpRss, v[1]-v[0])
-                    _,_,samp_inc = get_samples_from_percentiles(*params_res[:,4])
                     v = np.percentile(samp_inc, (16,50,84))
                     self.incs = np.append(self.incs, v[1])
                     self.ehi_incs = np.append(self.ehi_incs, v[2]-v[1])
