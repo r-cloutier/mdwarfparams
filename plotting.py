@@ -1159,14 +1159,14 @@ def plot_planet_population(self, pltt=True, label=False):
     rplim = (.7,5.5)
 
     # undetected TOIs
-    tois_UD = [203.01,237.01,221.01,175.02,175.03]
+    tois_UD = [203.01,221.01,175.02,175.03]
     assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
-    tics = [259962054,305048087,316937670,307210830,307210830]
+    tics = [259962054,316937670,307210830,307210830]
     gt = np.in1d(self.tics, tics)
     Ls_UD = compute_Ls(self.Rss[gt], self.Teffs[gt])
-    Ps_UD = [52,5.43,.624, 7.45,2.25]
+    Ps_UD = [52,.624, 7.45,2.25]
     Fs_UD = compute_F(Ls_UD, rvs.semimajoraxis(np.array(Ps_UD),self.Mss[gt],0))
-    rps_UD = [1.22,1.74,1.67, 1.43,.794]
+    rps_UD = [1.22,1.67, 1.43,.794]
     
     # plot planet candidates that passed human vetting (and maybe vespa?)
     fig = plt.figure(figsize=(6.5,2.9))
@@ -1197,18 +1197,18 @@ def plot_planet_population(self, pltt=True, label=False):
              markeredgecolor='k', markeredgewidth=.3, ms=4)
 
     # TOI labels
-    dx = [2,-.7,-1.4,4,-1.7,-2.6]
-    dy = [.3,-.18,.15,.02,-.2,.22]
-    for i in range(ta.sum()):
-        ax1.text(self.Ps[ta][i]+dx[i], self.rps[ta][i]+dy[i],
-                 '%.2f'%self.tois[ta][i], fontsize=6, weight='semibold')
+    dx = [2,-2.3,-.7,-1.5,-5,-3,-1.85,-2.5]
+    dy = [.2,.17,-.15,-.1,-.23,.2,-.1,.2]
+    #for i in range(ta.sum()):
+        #ax1.text(self.Ps[ta][i]+dx[i], self.rps[ta][i]+dy[i],
+        #         '%.2f'%self.tois[ta][i], fontsize=6, weight='semibold')
 
-    dx = [5,-1.4,-.07,.6,.25]
-    dy = [.02,-.17,.1,-.1,.01]
+    dx = [5,-1.4,-.07,.6,.25,.1,.1,.1]
+    dy = [.02,-.17,.1,-.1,.01,.1,.1,.1]
     for i in range(len(Ps_UD)):
         print Ps_UD[i], tois_UD[i]
-        ax1.text(Ps_UD[i]+dx[i], rps_UD[i]+dy[i], '%.2f'%tois_UD[i],
-                 fontsize=5, weight='semibold')
+        #ax1.text(Ps_UD[i]+dx[i], rps_UD[i]+dy[i], '%.2f'%tois_UD[i],
+        #         fontsize=5, weight='semibold')
         
         
     ax1.set_xscale('log')
@@ -1275,23 +1275,23 @@ def plot_planet_population(self, pltt=True, label=False):
     # custom legend
     ax2.plot(.07, .93, marker[0], markerfacecolor=cols[1], ms=6,
              transform=ax2.transAxes, markeredgecolor='k', markeredgewidth=.5)
-    ax2.text(.11, .93, 'PC', fontsize=5, transform=ax2.transAxes,
+    ax2.text(.11, .93, 'PC', fontsize=6, transform=ax2.transAxes,
              verticalalignment='center', weight='semibold')
     ax2.plot(.07, .88, marker[1], markerfacecolor=cols[0], ms=5,
              transform=ax2.transAxes, markeredgecolor='k', markeredgewidth=.5)
-    ax2.text(.11, .88, 'pPC', fontsize=5, transform=ax2.transAxes,
+    ax2.text(.11, .88, 'pPC', fontsize=6, transform=ax2.transAxes,
              verticalalignment='center', weight='semibold')
     ax2.plot(.07, .83, marker[2], markerfacecolor=cols[2], ms=5,
              transform=ax2.transAxes, markeredgecolor='k', markeredgewidth=.5)
-    ax2.text(.11, .83, 'ST', fontsize=5, transform=ax2.transAxes,
+    ax2.text(.11, .83, 'ST', fontsize=6, transform=ax2.transAxes,
              verticalalignment='center', weight='semibold')
     ax2.plot(.07, .78, marker[3], markerfacecolor=cols[3], ms=6,
              transform=ax2.transAxes, markeredgecolor='k', markeredgewidth=.3)
-    ax2.text(.11, .78, 'detected TOI', fontsize=5, transform=ax2.transAxes,
+    ax2.text(.11, .78, 'detected TOI', fontsize=6, transform=ax2.transAxes,
              verticalalignment='center', weight='semibold')
     ax2.plot(.07, .73, marker[3], markerfacecolor=cols[4], ms=4,
              transform=ax2.transAxes, markeredgecolor='k', markeredgewidth=.3)
-    ax2.text(.11, .73, 'undetected TOI', fontsize=5, transform=ax2.transAxes,
+    ax2.text(.11, .73, 'undetected TOI', fontsize=6, transform=ax2.transAxes,
              verticalalignment='center', weight='semibold')
     
     fig.subplots_adjust(bottom=.15, top=.97, right=.98, left=.07, wspace=.0)
@@ -1453,6 +1453,83 @@ def plot_flare_LC(self, medkernel=9, Nsig_flare=8, flare_dur_days=30./60/24,
     fig.subplots_adjust(bottom=.14, top=.97, right=.98, left=.12)
     if label:
         plt.savefig('plots/flareLC_%i.png'%self.tic)
+    if pltt:
+        plt.show()
+    plt.close('all')
+
+
+def plot_old_GAIA_Rs(self, pltt=True, label=False):
+    # get old stellar radii
+    fname = 'input_data/TESStargets/TICv7_Mdwarfsv1.csv'
+    TICs, Rss, e_Rss = np.loadtxt(fname, delimiter=',', skiprows=5,
+                                  usecols=(0,70,71)).T
+
+    
+    cols = ['#ff4700','#a80000','#ffff5f']
+
+    # match stars
+    _,g = np.unique(self.tics, return_index=True)
+    s = np.argsort(self.tics[g])
+    tics1, Rss1, e_Rss1 = self.tics[g][s], self.Rss[g][s], self.ehi_Rss[g][s]
+    g = np.in1d(TICs, self.tics)
+    s = np.argsort(TICs[g])
+    tics0, Rss0, e_Rss0 = TICs[g][s].astype(int), Rss[g][s], e_Rss[g][s]
+    assert tics0.size == tics1.size
+    
+    # plot new Rs vs old Rs
+    fig = plt.figure(figsize=(3.3,3.3))
+    ax = fig.add_subplot(111)
+    #ax.errorbar(Rss0, Rss1, xerr=e_Rss0, yerr=e_Rss1, fmt='ko', ms=1,
+    #            ecolor='k', elinewidth=.9, alpha=.4)
+    H, x_edges, y_edges = np.histogram2d(Rss0, Rss1, bins=np.linspace(.1,.7,30))
+    cax = ax.pcolormesh(x_edges, y_edges, H.T,
+                        cmap=truncate_cmap(plt.get_cmap('hot_r'),0,.95))
+    cbar_axes = fig.add_axes([.13,.09,.84,.04])
+    cbar = fig.colorbar(cax, cax=cbar_axes, orientation='horizontal')
+    cbar.set_label('Number of TICs', fontsize=8, labelpad=.4)
+    ax.plot([.1,.75], [.1,.75], 'k--', lw=2)
+
+    ax.set_xlabel('TICv7 Stellar Radii [R$_{\odot}$]', fontsize=8,
+                  labelpad=1.5)
+    ax.set_ylabel('GAIA-derived Stellar Radii [R$_{\odot}$]', fontsize=8,
+                  labelpad=2)
+    ax.set_xlim((.1,.7))
+    ax.set_ylim((.1,.7))
+
+    # add histogram of fractional uncertainties
+    ax1 = fig.add_axes([.7,.35,.23,.23])
+    #ratio_bins = np.linspace(0,.25,50)
+    ratio_bins = np.logspace(0,np.log10(30),30)
+    ax1.hist(e_Rss0/Rss0*1e2, bins=ratio_bins, histtype='step', color=cols[0],
+             lw=.8, label='ticv7', log=1)
+    ax1.hist(e_Rss0/Rss0*1e2, bins=ratio_bins, alpha=.5, color=cols[0], log=1)
+
+    ax1.hist(e_Rss1/Rss1*1e2, bins=ratio_bins, histtype='step', color=cols[1],
+             lw=.8, label='gaia', log=1)
+    ax1.hist(e_Rss1/Rss1*1e2, bins=ratio_bins, alpha=.5, color=cols[1], log=1)
+
+    ax1.text(.58, 1.03, 'TICv7', weight='semibold', fontsize=6, color=cols[0],
+             transform=ax1.transAxes)
+    ax1.arrow(.74, 1, .05, -.3, transform=ax1.transAxes, head_width=.02,
+              color='k')
+    ax1.text(.1, 1.03, 'GAIA', weight='semibold', fontsize=6, color=cols[1],
+             transform=ax1.transAxes)
+    ax1.arrow(.27, 1, .05, -.2, transform=ax1.transAxes, head_width=.02,
+              color='k')
+    
+    ax1.set_xscale('log')
+    ax1.set_xlim((ratio_bins[0],ratio_bins[-1]))
+    ax1.set_ylim((.9,2e3))
+    ax1.set_xlabel('Fractional R$_s$\nuncertainty [%]', fontsize=6, labelpad=0)
+    ax1.set_ylabel('N', fontsize=6, labelpad=0)
+    ax1.set_xticks([1,3,10,30])
+    ax1.set_xticklabels(['%i'%i for i in [1,3,10,30]], fontsize=6)
+    ax1.set_yticks([1,10,100,1000])
+    ax1.set_yticklabels(['10$^%i$'%i for i in range(4)], fontsize=6)
+
+    fig.subplots_adjust(bottom=.24, right=.97, top=.97, left=.13)
+    if label:
+        plt.savefig('plots/stellarradii.png')
     if pltt:
         plt.show()
     plt.close('all')

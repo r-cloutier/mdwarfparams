@@ -1,4 +1,4 @@
-from LCclass import *
+from occurrencerateclass import *
 import linear_lnlike as llnl
 import rvs
 from priors import *
@@ -51,7 +51,7 @@ def optimize_singletransit_params(params, bjd, fcorr, ef, Ms, Rs, u1, u2,
 
 
 
-def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, u1, u2,
+def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
              nwalkers=100, burnin=200, nsteps=400, pltt=True):
     assert params.shape == (4,)
     params_optimized = np.zeros(5)
@@ -86,7 +86,14 @@ def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, u1, u2,
     samp_P=rvs.sec2days(np.sqrt(4*np.pi*np.pi/(6.67e-11*samp_rho)*samp_aRs**3))
     v = np.percentile(samp_P, (16,50,84))
     P_est = [v[1], v[2]-v[1], v[1]-v[0]]
-    
+   
+    # estimate F
+    samp_Teff = np.random.randn(Nsamp)*eTeff + Teff
+    samp_Ls = compute_Ls(samp_Rs, samp_Teff)
+    samp_F = compute_F(samp_Ls, rvs.semimajoraxis(samp_P, samp_Ms, 0))
+    v = np.percentile(samp_F, (16,50,84))
+    F_est = [v[1], v[2]-v[1], v[1]-v[0]]
+ 
     # plotting
     if pltt:
         t0 = 2457000
@@ -99,8 +106,7 @@ def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, u1, u2,
         plt.hist(samp_P, bins=30)
         plt.show()  
 
-    return bjd, fcorr, ef, params_opt, fmodel_opt, samples, params_results, fmodel_mcmc, samp_P, P_est
-
+    return bjd, fcorr, ef, params_opt, fmodel_opt, samples, params_results, fmodel_mcmc, samp_P, P_est, samp_F, F_est
 
 
 

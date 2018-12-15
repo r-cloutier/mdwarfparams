@@ -5,6 +5,7 @@ import rvs, time
 from scipy.ndimage.filters import gaussian_filter # for map smoothing if desired
 from scipy.interpolate import LinearNDInterpolator as lint
 from priors import get_results
+from estimate_PDF import *
 
 
 class OccurrenceRateclass:
@@ -64,6 +65,13 @@ class OccurrenceRateclass:
         self.Ndetected, self.params_guess = np.zeros(0), np.zeros((0,4))
 	self.params_optimized = np.zeros((0,5))
         self.Ps, self.e_Ps = np.zeros(0), np.zeros(0)
+        self.T0s, self.e_T0s = np.zeros(0), np.zeros(0)
+        self.aRss, self.ehi_aRss, self.elo_aRss = np.zeros(0), np.zeros(0), \
+                                                  np.zeros(0)
+        self.rpRss, self.ehi_rpRss, self.elo_rpRss = np.zeros(0), np.zeros(0), \
+                                                     np.zeros(0)
+        self.incs, self.ehi_incs, self.elo_incs = np.zeros(0), np.zeros(0), \
+                                                  np.zeros(0)
         self.rps, self.ehi_rps, self.elo_rps = np.zeros(0), np.zeros(0), \
                                                np.zeros(0)
         self.smas, self.ehi_smas, self.elo_smas = np.zeros(0), np.zeros(0), \
@@ -89,9 +97,10 @@ class OccurrenceRateclass:
         self.Hmags, self.e_Hmags = np.zeros(0), np.zeros(0)
         self.Kmags, self.e_Kmags = np.zeros(0), np.zeros(0)
         self.efs = np.zeros(0)
+	self.ras, self.decs = np.zeros(0), np.zeros(0)
         self.pars,self.e_pars = np.zeros(0),np.zeros(0)
         self.dists,self.ehi_dists,self.elo_dists = np.zeros(0),np.zeros(0),np.zeros(0)
-        self.MKs,self.ehi_Mss,self.elo_Mss = np.zeros(0),np.zeros(0),np.zeros(0)
+        self.MKs,self.ehi_MKs,self.elo_MKs = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Mss,self.ehi_Mss,self.elo_Mss = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Rss,self.ehi_Rss,self.elo_Rss = np.zeros(0),np.zeros(0),np.zeros(0)
         self.Teffs, self.ehi_Teffs, self.elo_Teffs = np.zeros(0), np.zeros(0), \
@@ -133,6 +142,8 @@ class OccurrenceRateclass:
                     self.e_Kmags = np.append(self.e_Kmags, d.e_Kmag)
                     
                     self.efs = np.append(self.efs, d.ef.mean())
+		    self.ras = np.append(self.ras, d.ra)
+		    self.decs = np.append(self.decs, d.dec)
                     self.pars = np.append(self.pars, d.par)
                     self.e_pars = np.append(self.e_pars, d.e_par)
                     self.dists = np.append(self.dists, d.dist)
@@ -199,24 +210,62 @@ class OccurrenceRateclass:
                     self.Ps = np.append(self.Ps, params_opt[0])
                     self.e_Ps = np.append(self.e_Ps,
                                           get_1sigma(params_res[:,0]))
-                    samp_rp = sample_rp(d.object_name, self.prefix, params_opt[3],
-                                        get_1sigma(params_res[:,3]))
-                    rp,ehi_rp,elo_rp = get_results(samp_rp.reshape(samp_rp.size,
-                                                                   1))
-                    self.rps = np.append(self.rps, rp)
-                    self.ehi_rps = np.append(self.ehi_rps, ehi_rp)
-                    self.elo_rps = np.append(self.elo_rps, elo_rp)
-                    samp_sma = sample_sma(d.object_name, self.prefix, self.Ps[-1],
-                                          self.e_Ps[-1])
-                    smas = get_results(samp_sma.reshape(samp_sma.size,1))
-                    self.smas = np.append(self.smas, smas[0])
-                    self.ehi_smas = np.append(self.ehi_smas, smas[1])
-                    self.elo_smas = np.append(self.elo_smas, smas[2])
+                    self.T0s = np.append(self.T0s, params_opt[1])
+                    self.e_T0s = np.append(self.e_T0s,
+                                           get_1sigma(params_res[:,1]))
+                    _,_,samp_aRs = get_samples_from_percentiles(*params_res[:,2])
+                    v = np.percentile(samp_aRs, (16,50,84))
+                    self.aRss = np.append(self.aRss, v[1])
+                    self.ehi_aRss = np.append(self.ehi_aRss, v[2]-v[1])
+                    self.elo_aRss = np.append(self.elo_aRss, v[1]-v[0])
+                    _,_,samp_rpRs = get_samples_from_percentiles(*params_res[:,3])
+                    v = np.percentile(samp_rpRs, (16,50,84))
+                    self.rpRss = np.append(self.rpRss, v[1])
+                    self.ehi_rpRss = np.append(self.ehi_rpRss, v[2]-v[1])
+                    self.elo_rpRss = np.append(self.elo_rpRss, v[1]-v[0])
+                    _,_,samp_inc = get_samples_from_percentiles(*params_res[:,4])
+                    v = np.percentile(samp_inc, (16,50,84))
+                    self.incs = np.append(self.incs, v[1])
+                    self.ehi_incs = np.append(self.ehi_incs, v[2]-v[1])
+                    self.elo_incs = np.append(self.elo_incs, v[1]-v[0])
+                    samp_Rs = np.random.randn(samp_aRs.size)*d.ehi_Rs + d.Rs
+                    samp_rp = rvs.m2Rearth(rvs.Rsun2m(samp_Rs*samp_rpRs))
+                    v = np.percentile(samp_rp, (16,50,84))
+                    self.rps = np.append(self.rps, v[1])
+                    self.ehi_rps = np.append(self.ehi_rps, v[2]-v[1])
+                    self.elo_rps = np.append(self.elo_rps, v[1]-v[0])
+                    samp_Ms = np.random.randn(samp_aRs.size)*d.ehi_Ms + d.Ms
+                    samp_sma = rvs.semimajoraxis(np.random.randn(samp_aRs.size)*self.e_Ps[-1] + self.Ps[-1], samp_Ms, 0)
+                    v = np.percentile(samp_sma, (16,50,84))
+                    self.smas = np.append(self.smas, v[1])
+                    self.ehi_smas = np.append(self.ehi_smas, v[2]-v[1])
+                    self.elo_smas = np.append(self.elo_smas, v[1]-v[0])
+                    samp_Teff = np.random.randn(samp_aRs.size)*d.ehi_Teff + d.Teff
+                    samp_Ls = compute_Ls(samp_Rs, samp_Teff)
                     samp_F = compute_F(samp_Ls, samp_sma)
-                    Fs = get_results(samp_F.reshape(samp_F.size,1))
-                    self.Fs = np.append(self.Fs, Fs[0])
-                    self.ehi_Fs = np.append(self.ehi_Fs, Fs[1])
-                    self.elo_Fs = np.append(self.elo_Fs, Fs[2])
+                    v = np.percentile(samp_F, (16,50,84))
+                    self.Fs = np.append(self.Fs, v[1])
+                    self.ehi_Fs = np.append(self.ehi_Fs, v[2]-v[1])
+                    self.elo_Fs = np.append(self.elo_Fs, v[1]-v[0])
+                                        
+                    #samp_rp = sample_rp(d.object_name, self.prefix, params_opt[3],
+                    #                    get_1sigma(params_res[:,3]))
+                    #rp,ehi_rp,elo_rp = get_results(samp_rp.reshape(samp_rp.size,
+                    #                                               1))
+                    #self.rps = np.append(self.rps, rp)
+                    #self.ehi_rps = np.append(self.ehi_rps, ehi_rp)
+                    #self.elo_rps = np.append(self.elo_rps, elo_rp)
+                    #samp_sma = sample_sma(d.object_name, self.prefix, self.Ps[-1],
+                    #                      self.e_Ps[-1])
+                    #smas = get_results(samp_sma.reshape(samp_sma.size,1))
+                    #self.smas = np.append(self.smas, smas[0])
+                    #self.ehi_smas = np.append(self.ehi_smas, smas[1])
+                    #self.elo_smas = np.append(self.elo_smas, smas[2])
+                    #samp_F = compute_F(samp_Ls, samp_sma)
+                    #Fs = get_results(samp_F.reshape(samp_F.size,1))
+                    #self.Fs = np.append(self.Fs, Fs[0])
+                    #self.ehi_Fs = np.append(self.ehi_Fs, Fs[1])
+                    #self.elo_Fs = np.append(self.elo_Fs, Fs[2])
 
                     if j > 0:
                         depth = d.depths[j-1]
