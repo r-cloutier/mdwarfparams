@@ -156,7 +156,9 @@ def query_one_TIC(theta, radius_arcsec=10):
                              unp.uarray(Jmag, e_Jmag),
                              unp.uarray(Hmag, e_Hmag))
             Ms = MK2Ms(MK)
-            return [par,epar], [GBPmag,eGBPmag], [GRPmag,eGRPmag], \   # gbp and grp used to have switched positions here
+            
+            # ***gbp and grp used to have switched positions here
+            return [par,epar], [GBPmag,eGBPmag], [GRPmag,eGRPmag], \
                 [unp.nominal_values(dist), unp.std_devs(dist)], \
                 [unp.nominal_values(mu), unp.std_devs(mu)], \
                 [unp.nominal_values(AK), unp.std_devs(AK)], \
@@ -299,10 +301,17 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    fout = 'input_data/TESStargets/TESSMdwarfs_sector2.csv'
-    tics = np.loadtxt('input_data/TESStargets/all_targets_S002_v1.csv',
-                      delimiter=',', skiprows=6)[:,0]
-    tics = tics[0:200000]
-    get_stellar_data_TIC(tics, fout, overwrite=True)
+    sector = 4
+    fout = 'input_data/TESStargets/TESSMdwarfs_sector%i.csv'%sector
+
+    # get M dwarf TICs in this sector
+    ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.csv'%sector,
+                       delimiter=',', skiprows=6)[:,0]
+    ticsM = np.genfromtxt('input_data/TESStargets/TICv7_Mdwarfsv1.csv', 
+			  delimiter=',', skip_header=5, usecols=(0))#[:,0]
+    tics = ticsS[np.in1d(ticsS, ticsM)]
+    
+    tics = tics[2:]
+    get_stellar_data_TIC(tics, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()

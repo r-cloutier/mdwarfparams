@@ -29,14 +29,14 @@ class OccurrenceRateclass:
                                                 self._endstarind)
         
         self._xlen, self._ylen = int(xlen), int(ylen)
-	self._fine_factor = int(fine_factor)
+        self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
         self.rplims = rplims
 
         self._t0 = time.time()
         
         if compute_detections:
-	    self.fname_out += '_det'
+            self.fname_out += '_det'
             self.get_planetsearch_results()
             self.save_ids_detectionsfirst()
             self._pickleobject()
@@ -220,8 +220,7 @@ class OccurrenceRateclass:
 		    else:
 			samp_aRs = np.repeat(np.nan, 1000)
 			samp_rpRs = np.repeat(np.nan, 1000)
-                        samp_incs = np.repeat(np.nan, 1000)
-
+                        samp_inc = np.repeat(np.nan, 1000)
                     v = np.percentile(samp_aRs, (16,50,84))
                     self.aRss = np.append(self.aRss, v[1])
                     self.ehi_aRss = np.append(self.ehi_aRss, v[2]-v[1])

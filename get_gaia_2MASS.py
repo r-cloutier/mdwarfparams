@@ -441,8 +441,8 @@ def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
                                            e_pars[i], ls[i], bs[i])
         # run if not done already
         fout = 'DistancePosteriors/%s_%i.csv'%(prefix, IDnums[i])
-        if not os.path.exists(fout):
-            os.system(cmd)
+        #if not os.path.exists(fout): # TEMP
+        os.system(cmd)
         if os.path.exists(fout):
             distpost_success[i] = True
             

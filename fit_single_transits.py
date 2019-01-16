@@ -52,7 +52,7 @@ def optimize_singletransit_params(params, bjd, fcorr, ef, Ms, Rs, u1, u2,
 
 
 def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
-             nwalkers=100, burnin=200, nsteps=400, pltt=True):
+             nwalkers=200, burnin=200, nsteps=400, pltt=True):
     assert params.shape == (4,)
     params_optimized = np.zeros(5)
     nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
@@ -77,13 +77,22 @@ def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
     func = llnl.transit_model_func_curve_fit(u1, u2)
     fmodel_mcmc = func(bjdred, *params_results[0])
 
-    # estimate single transit P
+    # estimate single transit P, aRs, rpRs, and inc
     Nsamp = samples.shape[0] 
     samp_Ms = np.random.randn(Nsamp)*eMs + Ms
     samp_Rs = np.random.randn(Nsamp)*eRs + Rs
     samp_rho = rvs.Msun2kg(samp_Ms) / rvs.Rsun2m(samp_Rs)**3
     samp_aRs = samples[:,2]
-    samp_P=rvs.sec2days(np.sqrt(4*np.pi*np.pi/(6.67e-11*samp_rho)*samp_aRs**3))
+    v = np.percentile(samp_aRs, (16,50,84))
+    aRs_est = [v[1], v[2]-v[1], v[1]-v[0]]
+    samp_rpRs = samples[:,3]
+    v = np.percentile(samp_rpRs, (16,50,84))
+    rpRs_est = [v[1], v[2]-v[1], v[1]-v[0]]
+    samp_inc = samples[:,4]
+    v = np.percentile(samp_inc, (16,50,84))
+    inc_est = [v[1], v[2]-v[1], v[1]-v[0]]
+    #samp_P=rvs.sec2days(np.sqrt(4*np.pi*np.pi/(6.67e-11*samp_rho)*samp_aRs**3))
+    samp_P = samples[:,0]
     v = np.percentile(samp_P, (16,50,84))
     P_est = [v[1], v[2]-v[1], v[1]-v[0]]
    
@@ -106,7 +115,7 @@ def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
         plt.hist(samp_P, bins=30)
         plt.show()  
 
-    return bjd, fcorr, ef, params_opt, fmodel_opt, samples, params_results, fmodel_mcmc, samp_P, P_est, samp_F, F_est
+    return bjd, fcorr, ef, params_opt, fmodel_opt, samples, params_results, fmodel_mcmc, samp_P, P_est, samp_F, F_est, aRs_est, rpRs_est, inc_est
 
 
 
@@ -129,7 +138,7 @@ def lnprior(theta, theta0, Plim, aRslim, inclims):
     P0, T00, aRs0, rpRs0,_ = theta0
     P, T0, aRs, rpRs, inc = theta
     lps = np.zeros(5)
-    lps[0] = lnuniform(P, Plim, P0*100)
+    lps[0] = lnjeffreysprior(P, Plim, P0*100) if P > Plim else -np.inf
     lps[1] = lnuniform(T0, T00-.3, T00+.3)
     lps[2] = lnjeffreysprior(aRs, aRslim, aRs0*100)
     lps[3] = lnuniform(rpRs, 0, 1)
@@ -162,7 +171,7 @@ def run_emcee(theta, bjd, bjdred, fred, efred, initialize, u1, u2, Ms, Rs,
     # initialize chains
     assert len(theta) == len(initialize)
     assert len(theta) == 5
-    theta[0], theta[2] = Plim, aRslim
+    theta[0], theta[2] = Plim+10, aRslim+10
     p0 = []
     for i in range(nwalkers):
     	p0.append(theta + initialize*np.random.randn(len(theta)))

@@ -9,25 +9,44 @@ global TESS_pixel_scale_arcsec
 TESS_pixel_scale_arcsec = 20.69369686271056
 
 
-def run_vespa_on_a_TIC(self, FWHMarcsec=0):
+# set single transit stuff manually
+#TICin,Pin,T0in,Din,planet_indin = 49678165,35.63695787,2458371.194515521,.3,0
+#TICin,Pin,T0in,Din,planet_indin = 92444219,39.52254392,2458342.47285214,.35,2
+#TICin,Pin,T0in,Din,planet_indin = 307210830,7.45111,2458355.2864,.04,0
+#TICin,Pin,T0in,Din,planet_indin = 47484268,20.281385881512993,2458378.7845721757,.08,1
+#TICin,Pin,T0in,Din,planet_indin = 278661431,17.63173026405275,2458343.929916539,.21,0
+#TICin,Pin,T0in,Din,planet_indin = 100103201,7.4029000187292695,2458371.1104931794,0.09158793659674,0
+TICin,Pin,T0in,Din,planet_indin = 231279823,5.976069768622068,2458361.641027355,.14,0
+#TICin,Pin,T0in,Din,planet_indin = 415969908,15.811009507697745,2458381.0697858157,0.185690306,2
+
+def run_vespa_on_a_TIC(self, planet_indices=[0], FWHMarcsec=0, binLC=False,
+                       singletransit=False):
     # setup star file
     _setup_star_input(self)
     print('\nComputing the maximum separation to search for blends...')
     maxrad = get_EB_maxrad_condition(self) if FWHMarcsec == 0 else FWHMarcsec
     
     # run vespa on each planet candidate
-    Nplanets = self.Ndet
-    #vespa_results = np.zeros((Nplanets, 24))
+    planet_indices = np.array([planet_indices]).reshape(len(planet_indices))
+    Nplanets = planet_indices.size
     FPPs = np.zeros(Nplanets)
     for i in range(Nplanets):
 
+        print(self.tic, i)
+
         # setup light curve data file
-        P,T0,rpRs,D = _get_planet_params(self,i)
-        _setup_transitlightcurve_file(self,P,T0,D,i)
+        if singletransit:
+            assert TICin == self.tic
+            P,T0,D = Pin,T0in,Din
+        else:
+            P,T0,_,D = self.params_guess[i]
+        print(P, T0-2457000)
+        _setup_transitlightcurve_file(self,P,T0,D,i,binLC)
 
         # setup false positive probability file
         name = '%s_%i'%(self.object_name,i+1)
         maxoccdepth = get_EB_maxoccdepth_condition(self, D)
+        _,_,_,rpRs,_ = self.params_optimized[i]
         _setup_fpp_input(self, name, P, rpRs, maxrad, maxoccdepth)  
 
         # run vespa
@@ -41,11 +60,13 @@ def run_vespa_on_a_TIC(self, FWHMarcsec=0):
         try:
             fpp = FPPCalculation.load(self.folder_full)
             FPPs[i] = fpp.FPP()
+            print('FPP', fpp.FPP())
         except FileNotFoundError:
             FPPs[i] = np.nan
         
     # save FPPs
-    np.save('%s/FPPs'%self.folder_full, FPPs)
+    label = 'bin' if binLC else 'nobin'
+    np.savetxt('%s/FPPs_%s.txt'%(self.folder_full,label), FPPs)
 
     return FPPs
 
@@ -113,28 +134,56 @@ def _setup_fpp_input(self, name, P, rpRs, maxrad, maxoccdepth):
 
 
 
-def _setup_transitlightcurve_file(self, P, T0, D, index):
+def _setup_transitlightcurve_file(self, P, T0, D, index, binLC=False):
+    # bin the light curve?
+    if binLC:
+        bjd, fcorr, ef = boxcar(self.bjd, self.fcorr, self.ef, dt=D/6)
+        label = 'binLC'
+    else:
+        bjd, fcorr, ef = self.bjd, self.fcorr, self.ef
+        label = 'nobin'
+        
     # phase fold the data in units of days from T0
-    phase = foldAt(self.bjd, P, T0)
+    print('orbtial P', P)
+    phase = foldAt(bjd, P, T0)
     phase[phase>.5] -= 1
     phase_days = phase*P
 
     # remove other planetary transits
-    assert index < self.Ndet
-    if self.Ndet > 1:
-        inds = np.delete(np.arange(self.Ndet), int(index))
-        other_transit_fmodel = np.product(self.fmodels[inds], 0)
-        f = self.fcorr / other_transit_fmodel
-    else:
-        f = self.fcorr
+    #assert index < self.Ndet
+    #if self.Ndet > 1:
+    #    inds = np.delete(np.arange(self.Ndet), int(index))
+    #    other_transit_fmodel = np.product(self.fmodels[inds], 0)
+    #    f = fcorr / other_transit_fmodel
+    #else:
+    f = fcorr
         
     # focus on the LC close to transit
-    g = (phase_days >= -3*D) & (phase_days <= 3*D)
-    t, f, ef = phase_days[g], f[g], self.ef[g]
+    g = (phase_days >= -5*D) & (phase_days <= 5*D)
+    #g = np.arange(f.size)
+    tr, fr, efr = phase_days[g], f[g], ef[g]
+
+    # plot LC
+    plt.plot(phase_days, f, 'b.', alpha=.3)
+    plt.errorbar(tr, fr, efr, fmt='k.', alpha=.5, elinewidth=.2)
+    plt.xlabel('Phase in days [P=%.5f days]'%P)
+    plt.ylabel('Normalized flux')
+    plt.title('T0 = %.5f'%T0)
+    plt.savefig('%s/vespaLC%i_%s.png'%(self.folder_full,index,label))
+    plt.close('all')
+
+    plt.plot(phase_days, f, 'b.', alpha=.3)
+    plt.errorbar(tr, fr, efr, fmt='k.', alpha=.5, elinewidth=.2)
+    plt.xlabel('Phase in days [P=%.5f days]'%P)
+    plt.ylabel('Normalized flux')
+    plt.title('T0 = %.5f'%T0)
+    plt.xlim((-4*D,4*D))
+    plt.savefig('%s/vespaLC_zoom%i_%s.png'%(self.folder_full,index,label))
+    plt.close('all')
     
     # write light curve file
-    s = np.argsort(t)
-    np.savetxt('%s/transit.txt'%self.folder_full, np.array([t,f,ef]).T[s],
+    s = np.argsort(tr)
+    np.savetxt('%s/transit.txt'%self.folder_full, np.array([tr,fr,efr]).T[s],
                delimiter='\t')
 
 
@@ -268,12 +317,109 @@ def get_EB_maxoccdepth_condition(self, D, occdepth_upper_percentile=.95):
     return maxoccdepth
 
 
+def boxcar(t, f, ef, dt=.2, include_edges=False, tfull=np.zeros(0)):
+    '''Boxbar bin the light curve.'''
+    # check that the desired binning is coarser than the input sampling
+    if np.diff(t).mean() > dt:
+        if include_edges:
+            assert tfull.size > 1
+            tbin = np.append(np.append(tfull.min(), t), tfull.max())
+            fbin = np.append(np.append(np.median(f[:10]), f), \
+                             np.median(f[-10:]))
+            efbin = np.append(np.append(np.median(ef[:10]), ef),
+                              np.median(ef[-10:]))
+            return tbin, fbin, efbin
+        else:
+            return t, f, ef
+
+    Nbounds = int(np.floor((t.max()-t.min()) / dt))
+    tbin, fbin, efbin = np.zeros(Nbounds-1), np.zeros(Nbounds-1), \
+                        np.zeros(Nbounds-1)
+    for i in range(Nbounds-1):
+        inds = np.arange(t.size/Nbounds).astype(int) + int(i*t.size/Nbounds)
+        tbin[i]  = t[inds].mean()
+        fbin[i]  = np.median(f[inds])
+        efbin[i] = np.mean(ef[inds]) / np.sqrt(inds.size)
+    if include_edges:
+        assert tfull.size > 1
+        tbin = np.append(np.append(tfull.min(), tbin), tfull.max())
+        fbin = np.append(np.append(np.median(f[:10]), fbin), np.median(f[-10:]))
+        efbin = np.append(np.append(np.median(ef[:10]), efbin),
+                          np.median(ef[-10:]))
+    return tbin, fbin, efbin
+
+
+
+def clean_vepsa_dir(directory):
+    assert 'LC' not in directory
+    os.system('rm %s/mist*'%directory)
+    os.system('rm %s/FPP*'%directory)
+    os.system('rm %s/calc*'%directory)
+    os.system('rm %s/fpp.ini'%directory)
+    os.system('rm %s/chains/*'%directory)
+    os.system('rm %s/lhood*'%directory)
+    os.system('rm %s/*.h5'%directory)
+    os.system('rm %s/star*'%directory)
+    os.system('rm %s/transit*'%directory)
+    os.system('rm %s/trap*'%directory)
+    os.system('rm %s/trsig*'%directory)
+    os.system('rm %s/vespa*'%directory) 
+
+
 if __name__ == '__main__':
-    fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099*'))
-    for i in range(82,fs.size): # TEMP
+    # get dispositions
+    tics, disp, Ps = np.loadtxt('PipelineResults_TIC/PipelineResults_TIC_8d4_dispgeq0.txt').T
+    tics2, Ps2 = np.loadtxt('PipelineResults_TIC/PipelineResults_TIC_8d4_planetPs.txt').T
+    ticsSS, PsSS = np.loadtxt('PipelineResults_TIC/PipelineResults_TIC_8d4_planetPsSS.txt').T
+
+    binLC = False
+    
+    #fs = np.array(glob.glob('PipelineResults_TIC/TIC_*/LC_-00099_8d4'))[23:]
+    fs = np.array(['PipelineResults_TIC/TIC_231279823/LC_-00099_8d4'])
+    for i in range(len(fs)):
         print(i, fs[i].split('/')[1].split('_')[-1])
-        if not os.path.exists('/'.join(fs[i].split('/')[:2])+'/FPPs.npy'):
-            self = loadpickle(fs[i])
-            fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
-            FWHMarcsec = np.nanmedian(np.load(fwhm_fname)) if os.path.exists(fwhm_fname) else 0
-            FPPs = run_vespa_on_a_TIC(self, FWHMarcsec=FWHMarcsec)
+        #if not os.path.exists('/'.join(fs[i].split('/')[:2])+'/FPPs.npy'):
+    
+        # get light curve
+        self = loadpickle(fs[i])
+        self.folder_full = self.folder_full.replace('PipelineResults_TIC_8d4','PipelineResults_TIC')
+        self.fname_full = self.fname_full.replace('PipelineResults_TIC_8d4','PipelineResults_TIC')
+        self.fname_full = self.fname_full.replace('LC_-00099','LC_-00099_8d4')
+
+        # ensure that this system has a PC
+        if np.any(disp[tics==self.tic] >= 0):
+
+            # plot light curves for get the planet indices
+            #print('all "detected" Ps', self.params_guess[:,0], 
+		  #'\ncandidate periods', Ps[tics==self.tic],
+                  #'\ncandidate period dispostions (should be >= 0)', disp[tics==self.tic])
+            #plt.plot(self.bjd, self.f, '.')
+            #plt.show()
+            # enter 9 to skip
+            #planet_indices = np.array(list(input('What are the planet indices? '))).astype(int)
+	    #match_planet = np.isclose(self.params_guess[:,0],Ps2[tics2==self.tic],rtol=.02)
+            #if np.any(match_planet):
+            #    planet_indices = np.where(match_planet)[0]
+            #else:
+	    #    planet_indices = np.where(PsSS[ticsSS==self.tic])[0]
+                
+	    #singletransit = 2 in disp[tics==self.tic]
+            #if singletransit:
+            #    planet_indices = np.array([planet_indin])
+            singletransit = True
+            planet_indices = np.zeros(1) +2  #TEMP
+
+            if 9 not in planet_indices:
+                print('Running VESPA...')
+                fwhm_fname = '%s/FWHMs_arcsec.npy'%self.folder_full
+                FWHMarcsec = np.nanmedian(np.load(fwhm_fname)) \
+                             if os.path.exists(fwhm_fname) else 0
+                print(planet_indices)
+                clean_vepsa_dir(self.folder_full)
+                FPPs = run_vespa_on_a_TIC(self, planet_indices,
+                                          FWHMarcsec=FWHMarcsec,  # TEMP
+                                          binLC=binLC,
+                                          singletransit=singletransit)
+
+        else:
+            pass

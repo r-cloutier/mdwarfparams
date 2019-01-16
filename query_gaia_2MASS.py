@@ -427,7 +427,7 @@ def query_nearby_gaia(tic, ra_deg, dec_deg, Npixsearch=5, Npixplt=3, pltt=True):
         fig,ax = plt.subplots(1)
         ax.plot(ra_deg, dec_deg, 'bd', ms=8, label='Input source position')
         cax = ax.scatter(ras, decs, c=Gmags, s=50*10**(-.4*(Gmags-15)),
-                         edgecolor='k',
+                         edgecolor='k', alpha=.9,
                          cmap=truncate_colormap(plt.get_cmap('hot_r'),.1,.9))
         ax.plot(ras, decs, 'k.')
         cbar_axes = fig.add_axes([.1,.1,.85,.04])
@@ -463,7 +463,7 @@ def query_nearby_gaia(tic, ra_deg, dec_deg, Npixsearch=5, Npixplt=3, pltt=True):
         plt.show()
         plt.close('all')
         
-    return ras, e_ras, decs, e_decs, Gmags
+    return ras, e_ras, decs, e_decs, Gmags, radius_arcsec
 
 
 
