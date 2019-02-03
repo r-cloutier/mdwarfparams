@@ -415,7 +415,7 @@ def GAIAcolor2HK(GBP_GRP):
 
 
 def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
-                    TESS=False):
+                    TESS=False, overwrite=False):
     '''Go to the directory with the Bailor-Jones + 2018 R scripts to compute 
     the distance posterior for a single source. Save the posterior with a 
     unique file name.'''
@@ -441,8 +441,8 @@ def save_posteriors(IDnums, pars, e_pars, ls, bs, Kep=False, K2=False,
                                            e_pars[i], ls[i], bs[i])
         # run if not done already
         fout = 'DistancePosteriors/%s_%i.csv'%(prefix, IDnums[i])
-        #if not os.path.exists(fout): # TEMP
-        os.system(cmd)
+        if (not os.path.exists(fout)) or (overwrite==True): # TEMP
+            os.system(cmd)
         if os.path.exists(fout):
             distpost_success[i] = True
             

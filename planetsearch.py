@@ -228,6 +228,7 @@ def read_TESS_data(tic):
             sctr = 's%.4d'%sectors[j]
             url = 'https://archive.stsci.edu/missions/tess/tid/'
             folder = '%s/%s/%s/%s/%s/'%(sctr,tid1,tid2,tid3,tid4)
+    	    print url+folder
             fs = listFD(url+folder, ext='_lc.fits')
             for i in range(fs.size):
                 os.system('wget %s'%fs[i])
