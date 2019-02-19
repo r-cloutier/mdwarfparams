@@ -122,7 +122,8 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
                                                            self.Rs, self.Teff)
     self.params_true = np.array([Ptrue, T0true, depthtrue, durationtrue]).T
     self.Ptrue, self.rptrue = Ptrue, rptrue
-    self.f = self.f_noplanets * fmodel
+    self.fmodel = fmodel
+    self.f = self.f_noplanets * self.fmodel
     self._pickleobject()
     
     # read-in initial GP
@@ -207,8 +208,7 @@ if __name__ == '__main__':
     ids = np.loadtxt('input_data/K2targets/K2lowmassstars_sens.csv', delimiter=',')[:,0]
 
     for i in range(Njobs):
-	#i = np.random.choice(np.arange(0,ids.size))
-	i = 22517  #TEMP
+	i = np.random.choice(np.arange(0,ids.size))
         print ids[i]
 	index = i + startind
         if do_i_run_this_sim(folder, ids[i], prefix, index):
