@@ -32,7 +32,8 @@ def get_samples_from_percentiles(val, ehi, elo, Nsamp=1e3, add_p5_p95=True, pltt
         xin, yin = [p16,med,p84], [.16,.5,.84]
         
     # make initial parameter guess
-    a, mu, sig = (p16-p84)/med, med, np.mean([p16,p84])
+    mu, sig = med, np.mean([ehi,elo])
+    a = (ehi-elo) / sig
     p0 = a,mu,sig
     popt,pcov = curve_fit(Skewnorm_CDF_func, xin, yin, p0=p0,
                           sigma=np.repeat(.01,len(yin)), absolute_sigma=False)

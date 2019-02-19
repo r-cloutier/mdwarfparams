@@ -52,7 +52,7 @@ def optimize_singletransit_params(params, bjd, fcorr, ef, Ms, Rs, u1, u2,
 
 
 def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
-             nwalkers=200, burnin=200, nsteps=400, pltt=True):
+             nwalkers=200, burnin=500, nsteps=400, pltt=True):
     assert params.shape == (4,)
     params_optimized = np.zeros(5)
     nwalkers, burnin, nsteps = int(nwalkers), int(burnin), int(nsteps)
@@ -64,9 +64,10 @@ def run_mcmc(params, bjd, fcorr, ef, Ms, eMs, Rs, eRs, Teff, eTeff, u1, u2,
                                                           ef, Ms, Rs, u1, u2,
                                                           pltt=1)
     params_opt = theta[:5]
+    print params, params_opt
 
     # run MCMC on transit LC
-    initialize = [1, 1e-3, 1, 1e-2, 1e-1]
+    initialize = [1, 1e-3, 1, 1e-2, 1]
     print 'Running MCMC on single-transit model'
     sampler,samples = run_emcee(params_opt, bjd, bjdred, fcorrred, efred,
                                 initialize, u1, u2, Ms, Rs, a=2,
