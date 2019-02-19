@@ -61,10 +61,11 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
     D = rvs.transit_width(Ptrue, Ms, Rs, 2., 0.)
     sigdepth = np.array([llnl.estimate_CDPP(bjd, f, ef, d) for d in D])
     Ntransits = np.array([llnl.compute_Ntransits(bjd, Ptrue[i], T0true[i]) for i in range(Nplanets)])
-    rptrue = rvs.m2Rearth(rvs.Rsun2m(Rs)) * np.sqrt(SNR*Ntransits/np.sqrt(sigdepth))
-
+    rptrue = rvs.m2Rearth(rvs.Rsun2m(Rs)) * np.sqrt(SNR*sigdepth/np.sqrt(Ntransits))
+    
     # sample other parameters
     rpRs = rvs.Rearth2m(rptrue) / rvs.Rsun2m(Rs)
+    assert np.all(rpRs < 1)
     aRs = rvs.AU2m(rvs.semimajoraxis(Ptrue, Ms, 0)) / rvs.Rsun2m(Rs)
     assert np.all(aRs > 1)
     bs = np.random.uniform(-.7, .7, Nplanets)
@@ -111,7 +112,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
     self.DONE = False
     self._pickleobject()
 
-    # remove planets detected by the planet search which should already
+    # remove planets detected by the planet search whicsh should already
     # have been run
     self.f_noplanets = remove_detected_planets(folder, IDnum, prefix, self.bjd, self.f_orig)
 

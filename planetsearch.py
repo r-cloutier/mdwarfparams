@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 
 global K2Mdwarffile, KepMdwarffile, TESSMdwarffile, threshBayesfactor
-K2Mdwarffile = 'input_data/K2targets/K2Mdwarfsv11.csv'
+K2Mdwarffile = 'input_data/K2targets/K2lowmassstars_sens.csv'
 KepMdwarffile = 'input_data/Keplertargets/KepMdwarfsv11.csv'
 #TESSMdwarffile = 'input_data/TESStargets/TESSMdwarfs_sector1_v2.csv'
 TESSMdwarffile = 'input_data/TESStargets/AUMic.csv'
@@ -305,12 +305,12 @@ def get_star(IDnum, Kep=False, K2=False, TESS=False):
 def is_star_of_interest(IDnum, Kep=False, K2=False, TESS=False):
     '''Return True if star obeys the desired conditions'''
     star_dict = get_star(IDnum, Kep=Kep, K2=K2, TESS=TESS)
-    #return (star_dict['Ms']-star_dict['elo_Ms'] <= .75) & \
-    #    (star_dict['Rs']-star_dict['elo_Rs'] <= .75) & \
-#	(star_dict['logg']+star_dict['ehi_logg'] > 3.5) & \
-#        (star_dict['Teff']+star_dict['ehi_Teff'] >= 2700) & \
-#	(star_dict['Teff']-star_dict['elo_Teff'] <= 4000)
-    print 'TEMP: Only by-passed for AU Mic'
+    return (star_dict['Ms']-star_dict['elo_Ms'] <= .75) & \
+        (star_dict['Rs']-star_dict['elo_Rs'] <= .75) & \
+	(star_dict['logg']+star_dict['ehi_logg'] > 3.5) & \
+        (star_dict['Teff']+star_dict['ehi_Teff'] >= 2700) & \
+	(star_dict['Teff']-star_dict['elo_Teff'] <= 4000)
+    #print 'TEMP: Only by-passed for AU Mic'
     return True
 
 

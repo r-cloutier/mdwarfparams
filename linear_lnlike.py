@@ -441,7 +441,7 @@ def identify_transit_candidates(self, Ps, T0s, Ds, Zs, lnLs, Ndurations, Rs,
                                                                  TESS=TESS)
 
     # save POIs and lnLs for plotting if desired (a very specific requirement)
-    savePOIs = 1
+    savePOIs = 0
     if savePOIs:
 	lnL0 = lnlike(bjd, fcorr, ef, np.ones(bjd.size))
 	np.save('input_data/POIs_lnLOIs_tic%i'%self.tic, np.array([np.append(POIs3,0),
