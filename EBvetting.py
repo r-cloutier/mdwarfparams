@@ -1,5 +1,6 @@
 from imports import *
 import rvs, batman
+import linear_lnlike as llnl
 from scipy.interpolate import LinearNDInterpolator as lint
 
 
@@ -65,9 +66,9 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep=False, TESS=False):
     assert params.shape == (4,)
     P, T0, depth, duration = params
     if Kep:
-        u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
+        u1, u2 = llnl.get_LDcoeffs_Kepler(Ms, Rs, Teff)
     elif TESS:
-        u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
+        u1, u2 = llnl.get_LDcoeffs_TESS(Ms, Rs, Teff)
 
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
@@ -86,39 +87,6 @@ def _fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep=False, TESS=False):
     except RuntimeError:
         return params
 
-
-def _get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
-    '''Interpolate Claret+2012 grid of limb darkening coefficients to a
-    given star.'''
-    # get LD coefficient grid (Z is always 0 for some reason)
-    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
-                                    np.loadtxt('LDcoeffs/claret12.tsv',
-                                               delimiter=';', skiprows=40,
-                                               usecols=(0,1,2,4,5)).T
-
-    # interpolate to get the stellar LD coefficients
-    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
-    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
-    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
-
-    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
-
-
-
-def _get_LDcoeffs_TESS(Ms, Rs, Teff, Z=0):
-    '''Interpolate Claret 2017 grid of limb darkening coefficients to a
-    given star.'''
-    # get LD coefficient grid (Z is always 0 for some reason)
-    clarlogg, clarTeff, clarZ, clar_a, clar_b = \
-                                    np.loadtxt('LDcoeffs/claret17.tsv',
-                                               delimiter=';', skiprows=37).T
-
-    # interpolate to get the stellar LD coefficients
-    logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
-    lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
-    lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
-
-    return float(lint_a(Teff,logg)), float(lint_b(Teff,logg))
 
 
 
@@ -202,9 +170,9 @@ def _is_Vshaped(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep, TESS, duration_frac=.
     assert params.shape == (4,)
     P, T0, depth = params[:3]
     if Kep:
-        u1, u2 = _get_LDcoeffs_Kepler(Ms, Rs, Teff)
+        u1, u2 = llnl.get_LDcoeffs_Kepler(Ms, Rs, Teff)
     elif TESS:
-        u1, u2 = _get_LDcoeffs_TESS(Ms, Rs, Teff)
+        u1, u2 = llnl.get_LDcoeffs_TESS(Ms, Rs, Teff)
 
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)

@@ -532,8 +532,8 @@ def get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
     # get LD coefficient grid (Z is always 0 for some reason)
     clarlogg, clarTeff, clarZ, clar_a, clar_b = \
                                     np.loadtxt('LDcoeffs/claret12.tsv',
-                                               delimiter=';', skiprows=40,
-                                               usecols=(0,1,2,4,5)).T
+                                               delimiter=';', skiprows=43,
+                                               usecols=(0,1,2,3,4)).T
 
     # interpolate to get the stellar LD coefficients
     logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
@@ -583,6 +583,7 @@ def fit_params(params, bjd, fcorr, ef, Ms, Rs, Teff, Kep=False, TESS=False):
         u1, u2 = get_LDcoeffs_Kepler(Ms, Rs, Teff)
     if TESS:
         u1, u2 = get_LDcoeffs_TESS(Ms, Rs, Teff)
+    assert np.all(np.isfinite([u1,u2]))
     aRs = rvs.AU2m(rvs.semimajoraxis(P,Ms,0)) / rvs.Rsun2m(Rs)
     rpRs = np.sqrt(depth)
     p0 = P, T0, aRs, rpRs, 90.
