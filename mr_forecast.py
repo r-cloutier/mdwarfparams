@@ -17,7 +17,7 @@ mupper = 3e5
 n_pop = 4
 
 ## read parameter file
-hyper_file = 'fitting_parameters.h5'
+hyper_file = 'input_data/fitting_parameters.h5'
 h5 = h5py.File(hyper_file, 'r')
 all_hyper = h5['hyper_posterior'][:]
 h5.close()
