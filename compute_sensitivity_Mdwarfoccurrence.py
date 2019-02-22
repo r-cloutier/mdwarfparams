@@ -2,6 +2,7 @@ from LCclass import *
 from planetsearch import *
 import linear_lnlike as llnl
 from catalog_object import *
+import mr_forecast as mr
 
 
 def transit_model_func_in(bjd, P, T0, aRs, rpRs, inc, u1, u2):
@@ -45,23 +46,33 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
     Pmin, Pmax = Plims
     assert Pmin < Pmax
 
-    # sample SNR
-    SNR = np.random.uniform(7, 50, Nplanets)
+    # sample planets
+    stable = False
+    while not stable:       
+        
+        # sample SNR
+        SNR = np.random.uniform(7, 50, Nplanets)
 
-    # get planets
-    Ptrue = np.ones(Nplanets)
-    while np.any(np.diff(Ptrue) / Ptrue[1:] <= .1) or not np.any(Ptrue < 80):
-        Ptrue = np.sort(10**np.random.uniform(np.log10(Pmin), np.log10(Pmax),
-                                              Nplanets))
-    T0true = np.zeros(Nplanets)
-    while np.any((T0true <= bjd.min()) | (T0true >= bjd.max())):
-        T0true = np.random.choice(bjd, Nplanets) + np.random.randn(Nplanets)*.5
+        # get planets
+        Ptrue = np.ones(Nplanets)
+        while np.any(np.diff(Ptrue) / Ptrue[1:] <= .1) or not np.any(Ptrue < 80):
+            Ptrue = np.sort(10**np.random.uniform(np.log10(Pmin), np.log10(Pmax),
+                                                  Nplanets))
+        T0true = np.zeros(Nplanets)
+        while np.any((T0true <= bjd.min()) | (T0true >= bjd.max())):
+            T0true = np.random.choice(bjd, Nplanets) + np.random.randn(Nplanets)*.5
 
-    # sample rp from SNR
-    D = rvs.transit_width(Ptrue, Ms, Rs, 2., 0.)
-    sigdepth = np.array([llnl.estimate_CDPP(bjd, f, ef, d) for d in D])
-    Ntransits = np.array([llnl.compute_Ntransits(bjd, Ptrue[i], T0true[i]) for i in range(Nplanets)])
-    rptrue = rvs.m2Rearth(rvs.Rsun2m(Rs)) * np.sqrt(SNR*sigdepth/np.sqrt(Ntransits))
+        # sample rp from SNR
+        D = rvs.transit_width(Ptrue, Ms, Rs, 2., 0.)
+        sigdepth = np.array([llnl.estimate_CDPP(bjd, f, ef, d) for d in D])
+        Ntransits = np.array([llnl.compute_Ntransits(bjd, Ptrue[i], T0true[i]) for i in range(Nplanets)])
+        rptrue = rvs.m2Rearth(rvs.Rsun2m(Rs)) * np.sqrt(SNR*sigdepth/np.sqrt(Ntransits))
+    
+        # get planet mass to ensure Lagrange stability
+        mps = np.array([mr.Rstat2M(rp, rp*.05, unit='Earth', sample_size=1e3, grid_size=1e3, classify='No')[0]
+                        for rp in rptrue])
+        stable = np.all(rvs.is_Lagrangestable(Ptrue, Ms, mps, np.zeros(Nplanets)))
+        
     
     # sample other parameters
     rpRs = rvs.Rearth2m(rptrue) / rvs.Rsun2m(Rs)
@@ -205,7 +216,7 @@ if __name__ == '__main__':
     prefix, K2, Kep, TESS = 'EPIC', True, False, False
 
     # get EPICnums
-    ids = np.loadtxt('input_data/K2targets/K2lowmassstars_sens.csv', delimiter=',')[:,0]
+    ids = np.loadtxt('input_data/K2targets/K2lowmassstars_sensv2.csv', delimiter=',')[:,0]
 
     for i in range(Njobs):
 	i = np.random.choice(np.arange(0,ids.size))

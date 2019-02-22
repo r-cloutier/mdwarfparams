@@ -32,7 +32,7 @@ def estimate_transmission_metric(Ps, rps, Jmags, Mss, Rss, Teffs):
             SFs[i] = scale_factors['super-Earth']
         elif 2.75 < rps[i] < 4:
             SFs[i] = scale_factors['sub-Neptune']
-        elif 4 < rps[i] < 10:
+        elif 4 < rps[i] < 11:
             SFs[i] = scale_factors['giant']
         else:
             raise ValueError('%.3f Rearth is not a valid rp'%rps[i])
