@@ -781,11 +781,14 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             transit_condition_timesym_val[i] = cond4_val
 	    transit_condition_timesym[i] = cond4
 
-            # ensure that the transit is not close to the edge
+            # ensure that the transit is not close to an edge
             T0s = np.arange(-Ntransits[i], Ntransits[i]+1)*P + T0
             T0s = T0s[(T0s >= bjd.min()) & (T0s <= bjd.max())]
+	    edges = np.diff(bjd)*24*60 > 30
             nearedge = np.any((T0s <= bjd.min()+cutedges_hrs/24.) | \
-                              (T0s >= bjd.max()-cutedges_hrs/24.)) 
+                              (T0s >= bjd.max()-cutedges_hrs/24.)) | \
+			      np.any([np.any(np.isclose(bjd[:-1][edges], t0, rtol=0, atol=cutedges_hrs/24)) 
+				      for t0 in T0s])
             cond7 = not nearedge
             transit_condition_notedgeeffect[i] = cond7
             transit_condition_notedgeeffect_val[i] = np.nan
