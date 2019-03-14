@@ -301,17 +301,18 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    sector = 5
+    sector = 6
     fout = 'input_data/TESStargets/TESSMdwarfs_sector%i.csv'%sector
 
     # get M dwarf TICs in this sector
-    ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.csv'%sector,
-                       delimiter=',', skiprows=6)[:,0]
+    #ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.csv'%sector,
+    #                   delimiter=',', skiprows=6)[:,0]
+    ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.txt'%sector)[:,0]
     ticsM = np.genfromtxt('input_data/TESStargets/TICv7_Mdwarfsv1.csv', 
 			  delimiter=',', skip_header=5, usecols=(0))#[:,0]
     tics = ticsS[np.in1d(ticsS, ticsM)]
     
-    tics = tics[3000:5000]
+    tics = tics[2000:3000]
     get_stellar_data_TIC(tics, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
