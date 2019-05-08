@@ -301,7 +301,7 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    sector = 7
+    sector = 9
     fout = 'input_data/TESStargets/TESSMdwarfs_sector%i.csv'%sector
 
     # get M dwarf TICs in this sector
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     tics = ticsS[np.in1d(ticsS, ticsM)]
     print tics.size   
  
-    tics = tics[2000:3000]
+    tics = tics[1500:2159]
     get_stellar_data_TIC(tics, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()

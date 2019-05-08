@@ -1088,14 +1088,14 @@ def plot_planet_population(self, pltt=True, label=False):
     rplim = (.7,4.5)
 
     # undetected TOIs
-    #tois_UD = [203.01,221.01,175.02,175.03]
-    #assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
-    #tics = [259962054,316937670,307210830,307210830]
-    #gt = np.in1d(self.tics, tics)
-    #Ls_UD = compute_Ls(self.Rss[gt], self.Teffs[gt])
-    #Ps_UD = [52,.624, 7.45,2.25]
-    #Fs_UD = compute_F(Ls_UD, rvs.semimajoraxis(np.array(Ps_UD),self.Mss[gt],0))
-    #rps_UD = [1.22,1.67, 1.43,.794]
+    tois_UD = [203.01,221.01,175.02,175.03]
+    assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
+    tics = [259962054,316937670,307210830,307210830]
+    gt = np.in1d(self.tics, tics)
+    Ls_UD = compute_Ls(self.Rss[gt], self.Teffs[gt])
+    Ps_UD = [52,.624, 7.45,2.25]
+    Fs_UD = compute_F(Ls_UD, rvs.semimajoraxis(np.array(Ps_UD),self.Mss[gt],0))
+    rps_UD = [1.22,1.67, 1.43,.794]
     
     # plot planet candidates that passed human vetting (and maybe vespa?)
     fig = plt.figure(figsize=(6.5,2.9))
@@ -1134,8 +1134,8 @@ def plot_planet_population(self, pltt=True, label=False):
     ax1.plot(self.Ps[ta], self.rps[ta], marker[3], markerfacecolor=cols[3],
              markeredgecolor='k', markeredgewidth=.3, ms=10,
              label='TESS alert')
-    #ax1.plot(Ps_UD, rps_UD, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax1.plot(Ps_UD, rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
 
     # TOI labels
     dx = [2,-2.3,-.7,-1.5,-5,-3,-1.85,-2.5]
@@ -1199,8 +1199,8 @@ def plot_planet_population(self, pltt=True, label=False):
     ax2.plot(self.Fs[ta], self.rps[ta], marker[3], markerfacecolor=cols[3],
              markeredgecolor='k', markeredgewidth=.3, ms=10,
              label='TESS alert')
-    #ax2.plot(Fs_UD, rps_UD, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax2.plot(Fs_UD, rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
 
     # plot the HZ
     ax2.fill_between([.2,1.5], np.repeat(np.min(rplim),2),
@@ -1252,7 +1252,7 @@ def plot_planet_population(self, pltt=True, label=False):
     
     fig.subplots_adjust(bottom=.15, top=.97, right=.98, left=.06, wspace=.05)
     if label:
-        plt.savefig('plots/planetsample_34.png')
+        plt.savefig('plots/planetsample.png')
     if pltt:
         plt.show()
     plt.close('all')
@@ -1275,15 +1275,15 @@ def plot_planet_population_star(self, pltt=True, label=False):
     rplim = (.7,5)
 
     # undetected TOIs
-    #tois_UD = [203.01,221.01,175.02,175.03]
-    #assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
-    #tics = [259962054,316937670,307210830,307210830]
-    #udta = np.where(np.in1d(self.tics, tics))[0]
-    ##FPtoi = np.where(np.array(tics) == 307210830)[0]
-    ##if udta.size != len(tics):
-    ##    udta = np.append(udta, udta[-1])
-    #gt = np.in1d(self.tics, tics)
-    #rps_UD = np.array([1.22,1.67, 1.43,.794])
+    tois_UD = [203.01,221.01,175.02,175.03]
+    assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
+    tics = [259962054,316937670,307210830,307210830]
+    udta = np.where(np.in1d(self.tics, tics))[0]
+    #FPtoi = np.where(np.array(tics) == 307210830)[0]
+    #if udta.size != len(tics):
+    #    udta = np.append(udta, udta[-1])
+    gt = np.in1d(self.tics, tics)
+    rps_UD = np.array([1.22,1.67, 1.43,.794])
 
     # get known transiting planets (NASA archive Dec 15)
     fname = 'input_data/TESStargets/NASAarchive_transitingMdwarfplanets.csv'
@@ -1323,21 +1323,21 @@ def plot_planet_population_star(self, pltt=True, label=False):
     ax1.plot(self.Teffs[ta], self.rps[ta], marker[3], markerfacecolor=cols[3],
              markeredgecolor='k', markeredgewidth=.3, ms=10,
              label='TESS alert')
-    #ax1.plot(self.Teffs[udta], rps_UD, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
-    #ax1.plot(self.Teffs[udta], rps_UD, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
-    ##ax1.plot(self.Teffs[udta][FPtoi], rps_UD[FPtoi], marker[3],
-    ##         markerfacecolor='k', markeredgecolor='k', markeredgewidth=.3,
-    ##         ms=4)
-    ax1.plot(TeffT, rpT, 'o', ms=1, c='k', alpha=.4)
+    ax1.plot(self.Teffs[udta], rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax1.plot(self.Teffs[udta], rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
+    #ax1.plot(self.Teffs[udta][FPtoi], rps_UD[FPtoi], marker[3],
+    #         markerfacecolor='k', markeredgecolor='k', markeredgewidth=.3,
+    #         ms=4)
+    ax1.plot(TeffT, rpT, 'o', ms=1, c='k', alpha=.5)
 
     # TOI labels
     dx = [2,-2.3,-.7,-1.5,-5,-3,-1.85,-2.5]
     dy = [.2,.17,-.15,-.1,-.23,.2,-.1,.2]
     #for i in range(ta.sum()):
-        #ax1.text(self.Ps[ta][i]+dx[i], self.rps[ta][i]+dy[i],
-        #         '%.2f'%self.tois[ta][i], fontsize=6, weight='semibold')
+    #    ax1.text(self.Ps[ta][i]+dx[i], self.rps[ta][i]+dy[i],
+    #             '%.2f'%self.tois[ta][i], fontsize=6, weight='semibold')
 
     dx = [5,-1.4,-.07,.6,.25,.1,.1,.1]
     dy = [.02,-.17,.1,-.1,.01,.1,.1,.1]
@@ -1384,12 +1384,12 @@ def plot_planet_population_star(self, pltt=True, label=False):
     ax2.plot(self.Jmags[ta], self.rps[ta], marker[3], markerfacecolor=cols[3],
              markeredgecolor='k', markeredgewidth=.3, ms=10,
              label='TESS alert')
-    #ax2.plot(self.Jmags[udta], rps_UD, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax2.plot(self.Jmags[udta], rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
     ##ax2.plot(self.Jmags[udta][FPtoi], rps_UD[FPtoi], marker[3],
     ##         markerfacecolor='k',
     ##         markeredgecolor='k', markeredgewidth=.3, ms=4)
-    ax2.plot(JmagT, rpT, 'o', ms=1, c='k', alpha=.4)
+    ax2.plot(JmagT, rpT, 'o', ms=1, c='k', alpha=.5)
     
     ax2.set_yscale('log')
     ax2.set_xlabel('$J$', fontsize=10)
@@ -1403,7 +1403,7 @@ def plot_planet_population_star(self, pltt=True, label=False):
     ax2.set_yticklabels('')
 
     # custom legend
-    ax2.plot(.04, .95, marker[0], markerfacecolor='k', ms=2, alpha=.5,
+    ax2.plot(.04, .95, marker[0], markerfacecolor='k', ms=2, alpha=.7,
              transform=ax2.transAxes)
     ax2.text(.08, .95, 'confirmed transiting planets', fontsize=5,
              transform=ax2.transAxes,verticalalignment='center',
@@ -1467,12 +1467,12 @@ def plot_planet_population_star(self, pltt=True, label=False):
     ax3.plot(self.dists[ta], self.rps[ta], marker[3], markerfacecolor=cols[3],
              markeredgecolor='k', markeredgewidth=.3, ms=10,
              label='TESS alert')
-    #ax3.plot(self.dists[udta], rps_UD, marker[3], markerfacecolor=cols[4],
+    ax3.plot(self.dists[udta], rps_UD, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
+    #ax3.plot(self.dists[udta][FPtoi], rps_UD[FPtoi], marker[3],
+    #         markerfacecolor='k',
     #         markeredgecolor='k', markeredgewidth=.3, ms=4)
-    ##ax3.plot(self.dists[udta][FPtoi], rps_UD[FPtoi], marker[3],
-    ##         markerfacecolor='k',
-    ##         markeredgecolor='k', markeredgewidth=.3, ms=4)
-    ax3.plot(distT, rpT, 'o', ms=1, c='k', alpha=.4)
+    ax3.plot(distT, rpT, 'o', ms=1, c='k', alpha=.5)
     
     ax3.set_xscale('log')
     ax3.set_yscale('log')
@@ -1510,21 +1510,21 @@ def plot_planet_population_followup(self, pltt=True, label=False):
     
     # undetected TOIs
     tois_UD = [203.01,221.01,175.02,175.03]
-    #assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
-    #tics = [259962054,316937670,307210830,307210830]
-    #udta = np.in1d(self.tics, tics)
-    #Ps_UD = np.array([52,.624,7.45,2.25])
-    #rps_UD = np.array([1.,1.67, 1.43,.794])
-    #mpU,KU,TeqU,SFU,TSMU = estimate_transmission_metric(Ps_UD,rps_UD,
-    #                                                    self.Jmags[udta],
-    #                                                    self.Mss[udta],
-    #                                                    self.Rss[udta],
-    #                                                    self.Teffs[udta])
-    #_,_,_,BratioU,ESMU = estimate_eclipse_metric(Ps_UD,rps_UD,
-    #                                             self.Kmags[udta],
-    #                                             self.Mss[udta],
-    #                                             self.Rss[udta],
-    #                                             self.Teffs[udta])
+    assert np.any(np.in1d(tois_UD, self.tois, invert=True)) 
+    tics = [259962054,316937670,307210830,307210830]
+    udta = np.in1d(self.tics, tics)
+    Ps_UD = np.array([52,.624,7.45,2.25])
+    rps_UD = np.array([1.,1.67, 1.43,.794])
+    mpU,KU,TeqU,SFU,TSMU = estimate_transmission_metric(Ps_UD,rps_UD,
+                                                        self.Jmags[udta],
+                                                        self.Mss[udta],
+                                                        self.Rss[udta],
+                                                        self.Teffs[udta])
+    _,_,_,BratioU,ESMU = estimate_eclipse_metric(Ps_UD,rps_UD,
+                                                 self.Kmags[udta],
+                                                 self.Mss[udta],
+                                                 self.Rss[udta],
+                                                 self.Teffs[udta])
     
     # get barclay planet parameters
     fname = 'input_data/TESStargets/apjsaae3e9t2_mrt.txt'
@@ -1613,8 +1613,8 @@ def plot_planet_population_followup(self, pltt=True, label=False):
              markeredgecolor='k', markeredgewidth=.5)
     ax1.plot(self.Jmags[g25], K25, marker[1], ms=5, markerfacecolor=cols[2],
              markeredgecolor='k', markeredgewidth=.5)
-    #ax1.plot(self.Jmags[udta], KU, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax1.plot(self.Jmags[udta], KU, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
     ax1.plot(JmagT, KT, 'o', ms=2, c='k', alpha=.4)
     ax1.plot(JmagB, KB, 'v', ms=2, c='k', alpha=.4)
 
@@ -1653,8 +1653,8 @@ def plot_planet_population_followup(self, pltt=True, label=False):
              markeredgecolor='k', markeredgewidth=.5)
     ax2.plot(self.Jmags[g25], TSM25, marker[1], ms=5, markerfacecolor=cols[2],
              markeredgecolor='k', markeredgewidth=.5)
-    #ax2.plot(self.Jmags[udta], TSMU, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax2.plot(self.Jmags[udta], TSMU, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
     ax2.plot(JmagT, TSMT, 'o', ms=2, c='k', alpha=.4)
     ax2.plot(JmagB, TSMB, 'v', ms=2, c='k', alpha=.4)
     ax2.axvline(8.1, ls='--', lw=2, color='k')
@@ -1696,8 +1696,8 @@ def plot_planet_population_followup(self, pltt=True, label=False):
              markeredgecolor='k', markeredgewidth=.5)
     ax3.plot(self.Jmags[g25], ESM25, marker[1], ms=5, markerfacecolor=cols[2],
              markeredgecolor='k', markeredgewidth=.5)
-    #ax3.plot(self.Jmags[udta], ESMU, marker[3], markerfacecolor=cols[4],
-    #         markeredgecolor='k', markeredgewidth=.3, ms=4)
+    ax3.plot(self.Jmags[udta], ESMU, marker[3], markerfacecolor=cols[4],
+             markeredgecolor='k', markeredgewidth=.3, ms=4)
     ax3.plot(JmagT, ESMT, 'o', ms=2, c='k', alpha=.4)
     ax3.plot(JmagB, ESMB, 'v', ms=2, c='k', alpha=.4)
 
@@ -1725,7 +1725,7 @@ def plot_planet_population_followup(self, pltt=True, label=False):
     
     fig.subplots_adjust(bottom=.06, top=.98, right=.98, left=.17, hspace=.05)
     if label:
-        plt.savefig('plots/planetsample_followup_34.png')
+        plt.savefig('plots/planetsample_followup.png')
     if pltt:
         plt.show()
     plt.close('all')
@@ -1758,7 +1758,7 @@ def plot_transit_LCs(self, simname='LC_-00099_8d4',
     g = self.disposition_human >=0
     g = np.where(g)[0][np.argsort(self.tics_candidates[g])]
     Np = g.size
-    assert Np == 16
+    assert Np == 15
     disp_dict = {0:'pPC', 1:'PC', 2:'ST', 2.5:'pST'}
     
     # black, red, yellow, orange, warm orange
