@@ -537,6 +537,8 @@ def get_LDcoeffs_Kepler(Ms, Rs, Teff, Z=0):
 
     # interpolate to get the stellar LD coefficients
     logg = np.log10(6.67e-11*rvs.Msun2kg(Ms)*1e2 / rvs.Rsun2m(Rs)**2)
+    logg = 5. if logg > 5 else float(logg)
+    logg = 3.5 if logg < 3.5 else float(logg)
     lint_a = lint(np.array([clarTeff,clarlogg]).T, clar_a)
     lint_b = lint(np.array([clarTeff,clarlogg]).T, clar_b)
 
@@ -712,6 +714,8 @@ def confirm_transits(params, lnLs, bjd, fcorr, ef, Ms, Rs, Teff,
             #         'b.'), plt.show()
 
 	    tb, fb, efb = boxcar(bjd, fcorr, ef, dt=duration/2)
+            g = np.isfinite(tb) & np.isfinite(fb) & np.isfinite(efb)
+            tb, fb, efb = tb[g], fb[g], efb[g]
 	    phaseb = foldAt(tb, P, T0)
 	    phaseb[phaseb > .5] -= 1
 	    Dfrac = .25

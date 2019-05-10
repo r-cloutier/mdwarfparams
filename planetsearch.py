@@ -171,7 +171,10 @@ def read_K2_data(epicnum):
                 break
 
         # read fits file
-        hdu = fits.open('%s/%s'%(folder2, fname))
+        try:
+	    hdu = fits.open('%s/%s'%(folder2, fname))
+	except IOError:
+	    return '', {}, np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
         assert len(hdu) > 1
 
     # file already downloaded

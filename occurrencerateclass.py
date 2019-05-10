@@ -29,14 +29,14 @@ class OccurrenceRateclass:
                                                 self._endstarind)
         
         self._xlen, self._ylen = int(xlen), int(ylen)
-        self._fine_factor = int(fine_factor)
+	self._fine_factor = int(fine_factor)
         self.Plims, self.Flims, self.smalims = Plims, Flims, smalims
         self.rplims = rplims
 
         self._t0 = time.time()
         
         if compute_detections:
-            self.fname_out += '_det'
+	    self.fname_out += '_det'
             self.get_planetsearch_results()
             self.save_ids_detectionsfirst()
             self._pickleobject()
@@ -517,7 +517,6 @@ class OccurrenceRateclass:
         self.Ps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.Fs_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.as_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
-        self.SNR_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.rps_rec = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.is_FP = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
         self.depths_inj = np.zeros((self.Nstars_simulated, Nmaxfs, NmaxPs)) + np.nan
@@ -558,7 +557,7 @@ class OccurrenceRateclass:
                         self.Kepmags[i] = d.Kepmag
                     if self.TESS:
                         self.TESSmags[i] = d.TESSmag
-		    self.sigtransits[i] = d.sigtransit
+		    #self.sigtransits[i] = d.sigtransit
                     self.efs[i] = d.ef.mean()
                     self.Mss[i] = d.Ms
                     self.ehi_Mss[i] = d.ehi_Ms
@@ -600,12 +599,11 @@ class OccurrenceRateclass:
                     self.Ps_rec[i,j] = np.append(params[:,0], filler2)
                     sma = rvs.semimajoraxis(params[:,0], d.Ms, 0)
                     self.as_rec[i,j] = np.append(sma, filler2)
-                    self.SNR_rec[i,j] = np.append(d.SNRtransits, filler2)
                     F = compute_F(compute_Ls(d.Rs, d.Teff), sma)
                     self.Fs_rec[i,j]  = np.append(F, filler2)
                     self.rps_rec[i,j] = np.append(rp, filler2)
             	    self.is_FP[i,j]   = np.append(d.is_FP, filler2)
-                    self.depths_rec[i,j] = np.append(d.depths_rec, fille2)
+                    self.depths_rec[i,j] = np.append(d.depths_rec, filler2)
                     self.CDPPs_rec[i,j] = np.append(d.CDPPs_rec, filler2)
                     self.Ntransits_rec[i,j] = np.append(d.Ntransits_rec, filler2)
                     self.SNRtransits_rec[i,j] = np.append(d.SNRtransits_rec, filler2)
@@ -1229,6 +1227,7 @@ def combine_individual_sens(folder, prefix, label='_0_70'):
     Nsens = fs.size
     print Nsens
     self = loadpickle(fs[0])
+    assert self.Nstars_simulated > 0
     assert label in self.fname_out
     self.fname_out = self.fname_out.replace(label,'')
     
@@ -1237,10 +1236,13 @@ def combine_individual_sens(folder, prefix, label='_0_70'):
         
         print float(i) / Nsens
         d = loadpickle(fs[i])
+	if d.Nstars_simulated != self.Nstars_simulated:
+	    continue
+
         self.as_inj = np.append(self.as_inj, d.as_inj, 0)
         self.as_rec = np.append(self.as_rec, d.as_rec, 0)
-        self.SNR_rec = np.append(self.SNR_rec, d.SNR_rec, 0)
-	self.SNR_inj = np.append(self.SNR_inj, d.SNR_inj, 0)
+        self.SNRtransits_rec = np.append(self.SNRtransits_rec, d.SNRtransits_rec, 0)
+	self.SNRtransits_inj = np.append(self.SNRtransits_inj, d.SNRtransits_inj, 0)
         self.cond_free_params_inj = np.append(self.cond_free_params_inj,
                                               d.cond_free_params_inj, 0)
         self.cond_vals_inj = np.append(self.cond_vals_inj, 
@@ -1273,7 +1275,7 @@ def combine_individual_sens(folder, prefix, label='_0_70'):
             self.Kepmags = np.append(self.Kepmags, d.Kepmags)
 	if self.TESS:
             self.TESSmags = np.append(self.TESSmags, d.TESSmags)
-	self.sigtransits = np.append(self.sigtransits, d.sigtransits)
+	#self.sigtransits = np.append(self.sigtransits, d.sigtransits)
         self.Lss = np.append(self.Lss, d.Lss)
         self.loggs = np.append(self.loggs, d.loggs)
         self.Mss = np.append(self.Mss, d.Mss)
@@ -1310,7 +1312,7 @@ def combine_individual_sens(folder, prefix, label='_0_70'):
     endPs = int(np.nanmax(self.Nplanets_inj))
     self.cond_vals_inj = self.cond_vals_inj[:,:endfs,:endPs,:]
     self.cond_free_params_inj = self.cond_free_params_inj[:,:endfs,:endPs,:]
-    self.SNR_inj = self.SNR_inj[:,:endfs,:endPs]
+    self.SNRtransits_inj = self.SNRtransits_inj[:,:endfs,:endPs]
     self.Ps_inj = self.Ps_inj[:,:endfs,:endPs]
     self.Fs_inj = self.Fs_inj[:,:endfs,:endPs]
     self.as_inj = self.as_inj[:,:endfs,:endPs]
@@ -1320,7 +1322,7 @@ def combine_individual_sens(folder, prefix, label='_0_70'):
     self.Ps_rec = self.Ps_rec[:,:endfs,:endPs]
     self.Fs_rec = self.Fs_rec[:,:endfs,:endPs]
     self.as_rec = self.as_rec[:,:endfs,:endPs]
-    self.SNR_rec  = self.SNR_rec[:,:endfs,:endPs]
+    self.SNRtransits_rec  = self.SNRtransits_rec[:,:endfs,:endPs]
     self.rps_rec = self.rps_rec[:,:endfs,:endPs]
     self.is_FP = self.is_FP[:,:endfs,:endPs]
     
@@ -1333,8 +1335,8 @@ if __name__ == '__main__':
     prefix = sys.argv[2]  # 'KepID'
     startstarind = int(sys.argv[3])  # 0
     endstarind = int(sys.argv[4])    # 10
-    self = OccurrenceRateclass(folder, prefix, startstarind, endstarind,
-                               compute_detections=True,
-                               compute_sens=False,
-                               compute_occurrence_rate=False)
-    #combine_individual_sens(folder, prefix, '_0_70')
+    #self = OccurrenceRateclass(folder, prefix, startstarind, endstarind,
+    #                           compute_detections=False,
+    #                           compute_sens=True,
+    #                           compute_occurrence_rate=False)
+    combine_individual_sens(folder, prefix, '_0_81')
