@@ -17,7 +17,7 @@ mupper = 3e5
 n_pop = 4
 
 ## read parameter file
-hyper_file = 'input_data/fitting_parameters.h5'
+hyper_file = '/Users/ryancloutier/Research/forecaster/fitting_parameters.h5'
 h5 = h5py.File(hyper_file, 'r')
 all_hyper = h5['hyper_posterior'][:]
 h5.close()
@@ -127,7 +127,7 @@ def Mstat2R(mean, std, unit='Earth', sample_size=1000, classify = 'No'):
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=sample_size)	
+	mass = truncnorm.rvs( (mlower-mean)/std, (mupper-mean)/std, loc=mean, scale=std, size=int(sample_size))	
 	if classify == 'Yes':	
 		radius = Mpost2R(mass, unit='Earth', classify='Yes')
 	else:
@@ -253,7 +253,7 @@ def Rstat2M(mean, std, unit='Earth', sample_size=1e3, grid_size=1e3, classify = 
 		print "Input unit must be 'Earth' or 'Jupiter'. Using 'Earth' as default."
 
 	# draw samples
-	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=sample_size)	
+	radius = truncnorm.rvs( (0.-mean)/std, np.inf, loc=mean, scale=std, size=int(sample_size))	
 	if classify == 'Yes':
 		mass = Rpost2M(radius, 'Earth', grid_size, classify='Yes')
 	else:

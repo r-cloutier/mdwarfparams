@@ -1393,7 +1393,7 @@ def plot_planet_population_star(self, pltt=True, label=False):
     
     ax2.set_yscale('log')
     ax2.set_xlabel('$J$', fontsize=10)
-    #ax2.set_xlim((2e2,.1))
+    ax2.set_xlim((7.5,15.2))
     ax2.set_ylim(rplim)
     ax2.yaxis.set_major_formatter(NullFormatter())
     ax2.yaxis.set_minor_formatter(NullFormatter())
@@ -1403,8 +1403,7 @@ def plot_planet_population_star(self, pltt=True, label=False):
     ax2.set_yticklabels('')
 
     # custom legend
-    ax2.plot(.04, .95, marker[0], markerfacecolor='k', ms=2, alpha=.7,
-             transform=ax2.transAxes)
+    ax2.plot(.04, .95, 'o', ms=1, alpha=.5, c='k', transform=ax2.transAxes)
     ax2.text(.08, .95, 'confirmed transiting planets', fontsize=5,
              transform=ax2.transAxes,verticalalignment='center',
              weight='semibold')
@@ -1488,7 +1487,7 @@ def plot_planet_population_star(self, pltt=True, label=False):
     
     fig.subplots_adjust(bottom=.15, top=.97, right=.98, left=.06, wspace=.05)
     if label:
-        plt.savefig('plots/planetsample_star_34.png')
+        plt.savefig('plots/planetsample_star.png')
     if pltt:
         plt.show()
     plt.close('all')
