@@ -106,7 +106,7 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
         return None
 
     if K2:
-        name, star_dict, bjd, f, ef, quarters = read_K2_data(IDnum)
+        name, star_dict, bjd, f, ef, quarters = read_K2_data_k2sff(IDnum)
 	prefix, Nopt = 'EPIC', 10
     elif Kep:
 	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(IDnum)

@@ -138,7 +138,7 @@ def listFD(url, ext=''):
                      if node.get('href').endswith(ext)])
                     
 
-def read_K2_data(epicnum):
+def read_K2_data_k2sff(epicnum):
     # make directories
     try:
 	os.mkdir('MAST')
@@ -156,7 +156,7 @@ def read_K2_data(epicnum):
 
     # download tar file if not already
     # from https://archive.stsci.edu/hlsps/k2sff/
-    fnames = np.array(glob.glob('%s/hlsp*.fits'))
+    fnames = np.array(glob.glob('%s/hlsp*.fits'%folder2))
     if fnames.size == 0:
         campaigns=[0,1,2,3,4,5,6,7,8,91,92,102,111,112,12,13,14,15,16,17][::-1]
         for j in range(len(campaigns)):
@@ -198,6 +198,63 @@ def read_K2_data(epicnum):
     s = np.argsort(bjd)
     quarters = np.zeros(bjd.size)
     return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
+
+
+def read_K2_data_everest(epicnum):
+    # make directories
+    try:
+	os.mkdir('MAST')
+    except OSError:
+	pass
+    try:
+	os.mkdir('MAST/K2_EVEREST')
+    except OSError:
+	pass
+    folder2 = 'MAST/K2_EVEREST/EPIC%i'%epicnum
+    try:
+       	os.mkdir(folder2)
+    except OSError:
+       	pass
+
+    # download tar file if not already
+    fnames = np.array(glob.glob('%s/hlsp*.fits'%folder2))
+    if fnames.size == 0:
+        campaigns=[0,1,2,3,4,5,6,7,8,102,111,112,12,13,14,15,16,17,18][::-1]
+        for j in range(len(campaigns)):
+            folder = 'c%.2d/%.4d00000/%.5d'%(campaigns[j],
+                                             int(str(epicnum)[:4]),
+                                             int(str(epicnum)[4:9]))
+            fname = 'hlsp_everest_k2_llc_%.9d-c%.2d_kepler_v2.0_lc.fits'%(int(epicnum), campaigns[j])
+            url = 'https://archive.stsci.edu/hlsps/everest/v2/%s/%s'%(folder, fname)
+            os.system('wget %s'%url)
+            if os.path.exists(fname):
+                os.system('mv %s %s'%(fname, folder2))
+                break
+
+        # read fits file
+        try:
+	    hdu = fits.open('%s/%s'%(folder2, fname))
+	except IOError:
+	    return '', {}, np.zeros(0), np.zeros(0), np.zeros(0), np.zeros(0)
+        assert len(hdu) > 1
+
+    # file already downloaded
+    else:
+        hdu = fits.open(fnames[0])
+        assert len(hdu) > 1
+
+    # get data from fits file
+    g = hdu[1].data['QUALITY'] == 0
+    bjd = hdu[1].data['TIME'][g] + hdu[1].header['BJDREFI']
+    f = hdu[1].data['FCOR'][g]
+    ef = hdu[1].data['FRAW_ERR'][g]
+    name = hdu[1].header['OBJECT'].replace(' ','_')
+    star_dict = get_star(epicnum, K2=True)
+    
+    s = np.argsort(bjd)
+    quarters = np.zeros(bjd.size)
+    return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
+
 
 
 def read_TESS_data(tic):
@@ -429,7 +486,7 @@ def planet_search(folder, IDnum, Kep=False, K2=False, TESS=False):
         K2, TESS = False, False
     elif K2:
 	epicnum, Nopt = IDnum, 10
-        name, star_dict, bjd, f, ef, quarters = read_K2_data(epicnum)
+        name, star_dict, bjd, f, ef, quarters = read_K2_data_k2sff(epicnum)
         Kep, TESS = False, False
     elif TESS:
         TICnum, Nopt = IDnum, 10

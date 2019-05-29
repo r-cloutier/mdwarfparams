@@ -33,7 +33,7 @@ class MdwarfOccurrence:
         self.Kepmags, self.Jmags = np.zeros(N), np.zeros((N,2))
         self.Hmags, self.Kmags = np.zeros((N,2)), np.zeros((N,2))
         self.pars, self.dists = np.zeros((N,2)), np.zeros((N,3))
-        self.mus, self.AKs = np.zeros((N,3)), np.zeros((N,3))
+        self.mus, self.AKs = np.zeros((N,3)), np.zeros((N,2))
         self.MKs, self.Rss = np.zeros((N,3)), np.zeros((N,3))
         self.Teffs, self.Mss = np.zeros((N,3)), np.zeros((N,3))
         self.loggs = np.zeros((N,3))
@@ -64,8 +64,8 @@ class MdwarfOccurrence:
             self.Kmags[i] = d.Kmag, d.e_Kmag
             self.pars[i] = d.par, d.e_par
             self.dists[i] = d.dist, d.ehi_dist, d.elo_dist
-            self.mus[i] = d.mu, d.ehi_mu, d.elo_mu
-            self.AKs[i] = d.AK, d.ehi_AK, d.elo_AK
+            #self.mus[i] = d.mu, d.ehi_mu, d.elo_mu
+            self.AKs[i] = d.AK, d.e_AK
             self.MKs[i] = d.MK, d.ehi_MK, d.elo_MK
             self.Rss[i] = d.Rs, d.ehi_Rs, d.elo_Rs
             self.Teffs[i] = d.Teff, d.ehi_Teff, d.elo_Teff
@@ -76,16 +76,18 @@ class MdwarfOccurrence:
             filler = np.repeat(np.nan, Nmax-d.Ptrue.size)
             self.Ps_inj[i] = np.append(d.Ptrue, filler)
             self.rps_inj[i] = np.append(d.rptrue, filler)
-            self.multiplicities[i] = d.Ptrue.size
+            self.multiplicities_inj[i] = d.Ptrue.size
 
             # light cure parameters
-            self.CDPPs_inj[i], self.CDPPs_rec[i] = d.CDPPS_inj, d.CDPPS_rec
-            self.Zs_inj[i], self.Zs_rec[i] = d.depths_inj, d.depths_rec
-            self.Ntransits_inj[i] = d.Ntransits_inj
-            self.Ntransits_rec[i] = d.Ntransits_rec
-            self.SNRs_inj[i] = d.SNRtransits_inj
-            self.SNRs_rec[i] = d.SNRtransits_rec
-            self.is_det[i] = d.is_detected
+            self.CDPPs_inj[i] = np.append(d.CDPPs_inj, filler)
+            #self.CDPPs_rec[i] = np.append(d.CDPPs_rec, filler)
+            self.Zs_inj[i] = np.append(d.depths_inj, filler)
+            #self.Zs_rec[i] = np.append(d.depths_rec, filler)
+            self.Ntransits_inj[i] = np.append(d.Ntransits_inj, filler)
+            #self.Ntransits_rec[i] = np.append(d.Ntransits_rec, filler)
+            self.SNRs_inj[i] = np.append(d.SNRtransits_inj, filler)
+            #self.SNRs_rec[i] = np.append(d.SNRtransits_rec, filler)
+            self.is_det[i] = np.append(d.is_detected, np.repeat(False, Nmax-d.Ptrue.size))
 
             
     def _pickleobject(self):
