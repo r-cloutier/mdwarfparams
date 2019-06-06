@@ -18,7 +18,7 @@ class MdwarfOccurrence:
         fs = np.array(glob.glob('%s/*/*'%self.folder))
         self.fs, self.Nfs = [], 0
         for f in fs:
-            if loadpickle(f).DONE:
+            if loadpickle(f).DONE and '-' not in f:
                 self.fs.append(f)
                 self.Nfs += 1
 

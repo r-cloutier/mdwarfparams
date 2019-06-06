@@ -247,7 +247,9 @@ def read_K2_data_everest(epicnum):
     g = hdu[1].data['QUALITY'] == 0
     bjd = hdu[1].data['TIME'][g] + hdu[1].header['BJDREFI']
     f = hdu[1].data['FCOR'][g]
-    ef = hdu[1].data['FRAW_ERR'][g]
+    med = np.median(f)
+    ef = hdu[1].data['FRAW_ERR'][g] / med
+    f /= med
     name = hdu[1].header['OBJECT'].replace(' ','_')
     star_dict = get_star(epicnum, K2=True)
     
