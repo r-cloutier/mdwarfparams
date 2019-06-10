@@ -28,6 +28,7 @@ class MdwarfOccurrence:
         parameters.'''
         # stellar parameters
         N = self.Nfs
+        self.epicnums = np.zeros(N)
         self.ras, self.decs = np.zeros(N), np.zeros(N)
         self.GBPmags, self.GRPmags = np.zeros((N,2)), np.zeros((N,2))
         self.Kepmags, self.Jmags = np.zeros(N), np.zeros((N,2))
@@ -49,12 +50,15 @@ class MdwarfOccurrence:
         self.Ntransits_inj, self.Ntransits_rec = np.zeros((N,Nmax)), \
                                                  np.zeros((N,Nmax))
         self.SNRs_inj, self.SNRs_rec = np.zeros((N,Nmax)), np.zeros((N,Nmax))
+        self.cond_free_params = np.zeros((N,11))
+        self.cond_vals, self.cond_bools = np.zeros((N,Nmax,9)), np.zeros((N,Nmax,9))
         self.is_det = np.zeros((N,Nmax), dtype=bool)
         
         for i in range(N):
             # save stellar parameters
             d = loadpickle(self.fs[i])
             assert d.DONE
+            self.epicnums[i] = d.epicnum
             self.ras[i], self.decs[i] = d.ra, d.dec
             self.GBPmags[i] = d.GBPmag, d.e_GBPmag
             self.GRPmags[i] = d.GRPmag, d.e_GRPmag
@@ -89,6 +93,12 @@ class MdwarfOccurrence:
             #self.SNRs_rec[i] = np.append(d.SNRtransits_rec, filler)
             self.is_det[i] = np.append(d.is_detected, np.repeat(False, Nmax-d.Ptrue.size))
 
+            # transit parameters for human analysis
+            Noi = d.transit_condition_values.shape[0]
+            self.cond_vals[i] = np.append(d.transit_condition_values, np.repeat(np.nan,9*(Nmax-Noi)).reshape(Nmax-Noi,9), 0)
+            self.cond_bools[i] = np.append(d.transit_condition_bool, np.repeat(np.nan,9*(Nmax-Noi)).reshape(Nmax-Noi,9), 0)
+            self.cond_free_params[i] = d.transit_condition_free_params
+            
             
     def _pickleobject(self):
         fObj = open('%s/sens_Mdwarf'%self.folder, 'wb')

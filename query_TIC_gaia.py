@@ -142,7 +142,7 @@ def query_one_TIC(theta, radius_arcsec=10):
             matches[1],_,_ = does_GBP_K_match(GBPmag, Hmag, Kmag)
             matches[2],_,_ = does_GRP_K_match(GRPmag, Hmag, Kmag)
             matches[3],_,_ = does_GBP_GRP_match(GBPmag, GRPmag, Hmag, Kmag)
-            match = True#np.all(matches)  # TEMP
+            match = np.all(matches)
 
         if match:
             dist, mu = compute_distance_modulus(unp.uarray(par,epar))
@@ -301,7 +301,7 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    sector = 9
+    sector = 10
     fout = 'input_data/TESStargets/TESSMdwarfs_sector%i.csv'%sector
 
     # get M dwarf TICs in this sector
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     tics = ticsS[np.in1d(ticsS, ticsM)]
     print tics.size   
  
-    tics = tics[1500:2159]
+    tics = tics[1000:2000]
     get_stellar_data_TIC(tics, fout, overwrite=False)
     print 'Took %.3f min'%((time.time()-t0)/60.)
     send_email()
