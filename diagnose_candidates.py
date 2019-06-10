@@ -43,7 +43,7 @@ def get_tics(self):
     self._pickleobject() 
 
         
-def diagnostic_plots(self, tic, folder='PipelineResults_TIC_sector34',
+def diagnostic_plots(self, tic, sctr, folder='PipelineResults_TIC_sector34',
                      pltts=[0,1,2]):
     '''Load a light curve with a detected planet candidate and flag each planet
     candidate according to its user-defined disposition based on the plots 
@@ -53,7 +53,17 @@ def diagnostic_plots(self, tic, folder='PipelineResults_TIC_sector34',
     assert d.Ndet >= 1
     assert d.tic == tic
     print '\nTIC %i'%tic
-    
+
+    # get data folder
+    tic_str = '%.16d'%int(tic)
+    tid1 = tic_str[:4]
+    tid2 = tic_str[4:8]
+    tid3 = tic_str[8:12]
+    tid4 = tic_str[12:]
+    url = 'https://archive.stsci.edu/missions/tess/tid/'
+    folder = '%s/%s/%s/%s/%s/'%(sctr,tid1,tid2,tid3,tid4)
+    print url+folder   
+ 
     # plot full light curve
     t0 = 2457000
     if 0 in pltts:

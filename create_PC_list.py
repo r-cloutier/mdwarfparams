@@ -1,4 +1,6 @@
 from occurrencerateclass import *
+import warnings, datetime
+from uncertainties import unumpy as unp
 
 
 def get_PCs(self):
@@ -46,6 +48,132 @@ def get_PCs(self):
     return outstr
 
 
+
+def get_CTOIs(self, fname_index):
+    '''Given a folder with an OccurrenceRateclass object, get all the planet 
+    candidates from orion with human dispositions and create a list of CTOIs using the 
+    CTOI format from ExoFOP 
+    (https://exofop.ipac.caltech.edu/tess/templates/params_planet_YYYYMMDD_001.txt)'''
+
+    assert hasattr(self, 'tics')
+    assert hasattr(self, 'disposition_human')
+    assert np.all(np.in1d(fname_index, np.arange(1,1e3,dtype=int)))
+
+    # isolate planet candidates, putative PCs, and single transits
+    g1 = np.in1d(self.disposition_human, [1])  # PCs and pPCs
+    g2 = np.in1d(self.disposition_human , [2])  # STs and pSTs
+    g = (g1 + g2).astype(bool)
+    assert g.sum() == g1.sum() + g2.sum()
+   
+    # get string
+    date = datetime.datetime.now()
+    date_str = '%.4d%.2d%.2d'%(date.year, date.month, date.day)
+ 
+    # get columns of interest including uncertainties (NaNs where appropriate)
+    # TIC,flag,disp,P,T0,Z,D,inc,b,rp/Rs,a/Rs,rp,mp,Teq,S,rho_star,sma,ecc,omega,tau_peri,K_RV,tag,group,prop_P,notes
+    # for definitions see ORION_PCs/ctoi_header.txt 
+    f = open('ORION_PCs/ctoi_header.txt', 'r')
+    outstr = f.read()
+    f.close()
+    for i in np.where(g)[0]:
+
+        # check if potential CTOIs are already a TOI or a CTOI
+        if (not is_TOI(self.tics[i])) and (not is_CTOI(self.tics[i])):
+
+        
+            # get multiple transit parameters
+            if self.disposition_human[i] < 2:
+                P, eP = self.Ps[i], self.e_Ps[i]
+                inc, einc = self.incs[i], np.mean([self.ehi_incs[i],self.elo_incs[i]])
+                rpRs, erpRs = self.rpRss[i], np.mean([self.ehi_rpRss[i],self.elo_rpRss[i]])
+                aRs, eaRs = self.aRss[i], np.mean([self.ehi_aRss[i],self.elo_aRss[i]])
+                rp, erp = self.rps[i], np.mean([self.ehi_rps[i],self.elo_rps[i]])
+                sma, esma = self.smas[i], np.mean([self.ehi_smas[i],self.elo_smas[i]])
+                notes = 'new CTOI from ORION (https://arxiv.org/abs/1812.08145)'
+
+            # get single transit parameters
+            elif self.disposition_human[i] >= 2:
+                P, eP = np.nan, np.nan#self.Ps_singletransit[i], np.mean([self.ehi_Ps_singletransit[i],self.elo_Ps_singletransit[i]])
+                inc, einc = self.inc_singletransit[i], np.mean([self.ehi_inc_singletransit[i],self.elo_inc_singletransit[i]])
+                rpRs, erpRs = self.rpRs_singletransit[i], np.mean([self.ehi_rpRs_singletransit[i],self.elo_rpRs_singletransit[i]])
+                aRs, eaRs = self.aRs_singletransit[i], np.mean([self.ehi_aRs_singletransit[i],self.elo_aRs_singletransit[i]])
+                rp, erp = self.rps_singletransit[i], np.mean([self.ehi_rps_singletransit[i],self.elo_rps_singletransit[i]])
+                #sampMs = np.random.randn(1000)*self.ehi_Mss[i] + self.Mss[i]
+                #_,_,sampP = get_samples_from_percentiles(P, self.ehi_Ps_singletransit[i], self.elo_Ps_singletransit[i])
+                #sampsma = rvs.semimajoraxis(sampP, sampMs, 0)
+                #v = np.percentile(sampsma, (16,50,84))
+                sma, esma = np.nan, np.nan#rvs.semimajoraxis(P, self.Mss[i], 0), np.mean([v[2]-v[1], v[1]-v[0]])
+                notes = 'new single transit CTOI from ORION (https://arxiv.org/abs/1812.08145)'
+
+            else:
+                raise ValueError('disposition %.1f is not valid.'%self.disposition_human[i])
+
+        
+            # get other planet params
+            T0, eT0 = self.T0s[i], self.e_T0s[i]
+            Z, eZ = self.depths[i], unp.std_devs(unp.uarray(rpRs,erpRs)**2)
+            ub = rvs.impactparam_inc_aRs(unp.uarray(aRs,eaRs), unp.uarray(inc,einc))
+            uD = rvs.transit_width_aRs(unp.uarray(P,eP), unp.uarray(aRs,eaRs), unp.uarray(Z,eZ), ub)
+            uTeq = unp.uarray(self.Teffs[i],self.ehi_Teffs[i]) * unp.sqrt(rvs.Rsun2m(unp.uarray(self.Rss[i],self.ehi_Rss[i])) \
+                                                                          / rvs.AU2m(2*unp.uarray(sma,esma)))
+            uS = unp.uarray(self.Rss[i],self.ehi_Rss[i])**2 * (unp.uarray(self.Teffs[i],self.ehi_Teffs[i])/5777)**4 * (1./unp.uarray(sma,esma))**2
+            D, eD = unp.nominal_values(uD), unp.std_devs(uD)
+            b, eb = unp.nominal_values(ub), unp.std_devs(ub)
+            Teq, eTeq = unp.nominal_values(uTeq), unp.std_devs(uTeq)
+            S, eS = unp.nominal_values(uS), unp.std_devs(uS)
+
+            # add ancillary stuff
+            flag, disp = 'newctoi', 'PC'
+            tag = '%s_cloutier_orion_%.5d'%(date_str, fname_index)
+            group, prop_P = '', 0
+        
+            # add planet parameters
+            outstr += 'TIC%i.01|%s|%s|'%(self.tics[i], flag, disp)
+            outstr += '%.6f|%.6f|%.5f|%.5f|'%(P, eP, T0, eT0)
+            outstr += '%.1f|%.1f|%.3f|%.3f|%.2f|%.2f|'%(Z, eZ, D, eD, inc, einc)
+            outstr += '%.3f|%.3f|%.4f|%.4f|%.1f|%.1f|'%(b, eb, rpRs, erpRs, aRs, eaRs)
+            outstr += '%.2f|%.2f|%.2f|%.2f|%.1f|%.1f|'%(rp, erp, np.nan, np.nan, Teq, eTeq)
+            outstr += '%.1f|%.1f|%.2f|%.2f|%.4f|%.4f|'%(S, eS, np.nan, np.nan, sma, esma)
+            outstr += '%.2f|%.2f|%.2f|%.2f|%.2f|%.2f|'%(0, 0, np.nan, np.nan, np.nan, np.nan)
+            outstr += '%.2f|%.2f|'%(np.nan, np.nan)
+            outstr += '%s|%s|%i|%s\n'%(tag, group, prop_P, notes)
+
+    # replace NaNs
+    outstr = outstr.replace('nan','')
+    
+    # remind me to check stuff:
+    # TIC name is not a duplicate
+    # TO is correct for single transit events
+    warnings.warn('\nThe parameters here (e.g. T0 for single transits) should be confirmed by-eye.') 
+
+    # save file
+    fname_out = 'ORION_PCs/params_planet_%s_%.3d.txt'%(date_str, fname_index)
+    f = open(fname_out, 'w')
+    f.write(outstr)
+    f.close()
+    
+    return outstr
+
+
+
+def is_TOI(tic):
+    '''check if the input TIC is already a TOI. The up-to-date list of TOIs can be downloaded from
+    list https://exofop.ipac.caltech.edu/tess/index.php'''
+    # get published list of all TOIs
+    toi_tics = np.loadtxt('ORION_PCs/exofop_tess_tois.csv', delimiter=',', skiprows=3, usecols=(0), dtype='|S50')
+    # check if the input tic is in the list of tois
+    return '"%s"'%tic in toi_tics 
+
+
+def is_CTOI(tic):
+    '''check if the input TIC is already a CTOI. The up-to-date list of CTOIs can be downloaded from
+    list https://exofop.ipac.caltech.edu/tess/index.php'''
+    # get published list of all CTOIs
+    ctoi_tics = np.loadtxt('ORION_PCs/exofop_tess_ctois.csv', delimiter=',', skiprows=3, usecols=(0), dtype='|S50')
+    # check if the input tic is in the list of ctois
+    return '"%s"'%tic in ctoi_tics 
+
+    
 
 def get_sectors(tics):
     '''Given a list of TICs, read-in the individual TESS sector targets lists 
@@ -108,4 +236,5 @@ def append_to_list(planet_str):
 if __name__ == '__main__':
     fname = 'PipelineResults_TIC_sector9/TIC_results_0_10000_det'
     self = loadpickle(fname)
-    append_to_list(get_PCs(self))
+    #append_to_list(get_PCs(self))
+    get_CTOIs(self, 9)

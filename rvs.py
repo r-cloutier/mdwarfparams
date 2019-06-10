@@ -80,6 +80,13 @@ def impactparam_inc(P_days, Ms_Msun, Rs_Rsun, inc_deg,
     return a_Rs * np.cos(inc) * ((1-ecc**2)/(1+ecc*np.sin(omega)))
 
 
+def impactparam_inc_aRs(aRs, inc_deg, ecc=0., omega_deg=0.):
+    '''Compute the impact parameter from the inclination and scaled
+    semimajor axis.'''
+    inc, omega = unumpy.radians(inc_deg), unumpy.radians(omega_deg)
+    return aRs * unumpy.cos(inc) * ((1-ecc**2)/(1+ecc*unumpy.sin(omega)))
+
+
 def impactparam_T(P_days, Ms_Msun, Rs_Rsun, T_days,
                   mp_Mearth=0., ecc=0., omega_deg=0.):
     '''Compute the impact parameter from the transit width.'''
@@ -111,6 +118,13 @@ def transit_width(P_days, Ms_Msun, Rs_Rsun, rp_Rearth, b,
     D = (Rearth2m(rp_Rearth) / Rs)**2
     return P_days/(np.pi*a_Rs) * np.sqrt((1+np.sqrt(D))**2 - b*b) * \
         (np.sqrt(1-ecc**2)/(1+ecc*np.sin(omega)))
+
+
+def transit_width_aRs(P_days, aRs, D, b, ecc=0., omega_deg=0.):
+    '''Compute the transit width (duration) in days.'''
+    omega = unumpy.radians(omega_deg)
+    return P_days/(np.pi*aRs) * unumpy.sqrt((1+unumpy.sqrt(D))**2 - b*b) * \
+        (unumpy.sqrt(1-ecc**2)/(1+ecc*unumpy.sin(omega)))
 
 
 def RM_K(vsini_kms, rp_Rearth, Rs_Rsun):
