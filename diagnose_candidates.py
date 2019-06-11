@@ -61,7 +61,7 @@ def diagnostic_plots(self, tic, sctr, folder='PipelineResults_TIC_sector34',
     tid3 = tic_str[8:12]
     tid4 = tic_str[12:]
     url = 'https://archive.stsci.edu/missions/tess/tid/'
-    folder = '%s/%s/%s/%s/%s/'%(sctr,tid1,tid2,tid3,tid4)
+    folder = 's%.4d/%s/%s/%s/%s/'%(sctr,tid1,tid2,tid3,tid4)
     print url+folder   
  
     # plot full light curve
