@@ -234,7 +234,7 @@ def append_to_list(planet_str):
 
 
 if __name__ == '__main__':
-    fname = 'PipelineResults_TIC_sector9/TIC_results_0_10000_det'
+    fname = 'PipelineResults_TIC_sector10/TIC_results_0_10000_det'
     self = loadpickle(fname)
     #append_to_list(get_PCs(self))
-    get_CTOIs(self, 9)
+    get_CTOIs(self, 10)
