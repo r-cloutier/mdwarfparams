@@ -25,6 +25,8 @@ def remove_detected_planets(folder, IDnum, prefix, bjd, f):
     except IOError:
         raise ValueError('initial planet search has not been run.')
 
+    assert d.DONE
+
     # get planet transit models
     fmodel = np.ones(bjd.size)
     for i in range(d.Ndet):
@@ -51,7 +53,7 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
     while not stable:       
         
         # sample SNR
-        SNR = np.random.uniform(7, 50, Nplanets)
+        SNR = np.random.uniform(3, 50, Nplanets)
 
         # get planets
         Ptrue = np.ones(Nplanets)
@@ -96,6 +98,14 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
     return Ptrue, T0true, depthtrue, durationtrue, rptrue, fmodel
 
 
+def is_good_K2_lightcurve(bjd):
+    '''Confirm that the input light curve has acceptable coverage.'''
+    good = np.zeros(2, dtype=bool)
+    dt = bjd.max()-bjd.min()
+    good[0] = (dt>=40) & (dt<=200)        # length of baseline is between 40-200 days (see input_data/K2targets/K2Ttots.npy for baseline lengths)
+    good[1] = True                        # have some other condition?
+    return np.all(good)
+
 
 def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False):
     '''Inject planets into a K2 light curve using the pipeline defined in
@@ -106,8 +116,11 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
         return None
 
     if K2:
-        name, star_dict, bjd, f, ef, quarters = read_K2_data_k2sff(IDnum)
+        name, star_dict, bjd, f, ef, quarters = read_K2_data_everest(IDnum)
 	prefix, Nopt = 'EPIC', 10
+	# check that the K2 light curve is acceptable, otherwise skip it
+	if not is_good_K2_lightcurve(bjd):
+	    return None
     elif Kep:
 	name, star_dict, bjd, f, ef, quarters = read_Kepler_data(IDnum)
 	prefix, Nopt = 'KepID', 5
@@ -216,7 +229,7 @@ if __name__ == '__main__':
     prefix, K2, Kep, TESS = 'EPIC', True, False, False
 
     # get EPICnums
-    ids = np.loadtxt('input_data/K2targets/K2lowmassstars_sensv2.csv', delimiter=',')[:,0]
+    ids = np.loadtxt('input_data/K2targets/K2lowmassstars_sensv4.csv', delimiter=',')[:,0]
 
     for i in range(Njobs):
 	i = np.random.choice(np.arange(0,ids.size))

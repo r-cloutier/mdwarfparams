@@ -5,10 +5,8 @@ import rvs, batman
 from scipy.interpolate import LinearNDInterpolator as lint
 
 global dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff, cutedges_hrs, Ndepths_2dur
-#dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-#                                                        2.4, 4.5, .7, .1, .7, .6
 minNpnts_intransit, dispersion_sig, depth_sig, bimodalfrac, T0tolerance, transitlikefrac, min_autocorr_coeff = \
-                                                        5, 2.4, 12., .7, .1, .7, .6
+                                                        5, 2.4, 8.4, .7, .1, .7, .6
 cutedges_hrs, Ndurs_nearT0, flare_dur_days, Nsig_flare = 4.8, 4, 30./60/24, 8
 ## could change 12.7 to 14 get a more reasonable number of planets but this may hurt sensitivity
 ## to small planets and it may be worth it to keep that sensitivity in return for having more FPs
