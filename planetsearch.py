@@ -252,7 +252,12 @@ def read_K2_data_everest(epicnum):
     f /= med
     name = hdu[1].header['OBJECT'].replace(' ','_')
     star_dict = get_star(epicnum, K2=True)
-    
+
+    # get finite data
+    g = np.isfinite(bjd) & np.isfinite(f) & np.isfinite(ef)
+    bjd, f, ef = bjd[g], f[g], ef[g]   
+ 
+    # sort and return time series
     s = np.argsort(bjd)
     quarters = np.zeros(bjd.size)
     return name, star_dict, bjd[s], f[s], ef[s], quarters[s]
