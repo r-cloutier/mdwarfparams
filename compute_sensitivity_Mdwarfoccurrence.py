@@ -53,7 +53,7 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
     while not stable:       
         
         # sample SNR
-        SNR = np.random.uniform(3, 50, Nplanets)
+        SNR = np.random.uniform(0, 50, Nplanets)
 
         # get planets
         Ptrue = np.ones(Nplanets)
@@ -67,7 +67,9 @@ def sample_planets_uniform(bjd, f, ef, Ms, Rs, Teff, Plims=(.5,200)):
         # sample rp from SNR
         D = rvs.transit_width(Ptrue, Ms, Rs, 2., 0.)
         sigdepth = np.array([llnl.estimate_CDPP(bjd, f, ef, d) for d in D])
-        Ntransits = np.array([llnl.compute_Ntransits(bjd, Ptrue[i], T0true[i]) for i in range(Nplanets)])
+        # ad hoc removal of transits in the ~3 day gap in the K2 light curves
+        Ntransits = np.array([llnl.compute_Ntransits(bjd, Ptrue[i], T0true[i]) - int(np.round(3./Ptrue[i]))
+                              for i in range(Nplanets)])
         rptrue = rvs.m2Rearth(rvs.Rsun2m(Rs)) * np.sqrt(SNR*sigdepth/np.sqrt(Ntransits))
     
         # get planet mass to ensure Lagrange stability
@@ -103,8 +105,20 @@ def is_good_K2_lightcurve(bjd):
     good = np.zeros(2, dtype=bool)
     dt = bjd.max()-bjd.min()
     good[0] = (dt>=40) & (dt<=200)        # length of baseline is between 40-200 days (see input_data/K2targets/K2Ttots.npy for baseline lengths)
-    good[1] = True                        # have some other condition?
+    good[1] = True			  # have some other condition?
     return np.all(good)
+
+
+def compute_Ntransits_complete(bjd, fmodel, P, T0, D):
+    '''Compute the number of observed transits of a particular transiting planet.'''
+    lim = np.ceil((bjd.max() - bjd.min()) / P)
+    possible_T0s = np.arange(-lim,lim)*P + T0
+    Ntransits = 0
+    for t in possible_T0s:
+        intransit = (bjd >= t-D/2.) & (bjd <= t+D/2.)
+        if np.any(fmodel[intransit] < 1):
+            Ntransits += 1
+    return Ntransits
 
 
 def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False):
@@ -182,11 +196,14 @@ def injected_planet_search(folder, IDnum, index, K2=False, Kep=False, TESS=False
                                for i in range(Nptrue)])
     self.depths_rec = self.params_guess[:,2]
     self.depths_inj = depthtrue
-    self.Ntransits_rec = np.array([llnl.compute_Ntransits(self.bjd,
-                                                          *self.params_guess[i,:2])
+    self.Ntransits_rec = np.array([compute_Ntransits_complete(self.bjd, self.fmodel,
+                                                              self.params_guess[i,0],
+                                                              self.params_guess[i,1],
+                                                              self.params_guess[i,3],)
                                    for i in range(Nprec)])
-    self.Ntransits_inj = np.array([llnl.compute_Ntransits(self.bjd,
-                                                          Ptrue[i], T0true[i])
+    self.Ntransits_inj = np.array([compute_Ntransits_complete(self.bjd, self.fmodel,
+                                                              Ptrue[i], T0true[i],
+                                                              durationtrue[i])
                                    for i in range(Nptrue)])
     self.SNRtransits_rec = self.depths_rec / self.CDPPs_rec * np.sqrt(self.Ntransits_rec)
     self.SNRtransits_inj = self.depths_inj / self.CDPPs_inj * np.sqrt(self.Ntransits_inj)
