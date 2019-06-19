@@ -21,7 +21,7 @@ def download_LCs(tics, folder='PipelineResults_TIC_sector34'):
 	
 	# make directory
 	try:
-	    os.mkdir('%s/TIC_%i'%(folder, tics[i]))
+	    os.mkdir('%s/EPIC_%i'%(folder, tics[i]))
 	except OSError:
 	    pass
 
@@ -29,7 +29,7 @@ def download_LCs(tics, folder='PipelineResults_TIC_sector34'):
 	os.system('wget %s/LC%i_-00099'%(url, tics[i]))
 	
 	# save light curve in the proper directory
-	os.system('mv LC%i_-00099 %s/TIC_%i/LC_-00099'%(tics[i],folder,tics[i]))
+	os.system('mv LC%i_-00099 %s/EPIC_%i/LC_-00099'%(tics[i],folder,tics[i]))
 
 
 def get_tics(self):
