@@ -3,6 +3,18 @@ from linear_lnlike import boxcar
 from occurrencerateclass import *
 
 
+def get_tics(self):
+    '''Create the array of tics which is often lacking in the detection 
+    object.'''
+    if not hasattr(self, 'tics'):
+        N = self.fs_planetsearch.size
+        self.tics = np.zeros(N, dtype=int)
+        for i in range(N):
+            self.tics[i] = int(self.fs_planetsearch[i].split('/')[1].split('_')[1])
+    self._pickleobject() 
+
+
+
 def get_tics_with_candidates(self):
     '''Get TICs with a detected planet candidate for use in copy_detections.py 
     on bubbles.'''
@@ -11,6 +23,7 @@ def get_tics_with_candidates(self):
                       for i in range(N)])
     g = self.Ps > 0
     return np.unique(ticsout[g])
+
 
 
 def download_LCs(tics, folder='PipelineResults_TIC_sector34'):
@@ -30,17 +43,6 @@ def download_LCs(tics, folder='PipelineResults_TIC_sector34'):
 	
 	# save light curve in the proper directory
 	os.system('mv LC%i_-00099 %s/EPIC_%i/LC_-00099'%(tics[i],folder,tics[i]))
-
-
-def get_tics(self):
-    '''Create the array of tics which is often lacking in the detection 
-    object.'''
-    if not hasattr(self, 'tics'):
-        N = self.fs_planetsearch.size
-        self.tics = np.zeros(N, dtype=int)
-        for i in range(N):
-            self.tics[i] = int(self.fs_planetsearch[i].split('/')[1].split('_')[1])
-    self._pickleobject() 
 
         
 def diagnostic_plots(self, tic, sctr, folder='PipelineResults_TIC_sector34',

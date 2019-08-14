@@ -301,13 +301,13 @@ def MK2Ms(MK):
 
 if __name__ == '__main__':
     t0 = time.time()
-    sector = 10
+    sector = 13
     fout = 'input_data/TESStargets/TESSMdwarfs_sector%i.csv'%sector
 
     # get M dwarf TICs in this sector
-    #ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.csv'%sector,
-    #                   delimiter=',', skiprows=6)[:,0]
-    ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.txt'%sector)[:,0]
+    ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.csv'%sector,
+                       delimiter=',', skiprows=6)[:,0]
+    #ticsS = np.loadtxt('input_data/TESStargets/all_targets_S%.3d_v1.txt'%sector)[:,0]
     ticsM = np.genfromtxt('input_data/TESStargets/TICv7_Mdwarfsv1.csv', 
 			  delimiter=',', skip_header=5, usecols=(0))#[:,0]
     tics = ticsS[np.in1d(ticsS, ticsM)]
