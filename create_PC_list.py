@@ -68,6 +68,8 @@ def get_CTOIs(self, fname_index):
     # get string
     date = datetime.datetime.now()
     date_str = '%.4d%.2d%.2d'%(date.year, date.month, date.day)
+
+    print '\nBe sure to update the list of TOIs and CTOIs from https://exofop.ipac.caltech.edu/tess/\n'
  
     # get columns of interest including uncertainties (NaNs where appropriate)
     # TIC,flag,disp,P,T0,Z,D,inc,b,rp/Rs,a/Rs,rp,mp,Teq,S,rho_star,sma,ecc,omega,tau_peri,K_RV,tag,group,prop_P,notes
@@ -80,6 +82,7 @@ def get_CTOIs(self, fname_index):
         # check if potential CTOIs are already a TOI or a CTOI
         if (not is_TOI(self.tics[i])) and (not is_CTOI(self.tics[i])):
 
+	    print 'TIC %i: possible new CTOI'%self.tics[i]
         
             # get multiple transit parameters
             if self.disposition_human[i] < 2:
@@ -138,6 +141,10 @@ def get_CTOIs(self, fname_index):
             outstr += '%.2f|%.2f|'%(np.nan, np.nan)
             outstr += '%s|%s|%i|%s\n'%(tag, group, prop_P, notes)
 
+	else:
+	    if is_TOI(self.tics[i]): print 'TIC %i: already a TOI'%self.tics[i]
+	    if is_CTOI(self.tics[i]): print 'TIC %i: already a CTOI'%self.tics[i]
+
     # replace NaNs
     outstr = outstr.replace('nan','')
     
@@ -160,7 +167,8 @@ def is_TOI(tic):
     '''check if the input TIC is already a TOI. The up-to-date list of TOIs can be downloaded from
     list https://exofop.ipac.caltech.edu/tess/index.php'''
     # get published list of all TOIs
-    toi_tics = np.loadtxt('ORION_PCs/exofop_tess_tois.csv', delimiter=',', skiprows=3, usecols=(0), dtype='|S50')
+    toi_tics = np.loadtxt('ORION_PCs/exofop_tess_tois.csv', delimiter=',', skiprows=3, usecols=(0),
+                          dtype='|S50')
     # check if the input tic is in the list of tois
     return '"%s"'%tic in toi_tics 
 
@@ -169,9 +177,13 @@ def is_CTOI(tic):
     '''check if the input TIC is already a CTOI. The up-to-date list of CTOIs can be downloaded from
     list https://exofop.ipac.caltech.edu/tess/index.php'''
     # get published list of all CTOIs
-    ctoi_tics = np.loadtxt('ORION_PCs/exofop_tess_ctois.csv', delimiter=',', skiprows=3, usecols=(0), dtype='|S50')
-    # check if the input tic is in the list of ctois
-    return '"%s"'%tic in ctoi_tics 
+    ctoi_tics, users = np.loadtxt('ORION_PCs/exofop_tess_ctois.csv', delimiter=',', skiprows=3,
+                                  usecols=(0,41), dtype='|S50').T
+    # check if the input tic is in the list of ctois and is not one of my own CTOIs
+    if '"%s"'%tic in ctoi_tics:
+	return users[ctoi_tics == '"%s"'%tic] != '"cloutier"'
+    else:
+	return np.array([False])
 
     
 
@@ -234,7 +246,7 @@ def append_to_list(planet_str):
 
 
 if __name__ == '__main__':
-    fname = 'PipelineResults_TIC_sector10/TIC_results_0_10000_det'
+    fname = 'PipelineResults_TIC_sector12/TIC_results_0_10000_det'
     self = loadpickle(fname)
     #append_to_list(get_PCs(self))
-    get_CTOIs(self, 10)
+    outstr = get_CTOIs(self, 12)

@@ -19,8 +19,8 @@ def get_samples_from_percentiles(val, ehi, elo, Nsamp=1e3, add_p5_p95=True, pltt
     p16, med, p84 = float(val-elo), float(val), float(val+ehi)    
     if np.any(np.isnan([p16,med,p84])):
 	return np.zeros(3) + np.nan
-    assert p16 < med
-    assert med < p84
+    assert p16 <= med
+    assert med <= p84
     
     # add approximate percentiles to help with fitting the wings
     # otherwise the resulting fitting distritubions tend to
